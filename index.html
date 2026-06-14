@@ -326,6 +326,43 @@
   .partchip button:hover{background:var(--red);color:#fff}
   .partadd{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .partadd input{flex:1 1 200px;min-width:160px}
+  /* ===== Maintenance Alert: area mode 'grouped' (Feeder / Ware Handling) — tanpa section ===== */
+  .mecharea{margin:4px 0 16px}
+  .area-lbl-row{display:flex;align-items:center;gap:9px;margin:14px 0 9px}
+  .area-lbl-row:first-child{margin-top:2px}
+  .area-lbl-row .area-lbl{display:inline-block;background:var(--accent);color:#1a1206;font-weight:900;font-size:11px;letter-spacing:.5px;text-transform:uppercase;border-radius:7px;padding:4px 12px}
+  .area-lbl-row .area-cnt{font-size:10.5px;color:var(--txt3);font-weight:700}
+  /* sub-header klasifikasi (PM) di Section Equipment */
+  .pmgrid{display:grid;grid-template-columns:1fr;gap:14px}
+  .pmgrid .pmgroup{margin:0;min-width:0}
+  .pmgroup{margin:0 0 12px}
+  .pmgroup-h{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--txt2);margin:6px 0 6px;padding-left:9px;border-left:3px solid var(--accent2)}
+  .pmgroup-h span:first-child{flex:0 0 auto}
+  @media(min-width:1001px){ .pmgrid{grid-template-columns:repeat(auto-fit,minmax(440px,1fr))} }
+  /* Settings: kartu lipat (accordion) — default hanya header tampil */
+  .setcard>h3.setcard-h{display:flex;align-items:center;gap:8px;margin:0;cursor:pointer;user-select:none}
+  .setcard>h3.setcard-h .setchev{margin-left:auto;color:var(--txt3);font-size:13px;transition:transform .18s;flex:0 0 auto}
+  .setcard.open>h3.setcard-h .setchev{transform:rotate(90deg)}
+  .setcard:not(.open):hover{border-color:var(--accent)}
+  .setcard .setbody{display:none;margin-top:14px}
+  .setcard.open .setbody{display:block}
+  .mechgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:11px}
+  .mechcard{background:var(--panel);border:1px solid var(--line2);border-radius:12px;padding:11px 12px}
+  .mechcard .mech-h{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--accent2);border-bottom:1px solid var(--line);padding-bottom:7px;margin-bottom:5px}
+  .mechcard .mech-h span:first-child{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mc-cnt{flex:0 0 auto;background:var(--panel2);color:var(--txt3);border-radius:20px;padding:1px 8px;font-size:10px;letter-spacing:0;font-weight:700}
+  .mpart-row{display:flex;align-items:center;gap:10px;padding:5px 4px;border-radius:8px;cursor:pointer;transition:.12s}
+  .mpart-row:hover{background:var(--panel2)}
+  .mpart-name{flex:1 1 auto;min-width:0;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mpart-val{position:relative;flex:0 0 auto;border-radius:7px;padding:5px 12px;font-family:'Spline Sans Mono';font-weight:700;font-size:13px;min-width:48px;text-align:center;overflow:visible}
+  .tbadge2{position:absolute;top:-8px;right:-7px;background:var(--red);color:#fff;font-size:9px;font-weight:800;line-height:1.5;padding:0 5px;border-radius:9px;font-family:'Spline Sans Mono';box-shadow:0 2px 7px rgba(0,0,0,.5);border:1.5px solid var(--bg2);white-space:nowrap}
+  /* editor mekanisme (bab) di Settings */
+  .mechedit{border:1px solid var(--line2);border-radius:11px;padding:10px 12px;margin-bottom:9px;background:var(--panel)}
+  .mech-eh{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+  .mech-elbl{font-weight:800;font-size:12.5px;flex:1 1 auto;min-width:120px}
+  .mech-eh .lnk{background:none;border:none;color:var(--blue);font-size:11px;font-weight:700;cursor:pointer;padding:2px 4px;border-radius:6px}
+  .mech-eh .lnk.del{color:var(--red)}
+  .mech-eh .lnk:hover{background:var(--panel2)}
   .tbadge{position:absolute;top:-8px;right:-7px;background:var(--red);color:#fff;font-size:9px;font-weight:800;line-height:1.5;padding:0 5px;border-radius:9px;font-family:'Spline Sans Mono';box-shadow:0 2px 7px rgba(0,0,0,.5);border:1.5px solid var(--bg2);z-index:3;pointer-events:none;white-space:nowrap}
 
   body.light{ --bg:#eef2f7; --bg2:#e6ecf4; --panel:#ffffff; --panel2:#eef3fa; --line:#d8e0ec; --line2:#c6d2e2; --txt:#1a2435; --txt2:#4a5a72; --txt3:#8493a8; --redbg:#fde8ea; --orangebg:#fdeede; --yellowbg:#faf3d6; --greenbg:#e2f6ea; --shadow:0 10px 30px rgba(30,50,80,.10); --hbg:rgba(255,255,255,.9); }
@@ -799,7 +836,7 @@ const DEFAULT_CFG = {
   machineSecs:{},
   partReasons:{}, commonReasons:['JobChange','Roaster'],
   parts:['Catridge','Baffle Arm','Blow Head','T/O Head','Neckring Arm'],
-  partAreas:{'Feeder Equipment':[],'Section Equipment':['Catridge','Baffle Arm','Blow Head','T/O Head','Neckring Arm'],'Ware Handling Equipment':[]},
+  partAreas:{'Feeder Equipment':{mode:'grouped',groups:[]},'Section Equipment':{mode:'section',groups:[{name:'Preventive Maintenance 1',parts:['Catridge','Baffle Arm','Blow Head','T/O Head','Neckring Arm']},{name:'Preventive Maintenance 2',parts:[]}]},'Ware Handling Equipment':{mode:'grouped',groups:[]}},
   reasons:['JobChange','Roaster','Lock ring patah','Lock ring keras','Lock ring lemah','Lock pin kendor',
     'Lock macet','Stopper ring patah','Baffle mark','Baffle oblak','Baffle kendor','Spring keras','Spring patah',
     'Coupler lepas','Coupler aus','Sharp bottom','Slug neck','Sunk in neck','Oval body','Tinggi sebelah',
@@ -820,15 +857,41 @@ const DEFAULT_CFG = {
   nextJC:'', actions:{}, demo:false, demoSec:8, uiScale:100
 };
 let DB=[], CFG=JSON.parse(JSON.stringify(DEFAULT_CFG)), actionStatus={}, JCPLANS=[], STOCK=[];
-/* ===== Equipment areas untuk part: Feeder / Section / Ware Handling ===== */
+/* ===== Equipment areas. Tiap area punya MODE + GROUPS [{name, parts:[...]}]:
+   - 'section' : groups = klasifikasi PM (PM1, PM2...) → tiap grup dirender matriks per-section (S1..Sn)
+   - 'grouped' : groups = mekanisme/"bab"            → tiap grup dirender kartu (tanpa section)
+===== */
 const PART_AREAS=['Feeder Equipment','Section Equipment','Ware Handling Equipment'];
+const AREA_DEFAULT_MODE={'Feeder Equipment':'grouped','Section Equipment':'section','Ware Handling Equipment':'grouped'};
 function areaListAll(){ var ks=PART_AREAS.slice(); Object.keys(CFG.partAreas||{}).forEach(function(a){ if(ks.indexOf(a)<0)ks.push(a); }); return ks; }
-function partAreaOf(p){ var ks=areaListAll(); for(var i=0;i<ks.length;i++){ if((CFG.partAreas[ks[i]]||[]).indexOf(p)>=0) return ks[i]; } return null; }
-function syncPartsFromAreas(){ if(!CFG.partAreas) return; var out=[]; areaListAll().forEach(function(a){ (CFG.partAreas[a]||[]).forEach(function(p){ if(p&&out.indexOf(p)<0)out.push(p); }); }); CFG.parts=out; }
+function areaDef(area){ var d=CFG.partAreas&&CFG.partAreas[area]; return (d&&typeof d==='object'&&!Array.isArray(d))?d:null; }
+function areaModeOf(area){ var d=areaDef(area); return (d&&d.mode==='grouped')?'grouped':'section'; }
+function areaGroupsOf(area){ var d=areaDef(area); return (d&&Array.isArray(d.groups))?d.groups:[]; }
+function areaPartsFlat(area){ var d=areaDef(area); if(!d)return []; var out=[]; if(Array.isArray(d.groups)){ d.groups.forEach(function(g){ (g.parts||[]).forEach(function(p){ if(p&&out.indexOf(p)<0)out.push(p); }); }); return out; } return (d.parts||[]).slice(); }
+function partAreaOf(p){ var ks=areaListAll(); for(var i=0;i<ks.length;i++){ if(areaPartsFlat(ks[i]).indexOf(p)>=0) return ks[i]; } return null; }
+function sectionParts(){ var out=[]; areaListAll().forEach(function(a){ if(areaModeOf(a)==='section') areaPartsFlat(a).forEach(function(p){ if(out.indexOf(p)<0)out.push(p); }); }); return out; }
+function syncPartsFromAreas(){ if(!CFG.partAreas) return; var out=[]; areaListAll().forEach(function(a){ areaPartsFlat(a).forEach(function(p){ if(p&&out.indexOf(p)<0)out.push(p); }); }); CFG.parts=out; }
+function _sectionDumpGroup(){ var d=areaDef('Section Equipment'); if(!d)return null; if(!Array.isArray(d.groups))d.groups=[]; if(!d.groups.length)d.groups.push({name:'Preventive Maintenance 1',parts:[]}); return d.groups[0]; }
 function ensurePartAreas(hadAreas){
-  if(!hadAreas || !CFG.partAreas || typeof CFG.partAreas!=='object'){ CFG.partAreas={'Feeder Equipment':[],'Section Equipment':(CFG.parts||[]).slice(),'Ware Handling Equipment':[]}; }
-  PART_AREAS.forEach(function(a){ if(!Array.isArray(CFG.partAreas[a])) CFG.partAreas[a]=[]; });
-  (CFG.parts||[]).forEach(function(p){ if(!partAreaOf(p)) CFG.partAreas['Section Equipment'].push(p); });   // part tanpa area → Section
+  if(!CFG.partAreas||typeof CFG.partAreas!=='object') CFG.partAreas={};
+  PART_AREAS.forEach(function(a){ if(!(a in CFG.partAreas)) CFG.partAreas[a]={mode:(AREA_DEFAULT_MODE[a]||'section'),groups:[]}; });
+  Object.keys(CFG.partAreas).forEach(function(a){
+    var d=CFG.partAreas[a]; var mode=AREA_DEFAULT_MODE[a]||'section';
+    var defName=(mode==='grouped')?'Mekanisme 1':'Preventive Maintenance 1';
+    if(Array.isArray(d)){   // format LAMA (array datar) → konversi ke groups
+      CFG.partAreas[a]={mode:mode,groups:(d.length?[{name:defName,parts:d.slice()}]:[])};
+    } else if(d&&typeof d==='object'){
+      if(d.mode!=='grouped'&&d.mode!=='section') d.mode=mode;
+      if(!Array.isArray(d.groups)){   // format {parts:[...]} → satu grup default
+        var lp=Array.isArray(d.parts)?d.parts.slice():[];
+        d.groups=lp.length?[{name:(d.mode==='grouped'?'Mekanisme 1':'Preventive Maintenance 1'),parts:lp}]:[];
+      }
+      if('parts' in d) delete d.parts;
+      d.groups.forEach(function(g){ if(!Array.isArray(g.parts))g.parts=[]; if(typeof g.name!=='string')g.name=defName; });
+    } else { CFG.partAreas[a]={mode:mode,groups:[]}; }
+  });
+  if(!hadAreas){ var g0=_sectionDumpGroup(); if(g0){ (CFG.parts||[]).forEach(function(p){ if(g0.parts.indexOf(p)<0)g0.parts.push(p); }); } }
+  (CFG.parts||[]).forEach(function(p){ if(!partAreaOf(p)){ var g=_sectionDumpGroup(); if(g&&g.parts.indexOf(p)<0)g.parts.push(p); } });
   syncPartsFromAreas();
 }
 // "today" anchored to Bangkok time (UTC+7 / ICT)
@@ -1147,7 +1210,7 @@ function normReason(s){ if(!s)return ''; let x=String(s).trim().toLowerCase().re
   for(const mp of map){ if(mp[0].test(x))return mp[1]; }
   return x;
 }
-function comboRecords(machine,section,part){ return enriched().filter(r=>r.machine===machine&&r.section===section&&r.part===part).sort((a,b)=>a.d-b.d); }
+function comboRecords(machine,section,part){ return enriched().filter(r=>r.machine===machine&&(section==null||section==='*'||r.section===section)&&r.part===part).sort((a,b)=>a.d-b.d); }
 function intervalsOf(recs){ const out=[]; for(let i=1;i<recs.length;i++) out.push({date:recs[i].d,gap:daysBetween(recs[i-1].d,recs[i].d),cat:recs[i].cat,reason:recs[i].reason}); return out; }
 function mtbfOf(recs){ if(!recs||recs.length<2)return null; let t=0; for(let i=1;i<recs.length;i++)t+=daysBetween(recs[i-1].d,recs[i].d); return t/(recs.length-1); }
 
@@ -1282,7 +1345,7 @@ function openComboHistory(machine,section,part){
   const troubleN=recs.filter(r=>r.cat!=='Scheduled').length;
   const rc=(d,c,r)=>`<div class="xrowc"><span class="mono" style="min-width:78px">${fmtD(d)}</span><span>${pill(c)}</span><span style="color:var(--txt2);flex:1;text-align:right">${r||'-'}</span></div>`;
   document.getElementById('hbox').innerHTML=`<div class="mh">
-      <div style="font-size:17px;font-weight:800">📈 ${machine} · ${section} · ${part}</div>
+      <div style="font-size:17px;font-weight:800">📈 ${machine}${section&&section!=='*'?(' · '+section):''} · ${part}</div>
       <button class="x" onclick="closeHmodal()" style="margin-left:auto">✕</button></div>
     <div class="mscroll">
     <div class="kpis" style="grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">
@@ -1327,8 +1390,8 @@ function toggleMFilt(){window._mFiltOpen=!window._mFiltOpen;renderMachineModal()
 function toggleMSec(x){const a=window._mSecs;const i=a.indexOf(x);i<0?a.push(x):a.splice(i,1);renderMachineModal();}
 function toggleMPart(x){const a=window._mParts;const i=a.indexOf(x);i<0?a.push(x):a.splice(i,1);renderMachineModal();}
 function mAllSecs(v){window._mSecs=v?sectionsOf(window._mSel):[];renderMachineModal();}
-function mAllParts(v){window._mParts=v?CFG.parts.slice():[];renderMachineModal();}
-function mActiveParts(){ const sel=window._mSel; const sm=machineSchedule(sel); const secs=sectionsOf(sel); window._mParts=CFG.parts.filter(p=>partHasData(sel,sm,secs,p)); window._mPartsFor=sel; renderMachineModal(); }
+function mAllParts(v){window._mParts=v?sectionParts():[];renderMachineModal();}
+function mActiveParts(){ const sel=window._mSel; const sm=machineSchedule(sel); const secs=sectionsOf(sel); window._mParts=sectionParts().filter(p=>partHasData(sel,sm,secs,p)); window._mPartsFor=sel; renderMachineModal(); }
 /* ===== Matrix jadwal: section = KOLOM (ke samping), part = BARIS (ke bawah) ===== */
 function jsAttr(s){ return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
 function schedCellHTML(sel,schedMap,sx,p){
@@ -1368,6 +1431,63 @@ function schedMatrixGroupedHTML(sel,schedMap,secsList,groups,emptyMsg){
   });
   h+='</tbody></table></div>'; return h;
 }
+/* ===== Status per (mesin, part) tanpa section (untuk Feeder / Ware Handling) ===== */
+function machinePartStatus(sel,part){
+  var list=enriched().filter(function(r){return r.machine===sel&&r.part===part;});
+  var sched=[],trbl=[]; list.forEach(function(r){ if(r.cat==='Scheduled')sched.push(r); else trbl.push(r); });
+  sched.sort(function(a,b){return a.d-b.d;}); trbl.sort(function(a,b){return b.d-a.d;});
+  var lt=lifetimeOf(part); var lastSched=sched.length?sched[sched.length-1].d:null;
+  var nd=lastSched?new Date(lastSched.getTime()+lt*86400000):null; var rem=nd?daysBetween(TODAY,nd):null;
+  var status=rem===null?'NO DATA':statusOf(rem);
+  return {part:part,lt:lt,lastSched:lastSched,nextDue:nd,rem:rem,status:status,count:sched.length+trbl.length,trouble:trbl.length,troubleList:trbl.map(function(r){return {date:r.date,reason:r.reason};}),schedList:sched.slice().reverse().map(function(r){return {date:r.date,reason:r.reason};})};
+}
+function machPartRowHTML(sel,p){
+  var x=machinePartStatus(sel,p);
+  var cc=(x.status&&x.status!=='NO DATA')?(_SB[x.status]||['var(--panel)','var(--txt3)']):['var(--panel)','var(--txt3)'];
+  var val=(x.rem==null)?'\u2014':x.rem;
+  var tb=(x.trouble>0)?'<span class="tbadge2">\u26A0'+x.trouble+'</span>':'';
+  return '<div class="mpart-row clk" onclick="openMachPart(\''+jsAttr(p)+'\')" title="'+esc(p)+(x.lastSched?(' \u00b7 due '+fmtD(x.nextDue)):' \u00b7 belum ada data')+' \u00b7 klik untuk detail">'
+    +'<span class="mpart-name">'+esc(p)+'</span><span class="mpart-val" style="background:'+cc[0]+';color:'+cc[1]+'">'+tb+val+'</span></div>';
+}
+function machGroupedHTML(sel,area,selParts){
+  var groups=areaGroupsOf(area);
+  var vis=groups.map(function(g){return {name:g.name,parts:(g.parts||[]).filter(function(p){return selParts.indexOf(p)>=0;})};}).filter(function(g){return g.parts.length;});
+  if(!vis.length) return '';
+  var tot=vis.reduce(function(n,g){return n+g.parts.length;},0);
+  var h='<div class="mecharea"><div class="area-lbl-row"><span class="area-lbl">'+esc(area)+'</span><span class="area-cnt">'+tot+' part \u00b7 '+vis.length+' mekanisme</span></div><div class="mechgrid">';
+  vis.forEach(function(g){
+    h+='<div class="mechcard"><div class="mech-h"><span>'+esc(g.name)+'</span><span class="mc-cnt">'+g.parts.length+'</span></div>';
+    g.parts.forEach(function(p){ h+=machPartRowHTML(sel,p); });
+    h+='</div>';
+  });
+  h+='</div></div>'; return h;
+}
+/* area mode 'section' → satu header area + tiap klasifikasi (PM) dirender matriks per-section sendiri */
+function sectionAreaHTML(sel,schedMap,area,secs,selParts){
+  var groups=areaGroupsOf(area);
+  var vis=groups.map(function(g){return {name:g.name,parts:(g.parts||[]).filter(function(p){return selParts.indexOf(p)>=0;})};}).filter(function(g){return g.parts.length;});
+  if(!vis.length||!secs.length) return '';
+  var tot=vis.reduce(function(n,g){return n+g.parts.length;},0);
+  var h='<div class="mecharea"><div class="area-lbl-row"><span class="area-lbl">'+esc(area)+'</span><span class="area-cnt">'+tot+' part \u00b7 '+vis.length+' klasifikasi \u00b7 per section</span></div><div class="pmgrid">';
+  vis.forEach(function(g){
+    h+='<div class="pmgroup"><div class="pmgroup-h"><span>'+esc(g.name)+'</span><span class="mc-cnt">'+g.parts.length+' part</span></div>'+schedMatrixHTML(sel,schedMap,secs,g.parts,'')+'</div>';
+  });
+  h+='</div></div>'; return h;
+}
+function openMachPart(part){
+  var sel=window._mSel; var x=machinePartStatus(sel,part);
+  var sched=(x.schedList||[]); var trbl=(x.troubleList||[]);
+  var rc=function(d,r,c){return '<div class="xrowc"><span class="mono" style="color:'+c+'">'+fmtD(parseD(d))+'</span><span style="color:var(--txt2)">'+(r||'-')+'</span></div>';};
+  var remc=(x.rem<0?'var(--red)':x.rem<=7?'var(--orange)':x.rem<=14?'var(--yellow)':'var(--green)');
+  document.getElementById('cbox').innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px"><b style="font-size:15px">'+esc(sel)+' \u00b7 '+esc(part)+'</b><button class="btn sec sm" style="margin-left:auto" onclick="openComboHistory(\''+jsAttr(sel)+'\',\'*\',\''+jsAttr(part)+'\')">\ud83d\udcc8 Trend</button><button class="x" onclick="closeCmodal()">\u2715</button></div>'
+    +'<div class="sub" style="margin-bottom:8px">Equipment level \u00b7 tanpa section (gabungan seluruh data part ini di mesin '+esc(sel)+').</div>'
+    +'<div class="sectiontitle" style="margin:6px 0">\ud83d\udcc5 Jadwal / Schedule</div>'
+    +(x.lastSched?'<div class="note" style="margin:0 0 8px">Last: <b>'+fmtD(x.lastSched)+'</b> \u00b7 Next due: <b>'+fmtD(x.nextDue)+'</b> \u00b7 Remaining <b style="color:'+remc+'">'+x.rem+' days</b></div>':'<div class="note" style="margin:0 0 8px">Belum ada replacement terjadwal.</div>')
+    +(sched.length?sched.map(function(z){return rc(z.date,z.reason,'var(--green)');}).join(''):'<div style="color:var(--txt3);font-size:12px">\u2014</div>')
+    +'<div class="sectiontitle" style="margin:12px 0 6px">\ud83d\udd27 Trouble / off-schedule ('+trbl.length+')</div>'
+    +(trbl.length?trbl.map(function(z){return rc(z.date,z.reason,'var(--red)');}).join(''):'<div style="color:var(--txt3);font-size:12px">No trouble \u2014 great! \ud83c\udf89</div>');
+  document.getElementById('cmodal').classList.add('show');
+}
 function openSchedFull(){
   var sel=window._mSel; if(!sel)return;
   var allSecs=sectionsOf(sel);
@@ -1383,27 +1503,30 @@ function sfToggleSec(x){ var a=window._sfSecs; var i=a.indexOf(x); i<0?a.push(x)
 function sfTogglePart(x){ var a=window._sfParts; var i=a.indexOf(x); i<0?a.push(x):a.splice(i,1); renderSchedFull(); }
 function sfAllSecs(v){ window._sfSecs=v?sectionsOf(window._mSel).slice():[]; renderSchedFull(); }
 function sfAllParts(v){ window._sfParts=v?CFG.parts.slice():[]; renderSchedFull(); }
-function sfAreaAll(area,v){ var ps=CFG.partAreas[area]||[]; ps.forEach(function(p){ var i=window._sfParts.indexOf(p); if(v){ if(i<0)window._sfParts.push(p); } else if(i>=0){ window._sfParts.splice(i,1); } }); renderSchedFull(); }
+function sfAreaAll(area,v){ areaPartsFlat(area).forEach(function(p){ var i=window._sfParts.indexOf(p); if(v){ if(i<0)window._sfParts.push(p); } else if(i>=0){ window._sfParts.splice(i,1); } }); renderSchedFull(); }
 function renderSchedFull(){
   var sel=window._mSel; if(!sel)return;
   var schedMap=machineSchedule(sel); window._mSchedMap=schedMap;
   var allSecs=sectionsOf(sel);
   var secs=allSecs.filter(function(s){return window._sfSecs.indexOf(s)>=0;});
   var selParts=CFG.parts.filter(function(p){return window._sfParts.indexOf(p)>=0;});
-  var groups=areaListAll().map(function(a){ return {area:a, parts:(CFG.partAreas[a]||[]).filter(function(p){return selParts.indexOf(p)>=0;})}; });
-  var totalParts=groups.reduce(function(n,g){return n+g.parts.length;},0);
-  var mtx=schedMatrixGroupedHTML(sel,schedMap,secs,groups,'Tidak ada part terpilih. Atur filter, atau tambah part lewat <b>Settings \u2192 Part per Area Equipment</b>.');
+  // setiap area = satu header sendiri; section → matriks per klasifikasi (PM), grouped → kartu mekanisme
+  var body=areaListAll().map(function(a){
+    return (areaModeOf(a)==='section') ? sectionAreaHTML(sel,schedMap,a,secs,selParts) : machGroupedHTML(sel,a,selParts);
+  }).join('');
+  if(!body) body='<div class="note" style="margin:6px 0">Tidak ada part terpilih. Atur filter, atau tambah part lewat <b>Settings \u2192 Part per Area Equipment</b>.</div>';
   var partFilter='';
-  areaListAll().forEach(function(a){ var ps=CFG.partAreas[a]||[]; if(!ps.length)return;
-    partFilter+='<div class="fclabel" style="margin-top:8px">'+esc(a)+' \u00b7 <a onclick="sfAreaAll(\''+jsAttr(a)+'\',true)" style="cursor:pointer;color:var(--blue)">all</a> / <a onclick="sfAreaAll(\''+jsAttr(a)+'\',false)" style="cursor:pointer;color:var(--txt3)">none</a></div>'
+  areaListAll().forEach(function(a){ var ps=areaPartsFlat(a); if(!ps.length)return;
+    partFilter+='<div class="fclabel" style="margin-top:8px">'+esc(a)+' <span style="color:var(--txt3);font-weight:600">('+(areaModeOf(a)==='grouped'?'mekanisme':'section')+')</span> \u00b7 <a onclick="sfAreaAll(\''+jsAttr(a)+'\',true)" style="cursor:pointer;color:var(--blue)">all</a> / <a onclick="sfAreaAll(\''+jsAttr(a)+'\',false)" style="cursor:pointer;color:var(--txt3)">none</a></div>'
       +'<div class="fchips">'+ps.map(function(x){return '<span class="fchip '+(window._sfParts.indexOf(x)>=0?'on':'')+'" onclick="sfTogglePart(\''+jsAttr(x)+'\')">'+esc(x)+'</span>';}).join('')+'</div>';
   });
+  var secFilter = allSecs.length?('<div class="fclabel">Section <span style="color:var(--txt3);font-weight:600">(utk area per-section)</span> \u00b7 <a onclick="sfAllSecs(true)" style="cursor:pointer;color:var(--blue)">all</a> / <a onclick="sfAllSecs(false)" style="cursor:pointer;color:var(--txt3)">empty</a></div>'
+      +'<div class="fchips">'+allSecs.map(function(x){return '<span class="fchip '+(window._sfSecs.indexOf(x)>=0?'on':'')+'" onclick="sfToggleSec(\''+jsAttr(x)+'\')">'+esc(x)+'</span>';}).join('')+'</div>'):'';
   var fpop='<div class="filt-wrap" style="margin-left:auto">'
     +'<button class="filt-btn '+(window._sfFiltOpen?'on':'')+'" onclick="sfToggleFilt()" title="Filter section & part"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 5h18l-7 8v5l-4 2v-7z"/></svg></button>'
     +'<div class="filt-pop '+(window._sfFiltOpen?'show':'')+'">'
       +'<div style="display:flex;align-items:center;margin-bottom:2px"><b style="font-size:12px">Filter Tampilan</b><button class="x" style="margin-left:auto;width:24px;height:24px" onclick="sfToggleFilt()">\u2715</button></div>'
-      +'<div class="fclabel">Section \u00b7 <a onclick="sfAllSecs(true)" style="cursor:pointer;color:var(--blue)">all</a> / <a onclick="sfAllSecs(false)" style="cursor:pointer;color:var(--txt3)">empty</a></div>'
-      +'<div class="fchips">'+allSecs.map(function(x){return '<span class="fchip '+(window._sfSecs.indexOf(x)>=0?'on':'')+'" onclick="sfToggleSec(\''+jsAttr(x)+'\')">'+esc(x)+'</span>';}).join('')+'</div>'
+      +secFilter
       +'<div class="fclabel" style="margin-top:11px;border-top:1px solid var(--line);padding-top:9px">Part per Area \u00b7 <a onclick="sfAllParts(true)" style="cursor:pointer;color:var(--blue)">all</a> / <a onclick="sfAllParts(false)" style="cursor:pointer;color:var(--txt3)">empty</a></div>'
       +partFilter
     +'</div></div>';
@@ -1414,8 +1537,8 @@ function renderSchedFull(){
     +'<button class="x" onclick="closeSchedFull()">\u2715</button>'
     +'</div>'
     +'<div class="mscroll">'
-    +'<div class="schedhint" style="font-size:11px;color:var(--txt3);font-weight:600;margin-bottom:10px">Part dikelompokkan per <b>area equipment</b> (baris) \u00d7 section (kolom). Angka = sisa hari \u00b7 <span style="color:var(--teal)">\u267B roaster</span> \u00b7 \u26A0 trouble \u00b7 \u2014 belum ada data (klik untuk rencana). Tampil <b>'+totalParts+'</b> part \u00d7 <b>'+secs.length+'</b> section. Kelola part di <b>Settings \u2192 Part per Area Equipment</b>.</div>'
-    +mtx+'</div>';
+    +'<div class="schedhint" style="font-size:11px;color:var(--txt3);font-weight:600;margin-bottom:10px">Angka = sisa hari \u00b7 <span style="color:var(--teal)">\u267B roaster</span> \u00b7 \u26A0 trouble \u00b7 \u2014 belum ada data (klik untuk detail/rencana). <b>Section Equipment</b> tampil per-section; <b>Feeder</b> & <b>Ware Handling</b> tampil per mekanisme (tanpa section). Kelola di <b>Settings \u2192 Part per Area Equipment</b>.</div>'
+    +body+'</div>';
   document.getElementById('sfbox').innerHTML=html;
 }
 function renderMachineModal(){
@@ -1429,9 +1552,9 @@ function renderMachineModal(){
   const kpi=(c,v,l,ic)=>`<div class="kpi" style="--c:${c};padding:10px 11px"><span class="ic">${ic}</span><div class="v" style="font-size:22px">${v}</div><div class="l">${l}</div></div>`;
   // Ringkasan "Schedule Roaster Part per Section": section = kolom, part = baris; part bisa dipilih lewat filter
   const _allSecs=sectionsOf(sel);
-  const _activeParts=CFG.parts.filter(p=>partHasData(sel,schedMap,_allSecs,p));
+  const _activeParts=sectionParts().filter(p=>partHasData(sel,schedMap,_allSecs,p));
   if(window._mPartsFor!==sel){ window._mParts=_activeParts.slice(); window._mPartsFor=sel; }   // default tiap mesin = part aktif
-  const _sumParts=CFG.parts.filter(p=>window._mParts.includes(p));
+  const _sumParts=sectionParts().filter(p=>window._mParts.includes(p));
   let mtx=schedMatrixHTML(sel,schedMap,_allSecs,_sumParts,'Tidak ada part dipilih. Buka filter (corong) untuk memilih part, atau klik <b>\uD83D\uDEA8 Maintenance Alert</b>.');
   document.getElementById('mbox').innerHTML=`<div class="mh">
       <div style="font-size:26px;font-weight:900;font-family:'Spline Sans Mono';color:var(--accent2)">${sel}</div>
@@ -1453,7 +1576,7 @@ function renderMachineModal(){
             <div class="filt-pop ${window._mFiltOpen?'show':''}">
               <div style="display:flex;align-items:center;margin-bottom:2px"><b style="font-size:12px">Pilih Part yang Tampil</b><button class="x" style="margin-left:auto;width:24px;height:24px" onclick="toggleMFilt()">✕</button></div>
               <div class="fclabel">Part · <a onclick="mActiveParts()" style="cursor:pointer;color:var(--blue)">aktif</a> / <a onclick="mAllParts(true)" style="cursor:pointer;color:var(--blue)">semua</a> / <a onclick="mAllParts(false)" style="cursor:pointer;color:var(--txt3)">kosong</a></div>
-              <div class="fchips">${CFG.parts.map(x=>`<span class="fchip ${window._mParts.includes(x)?'on':''}" onclick="toggleMPart('${jsAttr(x)}')">${esc(x)}</span>`).join('')}</div>
+              <div class="fchips">${sectionParts().map(x=>`<span class="fchip ${window._mParts.includes(x)?'on':''}" onclick="toggleMPart('${jsAttr(x)}')">${esc(x)}</span>`).join('')}</div>
             </div>
           </div>
           <button class="filt-btn" onclick="openSchedFull()" title="Maintenance Alert Equipment (semua part per area)" aria-label="Maintenance Alert"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
@@ -3192,8 +3315,35 @@ function vFc(){
 }
 
 /* ---- SETTINGS ---- */
+/* ===== Settings: jadikan tiap kartu bisa dilipat (hanya header tampil; klik untuk buka) ===== */
+let _setOpen={};
+function toggleAllSet(open){ const view=document.querySelector('#main .view'); if(!view)return;
+  view.querySelectorAll('.setcard').forEach(function(card){ const h=card.querySelector('h3.setcard-h'); const key=h?(h.getAttribute('data-key')||''):''; if(key)_setOpen[key]=open; card.classList.toggle('open',open); }); }
+function enhanceSettingsCollapse(){
+  if(current!=='set')return;
+  const view=document.querySelector('#main .view'); if(!view)return;
+  const cards=Array.prototype.slice.call(view.querySelectorAll('.card')).filter(function(c){
+    return !(c.parentElement && c.parentElement.closest && c.parentElement.closest('.card'));
+  });
+  cards.forEach(function(card){
+    const h=card.querySelector('h3'); if(!h || h.parentElement!==card) return;
+    const tmp=h.cloneNode(true); tmp.querySelectorAll('.tag,.setchev,.al-go').forEach(function(e){e.remove();});
+    const key=(tmp.textContent||'').replace(/\s+/g,' ').trim();
+    const body=document.createElement('div'); body.className='setbody';
+    let n=h.nextSibling; while(n){ const nx=n.nextSibling; body.appendChild(n); n=nx; }
+    card.appendChild(body);
+    card.classList.add('setcard');
+    if(!h.querySelector('.setchev')){ const cv=document.createElement('span'); cv.className='setchev'; cv.textContent='\u25B8'; h.appendChild(cv); }
+    h.classList.add('setcard-h'); h.setAttribute('data-key',key); h.style.cursor='pointer';
+    const open=!!_setOpen[key]; card.classList.toggle('open',open);
+    h.addEventListener('click',function(){ const willOpen=!card.classList.contains('open'); _setOpen[key]=willOpen; card.classList.toggle('open',willOpen); });
+    if(card.parentElement && card.parentElement.classList.contains('grid')) card.parentElement.style.alignItems='flex-start';
+  });
+}
 function vSet(){
+  after.push(enhanceSettingsCollapse);
   return `<h2 class="title">⚙️ Settings & Data</h2><div class="sub">Configure lifetimes, thresholds, master list, and data backup.</div>
+  <div class="toolbar" style="margin:0 0 10px;gap:8px"><button class="btn sec sm" onclick="toggleAllSet(true)">⬇ Buka semua</button><button class="btn sec sm" onclick="toggleAllSet(false)">⬆ Tutup semua</button><span class="note" style="margin:0;align-self:center">Klik judul tiap bagian untuk buka/tutup.</span></div>
   <div class="grid g2">
     <div class="card"><h3>⏱️ Lifetime Target (days)</h3>
       ${CFG.parts.map(p=>`<div class="fg" style="flex-direction:row;align-items:center;gap:12px;margin-bottom:9px"><label style="width:130px">${p}</label><input type="number" value="${CFG.lifetimes[p]}" onchange="setLT('${p}',this.value)" style="width:100px"></div>`).join('')}
@@ -3299,13 +3449,26 @@ function vSet(){
       </div>`}).join('')}
   </div>
   <div class="card" style="margin-top:14px"><h3>🧩 Part per Area Equipment<span class="tag">${CFG.parts.length} part</span></h3>
-    <div class="note" style="margin:0 0 12px">Kategorikan part PM per <b>area equipment</b>. Part akan tampil berkelompok di pop-up <b>🚨 Maintenance Alert Equipment</b>. Bisa tambah beberapa sekaligus dengan dipisah koma. Menghapus part tidak menghapus data riwayat lama.</div>
-    ${areaListAll().map((a,i)=>{const ps=CFG.partAreas[a]||[];return `
-      <div class="areaedit">
-        <div class="area-h">${esc(a)}<small>${ps.length} part</small></div>
-        <div class="partchips">${ps.length?ps.map(p=>`<span class="partchip">${esc(p)}<button title="Hapus part" onclick="delPartArea('${jsAttr(a)}','${jsAttr(p)}')">×</button></span>`).join(''):'<span class="note" style="margin:0">Belum ada part di area ini.</span>'}</div>
-        <div class="partadd"><input id="np_${i}" placeholder="Nama part baru (mis. Plunger, Tube, Orifice)" onkeydown="if(event.key==='Enter'){event.preventDefault();addPartArea(${i});}"><button class="btn sec sm" onclick="addPartArea(${i})">+ Tambah</button></div>
-      </div>`;}).join('')}
+    <div class="note" style="margin:0 0 12px"><b>Section Equipment</b> dibagi per <b>klasifikasi PM</b> (mis. Preventive Maintenance 1 = head/arm, PM 2 = mechanic) dan tetap tampil sebagai matriks per section (S1–Sn). <b>Feeder</b> &amp; <b>Ware Handling</b> tidak pakai section — dibagi per <b>mekanisme</b> (bab), lalu part (sub-bab). Semua nama grup bebas Anda atur. Tambah beberapa part sekaligus dengan dipisah koma; menghapus tidak menghapus data riwayat lama.</div>
+    ${areaListAll().map((a,i)=>{
+      const grouped=areaModeOf(a)==='grouped';
+      const term=grouped?'mekanisme':'klasifikasi (PM)';
+      const groups=areaGroupsOf(a);
+      const phPart=grouped?'Part baru di mekanisme ini':'Part baru di klasifikasi ini';
+      const phNew=grouped?'Nama mekanisme baru (mis. Feeder Plunger Mechanism)':'Nama klasifikasi baru (mis. Preventive Maintenance 3)';
+      return `<div class="areaedit">
+        <div class="area-h">${esc(a)}<small>${grouped?'tanpa section':'per section'} · ${groups.length} ${term} · ${areaPartsFlat(a).length} part</small></div>
+        ${groups.length?groups.map((g,mi)=>`
+          <div class="mechedit">
+            <div class="mech-eh"><span class="mech-elbl">${esc(g.name)}</span>
+              <button class="lnk" onclick="renameMech(${i},${mi})">✎ rename</button>
+              <button class="lnk del" onclick="delMech(${i},${mi})">🗑 hapus ${grouped?'mekanisme':'klasifikasi'}</button></div>
+            <div class="partchips">${(g.parts&&g.parts.length)?g.parts.map(p=>`<span class="partchip">${esc(p)}<button title="Hapus part" onclick="delPartMech(${i},${mi},'${jsAttr(p)}')">×</button></span>`).join(''):'<span class="note" style="margin:0">Belum ada part.</span>'}</div>
+            <div class="partadd"><input id="npm_${i}_${mi}" placeholder="${phPart}" onkeydown="if(event.key==='Enter'){event.preventDefault();addPartMech(${i},${mi});}"><button class="btn sec sm" onclick="addPartMech(${i},${mi})">+ Part</button></div>
+          </div>`).join(''):`<div class="note" style="margin:0 0 9px">Belum ada ${term}. Tambahkan di bawah.</div>`}
+        <div class="partadd" style="margin-top:2px"><input id="nm_${i}" placeholder="${phNew}" onkeydown="if(event.key==='Enter'){event.preventDefault();addMech(${i});}"><button class="btn primary sm" onclick="addMech(${i})">+ Tambah ${grouped?'Mekanisme':'Klasifikasi'}</button></div>
+      </div>`;
+    }).join('')}
   </div>
   <div class="card" style="margin-top:14px"><h3>📋 Master List</h3>
     <div class="grid g2">
@@ -3325,24 +3488,68 @@ function addPartReasonManual(i){ const part=CFG.parts[i]; const el=$('#pr_in_'+i
   saveAll(); toast('✓ "'+r+'" added to '+part); render(); }
 function setLT(p,v){CFG.lifetimes[p]=+v;saveAll();toast('Lifetime '+p+' = '+v+'h');render();}
 function addPartArea(idx){
-  const areas=areaListAll(); const area=areas[idx]; if(!area)return;
+  const area=areaListAll()[idx]; if(!area)return; const d=areaDef(area); if(!d||d.mode!=='section')return;
   const el=document.getElementById('np_'+idx); if(!el)return;
   const raw=(el.value||'').trim(); if(!raw){toast('Ketik nama part dulu',1);return;}
   const names=raw.split(',').map(s=>s.trim()).filter(Boolean);
   let added=0, dup=0;
+  d.parts=d.parts||[];
   names.forEach(function(nm){
-    if(partAreaOf(nm)){ dup++; return; }
-    CFG.partAreas[area]=CFG.partAreas[area]||[]; CFG.partAreas[area].push(nm);
-    if(CFG.lifetimes[nm]==null) CFG.lifetimes[nm]=90;
-    added++;
+    if(partAreaOf(nm)||d.parts.indexOf(nm)>=0){ dup++; return; }
+    d.parts.push(nm); if(CFG.lifetimes[nm]==null) CFG.lifetimes[nm]=90; added++;
   });
   syncPartsFromAreas(); saveAll();
   toast(added?('✓ '+added+' part ke '+area+(dup?(' · '+dup+' sudah ada'):'')):'Part sudah ada',added?0:1);
   render();
 }
 function delPartArea(area,part){
+  const d=areaDef(area); if(!d||d.mode!=='section')return;
   if(!confirm('Hapus part "'+part+'" dari '+area+'?\nData riwayat lama tetap tersimpan.'))return;
-  if(CFG.partAreas[area]) CFG.partAreas[area]=CFG.partAreas[area].filter(function(p){return p!==part;});
+  d.parts=(d.parts||[]).filter(function(p){return p!==part;});
+  syncPartsFromAreas(); saveAll(); toast('Part "'+part+'" dihapus'); render();
+}
+/* ----- Mekanisme (bab) untuk area mode 'grouped' ----- */
+function groupTerm(area){ return areaModeOf(area)==='grouped'?'mekanisme':'klasifikasi'; }
+function addMech(areaIdx){
+  const area=areaListAll()[areaIdx]; if(!area)return; const d=areaDef(area); if(!d)return; const term=groupTerm(area);
+  const el=document.getElementById('nm_'+areaIdx); if(!el)return;
+  const nm=(el.value||'').trim(); if(!nm){toast('Ketik nama '+term+' dulu',1);return;}
+  d.groups=d.groups||[];
+  if(d.groups.some(function(g){return g.name.toLowerCase()===nm.toLowerCase();})){toast(term+' sudah ada',1);return;}
+  d.groups.push({name:nm,parts:[]}); syncPartsFromAreas(); saveAll(); toast('✓ '+term+' "'+nm+'" ditambah'); render();
+}
+function delMech(areaIdx,mechIdx){
+  const area=areaListAll()[areaIdx]; const d=areaDef(area); if(!d||!d.groups||!d.groups[mechIdx])return; const term=groupTerm(area);
+  const g=d.groups[mechIdx];
+  if(!confirm('Hapus '+term+' "'+g.name+'" beserta '+(g.parts||[]).length+' part di dalamnya?\nData riwayat lama tetap tersimpan.'))return;
+  d.groups.splice(mechIdx,1); syncPartsFromAreas(); saveAll(); toast(term+' dihapus'); render();
+}
+function renameMech(areaIdx,mechIdx){
+  const area=areaListAll()[areaIdx]; const d=areaDef(area); if(!d||!d.groups||!d.groups[mechIdx])return; const term=groupTerm(area);
+  const g=d.groups[mechIdx];
+  const nn=(prompt('Nama '+term+' baru:',g.name)||'').trim(); if(!nn||nn===g.name)return;
+  if(d.groups.some(function(x,i){return i!==mechIdx&&x.name.toLowerCase()===nn.toLowerCase();})){toast('Nama '+term+' sudah ada',1);return;}
+  g.name=nn; saveAll(); toast('✓ '+term+' di-rename'); render();
+}
+function addPartMech(areaIdx,mechIdx){
+  const area=areaListAll()[areaIdx]; const d=areaDef(area); if(!d||!d.groups||!d.groups[mechIdx])return;
+  const g=d.groups[mechIdx]; const el=document.getElementById('npm_'+areaIdx+'_'+mechIdx); if(!el)return;
+  const raw=(el.value||'').trim(); if(!raw){toast('Ketik nama part dulu',1);return;}
+  const names=raw.split(',').map(s=>s.trim()).filter(Boolean);
+  let added=0, dup=0; g.parts=g.parts||[];
+  names.forEach(function(nm){
+    if(partAreaOf(nm)||g.parts.indexOf(nm)>=0){ dup++; return; }
+    g.parts.push(nm); if(CFG.lifetimes[nm]==null) CFG.lifetimes[nm]=90; added++;
+  });
+  syncPartsFromAreas(); saveAll();
+  toast(added?('✓ '+added+' part ke '+g.name+(dup?(' · '+dup+' sudah ada'):'')):'Part sudah ada',added?0:1);
+  render();
+}
+function delPartMech(areaIdx,mechIdx,part){
+  const area=areaListAll()[areaIdx]; const d=areaDef(area); if(!d||!d.groups||!d.groups[mechIdx])return;
+  const g=d.groups[mechIdx];
+  if(!confirm('Hapus part "'+part+'" dari '+g.name+'?\nData riwayat lama tetap tersimpan.'))return;
+  g.parts=(g.parts||[]).filter(function(p){return p!==part;});
   syncPartsFromAreas(); saveAll(); toast('Part "'+part+'" dihapus'); render();
 }
 function toggleMachineSec(m,s){ if(!CFG.machineSecs)CFG.machineSecs={};
