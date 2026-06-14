@@ -304,6 +304,28 @@
   table.matx .sec{background:var(--panel2);color:var(--accent2);font-weight:800;border-radius:6px;padding:6px 10px;font-family:'Spline Sans Mono';display:inline-block}
   table.matx .mcl{position:relative;border-radius:7px;padding:6px 4px;font-family:'Spline Sans Mono';font-weight:700;font-size:12px;min-width:40px;display:block;text-align:center;overflow:visible}
   table.matx td{position:relative;overflow:visible}
+  /* nama part sebagai baris (kolom pertama) — kiri, bisa dibaca, bukan monospace */
+  table.matx .sec.partname{font-family:'Archivo';font-size:11px;font-weight:800;text-align:left;white-space:nowrap;letter-spacing:0}
+  table.matx th.pcorner{text-align:left;color:var(--txt3);white-space:nowrap}
+  /* judul "Jadwal Schedule per Section" bisa diklik → buka tabel lengkap */
+  .schedtitle-click{cursor:pointer;transition:.12s}
+  .schedtitle-click:hover{color:var(--accent)}
+  .schedmore{display:inline-block;font-size:10px;font-weight:800;color:var(--accent2);border:1px solid var(--accent);border-radius:20px;padding:1px 8px;letter-spacing:.3px;vertical-align:middle;margin-left:5px;white-space:nowrap}
+  /* baris header area equipment di tabel Maintenance Alert */
+  table.matx.matx-grouped tr.area-row td{position:static!important;left:auto!important;background:transparent!important;box-shadow:none!important;padding:10px 2px 4px!important}
+  table.matx.matx-grouped tr.area-row .area-lbl{display:inline-block;background:var(--accent);color:#1a1206;font-weight:900;font-size:11px;letter-spacing:.5px;text-transform:uppercase;border-radius:7px;padding:4px 12px}
+  table.matx.matx-grouped tr.area-row .area-cnt{font-size:10px;color:var(--txt3);font-weight:700;margin-left:8px}
+  /* editor part per area di Settings */
+  .areaedit{margin-top:12px}
+  .areaedit:first-child{margin-top:6px}
+  .areaedit .area-h{font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--accent2);margin-bottom:7px}
+  .areaedit .area-h small{color:var(--txt3);font-weight:600;letter-spacing:0;text-transform:none;margin-left:6px}
+  .partchips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:9px}
+  .partchip{display:inline-flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line2);border-radius:20px;padding:4px 6px 4px 12px;font-size:12px;font-weight:700}
+  .partchip button{width:20px;height:20px;border-radius:50%;border:none;background:var(--redbg);color:var(--red);font-size:13px;font-weight:900;line-height:1;cursor:pointer;display:grid;place-items:center;transition:.12s}
+  .partchip button:hover{background:var(--red);color:#fff}
+  .partadd{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .partadd input{flex:1 1 200px;min-width:160px}
   .tbadge{position:absolute;top:-8px;right:-7px;background:var(--red);color:#fff;font-size:9px;font-weight:800;line-height:1.5;padding:0 5px;border-radius:9px;font-family:'Spline Sans Mono';box-shadow:0 2px 7px rgba(0,0,0,.5);border:1.5px solid var(--bg2);z-index:3;pointer-events:none;white-space:nowrap}
 
   body.light{ --bg:#eef2f7; --bg2:#e6ecf4; --panel:#ffffff; --panel2:#eef3fa; --line:#d8e0ec; --line2:#c6d2e2; --txt:#1a2435; --txt2:#4a5a72; --txt3:#8493a8; --redbg:#fde8ea; --orangebg:#fdeede; --yellowbg:#faf3d6; --greenbg:#e2f6ea; --shadow:0 10px 30px rgba(30,50,80,.10); --hbg:rgba(255,255,255,.9); }
@@ -328,6 +350,26 @@
   .mcl.clk{cursor:pointer;transition:.12s}.mcl.clk:hover{filter:brightness(1.2);box-shadow:0 0 0 2px var(--accent) inset}
   .themebtn{padding:9px 16px;border-radius:9px;border:1px solid var(--line2);background:var(--panel2);color:var(--txt2);font-weight:700;cursor:pointer;font-family:inherit;font-size:13px}
   .themebtn.on{background:var(--accent);color:#1a1206;border-color:transparent}
+  /* ===== Fullscreen toggle button (header) ===== */
+  .fsbtn{position:relative;flex:0 0 auto;margin-left:0;width:40px;height:40px;border-radius:11px;background:var(--panel2);border:1px solid var(--line2);color:var(--txt);cursor:pointer;display:grid;place-items:center;transition:.15s;padding:0}
+  .fsbtn:hover{border-color:var(--accent);color:var(--accent2)}
+  .fsbtn:active{transform:scale(.93)}
+  .fsbtn svg{width:20px;height:20px;display:block}
+  .fsbtn .fs-exit{display:none}
+  body.is-fs .fsbtn .fs-enter{display:none}
+  body.is-fs .fsbtn .fs-exit{display:block}
+  body.is-fs .fsbtn{border-color:var(--accent);color:var(--accent2)}
+  /* ===== Display-scale (zoom) controls in Settings ===== */
+  .scalebar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:4px 0 2px}
+  .scalebar input[type=range]{flex:1 1 220px;min-width:180px;accent-color:var(--accent);height:6px;cursor:pointer}
+  .scaleval{font-family:'Spline Sans Mono';font-weight:800;font-size:22px;color:var(--accent2);min-width:74px;text-align:center;background:var(--panel2);border:1px solid var(--line2);border-radius:9px;padding:6px 4px;line-height:1}
+  .scale-nudge{display:flex;gap:6px}
+  .scale-nudge button{width:40px;height:40px;border-radius:10px;background:var(--panel2);border:1px solid var(--line2);color:var(--txt);font-size:20px;font-weight:800;line-height:1;cursor:pointer;display:grid;place-items:center;transition:.15s}
+  .scale-nudge button:hover{border-color:var(--accent);color:var(--accent2)}
+  .scale-nudge button:active{transform:scale(.92)}
+  .scalepresets{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+  .scalepresets .themebtn{padding:7px 13px;font-size:12px}
+  .scalepresets .themebtn .ps-sub{display:block;font-size:9px;font-weight:600;opacity:.75;letter-spacing:.2px}
 
   /* ---- header title (current sheet) ---- */
   .menubtn{flex:0 0 auto;width:38px;height:38px;border-radius:10px;background:var(--panel2);border:1px solid var(--line2);color:var(--txt);font-size:18px;line-height:1;cursor:pointer;display:grid;place-items:center;transition:.15s}
@@ -396,6 +438,8 @@
     .kpi .ic{font-size:20px;top:11px;right:11px}
     .bellbtn{width:36px;height:36px}
     .bellbtn svg{width:19px;height:19px}
+    .fsbtn{width:36px;height:36px}
+    .fsbtn svg{width:19px;height:19px}
     .drawer .dh .logo{font-size:14px}
     .mh>div:first-child,.cbox b{font-size:15px!important}
     /* sembunyikan teks "— klik Lama/Sekarang/Baru" & dorong badge Perubahan JC ke kanan */
@@ -712,6 +756,10 @@
       <button class="menubtn" onclick="toggleDrawer()" title="Menu / daftar sheet">☰</button>
       <div class="htitle"><div class="ht-main" id="htMain">—</div><div class="ht-sub" id="htSub"></div></div>
       <button class="bellbtn" id="bellBtn" onclick="toggleBellPop()" title="Notifikasi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg><span class="bell-badge" id="bellBadge" style="display:none">0</span></button>
+      <button class="fsbtn" id="fsBtn" onclick="toggleFullscreen()" title="Layar penuh (F)" aria-label="Layar penuh">
+        <svg class="fs-enter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+        <svg class="fs-exit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>
+      </button>
     </div>
   </header>
   <main id="main"></main>
@@ -720,6 +768,7 @@
 <div class="mmodal" id="mmodal" onclick="if(event.target===this)closeMmodal()"><div class="mbox" id="mbox"></div></div>
 <button class="mnav mnav-l" onclick="navMachine(-1)" title="Previous machine">‹</button><button class="mnav mnav-r" onclick="navMachine(1)" title="Next machine">›</button>
 <div class="cmodal" id="cmodal" onclick="if(event.target===this)closeCmodal()"><div class="cbox" id="cbox"></div></div>
+<div class="mmodal" id="sfmodal" onclick="if(event.target===this)closeSchedFull()" style="z-index:125"><div class="mbox" id="sfbox" style="max-width:1180px"></div></div>
 <div class="mmodal" id="jcmodal" onclick="if(event.target===this)closeJC()"><div class="mbox" id="jcbox"></div></div>
 <div class="mmodal" id="jcmmodal" onclick="if(event.target===this)closeJCMaster()"><div class="mbox" id="jcmbox"></div></div>
 <div class="mmodal" id="hmodal" onclick="if(event.target===this)closeHmodal()" style="z-index:150"><div class="mbox" id="hbox" style="max-width:720px"></div></div>
@@ -750,6 +799,7 @@ const DEFAULT_CFG = {
   machineSecs:{},
   partReasons:{}, commonReasons:['JobChange','Roaster'],
   parts:['Catridge','Baffle Arm','Blow Head','T/O Head','Neckring Arm'],
+  partAreas:{'Feeder Equipment':[],'Section Equipment':['Catridge','Baffle Arm','Blow Head','T/O Head','Neckring Arm'],'Ware Handling Equipment':[]},
   reasons:['JobChange','Roaster','Lock ring patah','Lock ring keras','Lock ring lemah','Lock pin kendor',
     'Lock macet','Stopper ring patah','Baffle mark','Baffle oblak','Baffle kendor','Spring keras','Spring patah',
     'Coupler lepas','Coupler aus','Sharp bottom','Slug neck','Sunk in neck','Oval body','Tinggi sebelah',
@@ -767,9 +817,20 @@ const DEFAULT_CFG = {
   cds:['3 5/16"','4¼"','5"','5½"','6¼"','8½"','9½"','12"'],
   consumables:['Orifice','Plunger Clay','Tube Clay'],
   denah:{img:'',racks:[]},
-  nextJC:'', actions:{}, demo:false, demoSec:8
+  nextJC:'', actions:{}, demo:false, demoSec:8, uiScale:100
 };
 let DB=[], CFG=JSON.parse(JSON.stringify(DEFAULT_CFG)), actionStatus={}, JCPLANS=[], STOCK=[];
+/* ===== Equipment areas untuk part: Feeder / Section / Ware Handling ===== */
+const PART_AREAS=['Feeder Equipment','Section Equipment','Ware Handling Equipment'];
+function areaListAll(){ var ks=PART_AREAS.slice(); Object.keys(CFG.partAreas||{}).forEach(function(a){ if(ks.indexOf(a)<0)ks.push(a); }); return ks; }
+function partAreaOf(p){ var ks=areaListAll(); for(var i=0;i<ks.length;i++){ if((CFG.partAreas[ks[i]]||[]).indexOf(p)>=0) return ks[i]; } return null; }
+function syncPartsFromAreas(){ if(!CFG.partAreas) return; var out=[]; areaListAll().forEach(function(a){ (CFG.partAreas[a]||[]).forEach(function(p){ if(p&&out.indexOf(p)<0)out.push(p); }); }); CFG.parts=out; }
+function ensurePartAreas(hadAreas){
+  if(!hadAreas || !CFG.partAreas || typeof CFG.partAreas!=='object'){ CFG.partAreas={'Feeder Equipment':[],'Section Equipment':(CFG.parts||[]).slice(),'Ware Handling Equipment':[]}; }
+  PART_AREAS.forEach(function(a){ if(!Array.isArray(CFG.partAreas[a])) CFG.partAreas[a]=[]; });
+  (CFG.parts||[]).forEach(function(p){ if(!partAreaOf(p)) CFG.partAreas['Section Equipment'].push(p); });   // part tanpa area → Section
+  syncPartsFromAreas();
+}
 // "today" anchored to Bangkok time (UTC+7 / ICT)
 function bangkokNow(){ try{ return new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Bangkok'})); }catch(e){ return new Date(); } }
 const _bkInit = bangkokNow();
@@ -793,7 +854,7 @@ async function saveAll(){ await saveLocal(); if(typeof cloudPush==='function') c
 async function loadAll(){
   let d=await Store.get('pm_db'), c=await Store.get('pm_cfg'), a=await Store.get('pm_act'), j=await Store.get('pm_jc'), k=await Store.get('pm_stock');
   if(d){ try{DB=JSON.parse(d)}catch(e){DB=[]} } else { DB=SEED_DATA.map(r=>({...r})); }
-  if(c){ try{CFG=Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)),JSON.parse(c))}catch(e){} }
+  window.__cfgHadAreas=true; if(c){ try{const _pc=JSON.parse(c); window.__cfgHadAreas=!!(_pc&&_pc.partAreas&&typeof _pc.partAreas==='object'); CFG=Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)),_pc);}catch(e){} }
   if(a){ try{actionStatus=JSON.parse(a)}catch(e){actionStatus={}} }
   if(j){ try{JCPLANS=JSON.parse(j)}catch(e){JCPLANS=[]} }
   if(k){ try{STOCK=JSON.parse(k)}catch(e){STOCK=[]} }
@@ -810,6 +871,8 @@ async function loadAll(){
   if(!CFG.commonReasons||!CFG.commonReasons.length) CFG.commonReasons=['JobChange','Roaster'];
   if(!CFG.partReasons||typeof CFG.partReasons!=='object'){ CFG.partReasons={}; }
   if(Object.keys(CFG.partReasons).length===0){ analyzePartReasons(true); }   // seed dari data yang ada
+  // Equipment areas untuk part (Feeder / Section / Ware Handling)
+  ensurePartAreas(window.__cfgHadAreas!==false);
 }
 /* ============ REASON ↔ PART CLASSIFICATION ============ */
 function isCommonReason(r){ return (CFG.commonReasons||[]).some(x=>x.toLowerCase()===String(r||'').trim().toLowerCase()); }
@@ -954,6 +1017,7 @@ function cloudApply(data){ if(Cloud.dirty) return;   // ada perubahan lokal belu
   try{
     if(Array.isArray(data.db)) DB=data.db;
     if(data.cfg) CFG=Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)),data.cfg);
+    if(data.cfg) ensurePartAreas(!!(data.cfg.partAreas&&typeof data.cfg.partAreas==='object'));
     if(data.actions) actionStatus=data.actions;
     if(Array.isArray(data.jc)) JCPLANS=data.jc;
     if(Array.isArray(data.stock)) STOCK=data.stock;
@@ -1167,6 +1231,35 @@ function applyTheme(){ const t=CFG.theme||'dark';
   else if(t!=='dark') document.body.classList.add('theme-'+t);
 }
 function setTheme(t){ CFG.theme=t; saveAll(); applyTheme(); render(); tickClock(); }
+/* ============ DISPLAY SCALE (ZOOM) — perkecil/perbesar seluruh tampilan ============ */
+function clampScale(n){ n=Math.round((+n||100)/5)*5; if(n<50)n=50; if(n>140)n=140; return n; }
+function applyScale(){ var n=clampScale(CFG.uiScale||100);
+  try{ document.documentElement.style.zoom = (n/100); }catch(e){}
+  var v=document.getElementById('scaleVal'); if(v) v.textContent=n+'%';
+  var sl=document.getElementById('scaleRange'); if(sl && +sl.value!==n) sl.value=n;
+  document.querySelectorAll('.scalepresets .themebtn[data-scale]').forEach(function(b){ b.classList.toggle('on', +b.getAttribute('data-scale')===n); });
+}
+function previewScale(n){ n=clampScale(n); CFG.uiScale=n; applyScale(); }   // live saat slider digeser (belum disimpan)
+function setScale(n){ CFG.uiScale=clampScale(n); applyScale(); saveAll(); }  // simpan permanen
+function nudgeScale(d){ setScale((CFG.uiScale||100)+d); }
+function resetScale(){ setScale(100); }
+/* ============ FULLSCREEN (mode layar penuh / kiosk) ============ */
+function fsElement(){ return document.fullscreenElement||document.webkitFullscreenElement||document.mozFullScreenElement||document.msFullscreenElement; }
+function toggleFullscreen(){
+  try{
+    if(!fsElement()){
+      var el=document.documentElement;
+      var req=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen||el.msRequestFullscreen;
+      if(req){ var p=req.call(el); if(p&&p.catch)p.catch(function(){toast('Browser menolak mode layar penuh',1);}); }
+      else { toast('Browser tidak mendukung layar penuh',1); }
+    }else{
+      var ex=document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen;
+      if(ex) ex.call(document);
+    }
+  }catch(e){ toast('Tidak bisa mengubah mode layar penuh',1); }
+}
+function updateFsBtn(){ var on=!!fsElement(); document.body.classList.toggle('is-fs', on);
+  var b=document.getElementById('fsBtn'); if(b) b.title = on?'Keluar layar penuh (F / Esc)':'Layar penuh (F)'; }
 function openCell(sec,part){var k=sec+'|'+part; var x=(window._mSchedMap||{})[k]||{}; var sel=window._mSel; var sched=(x.schedList||[]); var trbl=(x.troubleList||[]);
   var rc=function(d,r,c){return '<div class="xrowc"><span class="mono" style="color:'+c+'">'+fmtD(parseD(d))+'</span><span style="color:var(--txt2)">'+(r||'-')+'</span></div>';};
   var remc=(x.rem<0?'var(--red)':x.rem<=7?'var(--orange)':x.rem<=14?'var(--yellow)':'var(--green)');
@@ -1229,12 +1322,102 @@ function startDemo(){ CFG.demo=true; saveAll(); beginDemo(); toast('▶️ Auto-
 function stopDemo(){ if(demoTimer){clearInterval(demoTimer);demoTimer=null;} CFG.demo=false; saveAll(); if(typeof closeMmodal==='function')closeMmodal(); toast('⏹️ Auto-scroll stopped'); }
 function toggleDemo(){ if(CFG.demo){stopDemo();}else{startDemo();} if(current==='set')render(); }
 function setDemoSec(v){ CFG.demoSec=Math.max(2,Math.round(+v||8)); saveAll(); if(CFG.demo)beginDemo(); if(current==='set')render(); }
-function closeMmodal(){if(charts.mm){try{charts.mm.destroy()}catch(e){}charts.mm=null;}if(charts.mmc){try{charts.mmc.destroy()}catch(e){}charts.mmc=null;}const el=document.getElementById('mmodal');if(el)el.classList.remove('show');document.body.classList.remove('mmodal-open');closeCmodal();}
+function closeMmodal(){if(charts.mm){try{charts.mm.destroy()}catch(e){}charts.mm=null;}if(charts.mmc){try{charts.mmc.destroy()}catch(e){}charts.mmc=null;}const el=document.getElementById('mmodal');if(el)el.classList.remove('show');document.body.classList.remove('mmodal-open');if(typeof closeSchedFull==='function')closeSchedFull();closeCmodal();}
 function toggleMFilt(){window._mFiltOpen=!window._mFiltOpen;renderMachineModal();}
 function toggleMSec(x){const a=window._mSecs;const i=a.indexOf(x);i<0?a.push(x):a.splice(i,1);renderMachineModal();}
 function toggleMPart(x){const a=window._mParts;const i=a.indexOf(x);i<0?a.push(x):a.splice(i,1);renderMachineModal();}
 function mAllSecs(v){window._mSecs=v?sectionsOf(window._mSel):[];renderMachineModal();}
 function mAllParts(v){window._mParts=v?CFG.parts.slice():[];renderMachineModal();}
+function mActiveParts(){ const sel=window._mSel; const sm=machineSchedule(sel); const secs=sectionsOf(sel); window._mParts=CFG.parts.filter(p=>partHasData(sel,sm,secs,p)); window._mPartsFor=sel; renderMachineModal(); }
+/* ===== Matrix jadwal: section = KOLOM (ke samping), part = BARIS (ke bawah) ===== */
+function jsAttr(s){ return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+function schedCellHTML(sel,schedMap,sx,p){
+  var x=schedMap[sx+'|'+p]; var sxA=jsAttr(sx), pA=jsAttr(p);
+  var tbadge=(x&&x.trouble>0)?'<span class="tbadge">\u26A0'+x.trouble+'</span>':'';
+  var rp=roasterPlanFor(sel,sx,p);
+  var rbadge=rp?'<span class="rbadge" title="Roaster terjadwal '+fmtD(parseD(rp.jcDate))+'">\u267B</span>':'';
+  var rcls=rp?' rplan':''; var rtip=rp?(' \u00b7 \u267B\uFE0F roaster terjadwal '+fmtD(parseD(rp.jcDate))):'';
+  if(x&&x.lastSched){ var cc=_SB[x.status]||['var(--panel)','var(--txt3)']; var tb=x.trouble>0?(' \u00b7 '+x.trouble+' trouble'):'';
+    return '<td><span class="mcl clk'+rcls+'" style="background:'+cc[0]+';color:'+cc[1]+'" onclick="openCell(\''+sxA+'\',\''+pA+'\')" title="Jadwal due '+fmtD(x.nextDue)+tb+rtip+' \u00b7 klik untuk detail">'+rbadge+tbadge+x.rem+'</span></td>'; }
+  if(x&&x.trouble>0){ return '<td><span class="mcl clk'+rcls+'" style="background:var(--panel2);color:var(--txt3)" onclick="openCell(\''+sxA+'\',\''+pA+'\')" title="'+x.trouble+' trouble \u00b7 belum ada jadwal'+rtip+' \u00b7 klik detail">'+rbadge+tbadge+'\u2014</span></td>'; }
+  if(rp){ return '<td><span class="mcl clk'+rcls+'" style="background:rgba(34,193,195,.12);color:var(--teal)" onclick="openCell(\''+sxA+'\',\''+pA+'\')" title="\u267B\uFE0F roaster terjadwal '+fmtD(parseD(rp.jcDate))+' \u00b7 klik detail">'+rbadge+'\u267B</span></td>'; }
+  return '<td><span class="mcl clk" style="background:var(--panel);color:var(--txt3)" onclick="openCell(\''+sxA+'\',\''+pA+'\')" title="Belum ada data \u00b7 klik untuk lihat / rencanakan">\u2014</span></td>';
+}
+function partHasData(sel,schedMap,secs,p){
+  return secs.some(function(sx){ var x=schedMap[sx+'|'+p]; if(x&&(x.lastSched||x.trouble>0))return true; if(roasterPlanFor(sel,sx,p))return true; return false; });
+}
+function schedMatrixHTML(sel,schedMap,secsList,partsList,emptyMsg){
+  if(!secsList.length||!partsList.length){ return '<div class="note" style="margin:6px 0">'+(emptyMsg||'Tidak ada data untuk ditampilkan.')+'</div>'; }
+  var h='<div class="tblwrap" style="overflow:auto;border:none"><table class="matx freezecol"><thead><tr><th class="pcorner">Part \\ Sec</th>'+secsList.map(function(sx){return '<th>'+esc(sx)+'</th>';}).join('')+'</tr></thead><tbody>';
+  partsList.forEach(function(p){
+    h+='<tr><td><span class="sec partname" title="'+esc(p)+'">'+esc(p)+'</span></td>'+secsList.map(function(sx){return schedCellHTML(sel,schedMap,sx,p);}).join('')+'</tr>';
+  });
+  h+='</tbody></table></div>'; return h;
+}
+/* matrix dengan part dikelompokkan per area equipment (Feeder / Section / Ware Handling) */
+function schedMatrixGroupedHTML(sel,schedMap,secsList,groups,emptyMsg){
+  var nonEmpty=groups.filter(function(g){return g.parts.length;});
+  if(!secsList.length||!nonEmpty.length){ return '<div class="note" style="margin:6px 0">'+(emptyMsg||'Tidak ada data untuk ditampilkan.')+'</div>'; }
+  var h='<div class="tblwrap" style="overflow:auto;border:none"><table class="matx freezecol matx-grouped"><thead><tr><th class="pcorner">Part \\ Sec</th>'+secsList.map(function(sx){return '<th>'+esc(sx)+'</th>';}).join('')+'</tr></thead><tbody>';
+  groups.forEach(function(g){
+    if(!g.parts.length) return;
+    h+='<tr class="area-row"><td colspan="'+(secsList.length+1)+'"><span class="area-lbl">'+esc(g.area)+'</span><span class="area-cnt">'+g.parts.length+' part</span></td></tr>';
+    g.parts.forEach(function(p){
+      h+='<tr><td><span class="sec partname" title="'+esc(p)+'">'+esc(p)+'</span></td>'+secsList.map(function(sx){return schedCellHTML(sel,schedMap,sx,p);}).join('')+'</tr>';
+    });
+  });
+  h+='</tbody></table></div>'; return h;
+}
+function openSchedFull(){
+  var sel=window._mSel; if(!sel)return;
+  var allSecs=sectionsOf(sel);
+  if(!window._sfSecs) window._sfSecs=allSecs.slice();
+  window._sfSecs=window._sfSecs.filter(function(s){return allSecs.indexOf(s)>=0;}); if(!window._sfSecs.length)window._sfSecs=allSecs.slice();
+  window._sfParts=CFG.parts.slice();   // selalu tampilkan semua part saat dibuka (termasuk yang baru ditambah)
+  renderSchedFull();
+  document.getElementById('sfmodal').classList.add('show');
+}
+function closeSchedFull(){ var el=document.getElementById('sfmodal'); if(el)el.classList.remove('show'); }
+function sfToggleFilt(){ window._sfFiltOpen=!window._sfFiltOpen; renderSchedFull(); }
+function sfToggleSec(x){ var a=window._sfSecs; var i=a.indexOf(x); i<0?a.push(x):a.splice(i,1); renderSchedFull(); }
+function sfTogglePart(x){ var a=window._sfParts; var i=a.indexOf(x); i<0?a.push(x):a.splice(i,1); renderSchedFull(); }
+function sfAllSecs(v){ window._sfSecs=v?sectionsOf(window._mSel).slice():[]; renderSchedFull(); }
+function sfAllParts(v){ window._sfParts=v?CFG.parts.slice():[]; renderSchedFull(); }
+function sfAreaAll(area,v){ var ps=CFG.partAreas[area]||[]; ps.forEach(function(p){ var i=window._sfParts.indexOf(p); if(v){ if(i<0)window._sfParts.push(p); } else if(i>=0){ window._sfParts.splice(i,1); } }); renderSchedFull(); }
+function renderSchedFull(){
+  var sel=window._mSel; if(!sel)return;
+  var schedMap=machineSchedule(sel); window._mSchedMap=schedMap;
+  var allSecs=sectionsOf(sel);
+  var secs=allSecs.filter(function(s){return window._sfSecs.indexOf(s)>=0;});
+  var selParts=CFG.parts.filter(function(p){return window._sfParts.indexOf(p)>=0;});
+  var groups=areaListAll().map(function(a){ return {area:a, parts:(CFG.partAreas[a]||[]).filter(function(p){return selParts.indexOf(p)>=0;})}; });
+  var totalParts=groups.reduce(function(n,g){return n+g.parts.length;},0);
+  var mtx=schedMatrixGroupedHTML(sel,schedMap,secs,groups,'Tidak ada part terpilih. Atur filter, atau tambah part lewat <b>Settings \u2192 Part per Area Equipment</b>.');
+  var partFilter='';
+  areaListAll().forEach(function(a){ var ps=CFG.partAreas[a]||[]; if(!ps.length)return;
+    partFilter+='<div class="fclabel" style="margin-top:8px">'+esc(a)+' \u00b7 <a onclick="sfAreaAll(\''+jsAttr(a)+'\',true)" style="cursor:pointer;color:var(--blue)">all</a> / <a onclick="sfAreaAll(\''+jsAttr(a)+'\',false)" style="cursor:pointer;color:var(--txt3)">none</a></div>'
+      +'<div class="fchips">'+ps.map(function(x){return '<span class="fchip '+(window._sfParts.indexOf(x)>=0?'on':'')+'" onclick="sfTogglePart(\''+jsAttr(x)+'\')">'+esc(x)+'</span>';}).join('')+'</div>';
+  });
+  var fpop='<div class="filt-wrap" style="margin-left:auto">'
+    +'<button class="filt-btn '+(window._sfFiltOpen?'on':'')+'" onclick="sfToggleFilt()" title="Filter section & part"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 5h18l-7 8v5l-4 2v-7z"/></svg></button>'
+    +'<div class="filt-pop '+(window._sfFiltOpen?'show':'')+'">'
+      +'<div style="display:flex;align-items:center;margin-bottom:2px"><b style="font-size:12px">Filter Tampilan</b><button class="x" style="margin-left:auto;width:24px;height:24px" onclick="sfToggleFilt()">\u2715</button></div>'
+      +'<div class="fclabel">Section \u00b7 <a onclick="sfAllSecs(true)" style="cursor:pointer;color:var(--blue)">all</a> / <a onclick="sfAllSecs(false)" style="cursor:pointer;color:var(--txt3)">empty</a></div>'
+      +'<div class="fchips">'+allSecs.map(function(x){return '<span class="fchip '+(window._sfSecs.indexOf(x)>=0?'on':'')+'" onclick="sfToggleSec(\''+jsAttr(x)+'\')">'+esc(x)+'</span>';}).join('')+'</div>'
+      +'<div class="fclabel" style="margin-top:11px;border-top:1px solid var(--line);padding-top:9px">Part per Area \u00b7 <a onclick="sfAllParts(true)" style="cursor:pointer;color:var(--blue)">all</a> / <a onclick="sfAllParts(false)" style="cursor:pointer;color:var(--txt3)">empty</a></div>'
+      +partFilter
+    +'</div></div>';
+  var html='<div class="mh">'
+    +'<div style="font-size:20px;font-weight:900;font-family:\'Spline Sans Mono\';color:var(--accent2)">'+esc(sel)+'</div>'
+    +'<div style="font-weight:800;font-size:13px">\uD83D\uDEA8 Maintenance Alert Equipment</div>'
+    +fpop
+    +'<button class="x" onclick="closeSchedFull()">\u2715</button>'
+    +'</div>'
+    +'<div class="mscroll">'
+    +'<div class="schedhint" style="font-size:11px;color:var(--txt3);font-weight:600;margin-bottom:10px">Part dikelompokkan per <b>area equipment</b> (baris) \u00d7 section (kolom). Angka = sisa hari \u00b7 <span style="color:var(--teal)">\u267B roaster</span> \u00b7 \u26A0 trouble \u00b7 \u2014 belum ada data (klik untuk rencana). Tampil <b>'+totalParts+'</b> part \u00d7 <b>'+secs.length+'</b> section. Kelola part di <b>Settings \u2192 Part per Area Equipment</b>.</div>'
+    +mtx+'</div>';
+  document.getElementById('sfbox').innerHTML=html;
+}
 function renderMachineModal(){
   const _prevScroll=(function(){const e=document.querySelector('#mbox .mscroll');return e?e.scrollTop:null;})();
   const sel=window._mSel; const schedMap=machineSchedule(sel); window._mSchedMap=schedMap;
@@ -1244,19 +1427,12 @@ function renderMachineModal(){
   const troubleTot=cat.Trouble+cat.Emergency;
   const secs=sectionsOf(sel).filter(s=>window._mSecs.includes(s)); const parts=CFG.parts.filter(p=>window._mParts.includes(p));
   const kpi=(c,v,l,ic)=>`<div class="kpi" style="--c:${c};padding:10px 11px"><span class="ic">${ic}</span><div class="v" style="font-size:22px">${v}</div><div class="l">${l}</div></div>`;
-  let mtx='<div class="tblwrap" style="overflow:auto;border:none"><table class="matx freezecol"><thead><tr><th>Section</th>'+parts.map(p=>`<th>${p}</th>`).join('')+'</tr></thead><tbody>';
-  if(!secs.length||!parts.length){ mtx+='<tr><td colspan="'+(parts.length+1||2)+'" style="color:var(--txt3);padding:18px">Select at least 1 section & 1 part di filter.</td></tr>'; }
-  secs.forEach(sx=>{ mtx+='<tr><td><span class="sec">'+sx+'</span></td>'+parts.map(p=>{const x=schedMap[sx+'|'+p];
-    const tbadge=(x&&x.trouble>0)?`<span class="tbadge">⚠${x.trouble}</span>`:'';
-    const rp=roasterPlanFor(sel,sx,p);
-    const rbadge=rp?'<span class="rbadge" title="Roaster terjadwal '+fmtD(parseD(rp.jcDate))+'">♻</span>':'';
-    const rcls=rp?' rplan':'';
-    const rtip=rp?(' · ♻️ roaster terjadwal '+fmtD(parseD(rp.jcDate))):'';
-    if(x&&x.lastSched){const cc=_SB[x.status]||['var(--panel)','var(--txt3)'];const tb=x.trouble>0?(' · '+x.trouble+' trouble'):'';return `<td><span class="mcl clk${rcls}" style="background:${cc[0]};color:${cc[1]}" onclick="openCell('${sx}','${p}')" title="Jadwal due ${fmtD(x.nextDue)}${tb}${rtip} · klik untuk detail">${rbadge}${tbadge}${x.rem}</span></td>`;}
-    if(x&&x.trouble>0){return `<td><span class="mcl clk${rcls}" style="background:var(--panel2);color:var(--txt3)" onclick="openCell('${sx}','${p}')" title="${x.trouble} trouble · belum ada jadwal${rtip} · klik detail">${rbadge}${tbadge}—</span></td>`;}
-    if(rp){return `<td><span class="mcl clk${rcls}" style="background:rgba(34,193,195,.12);color:var(--teal)" onclick="openCell('${sx}','${p}')" title="♻️ roaster terjadwal ${fmtD(parseD(rp.jcDate))} · klik detail">${rbadge}♻</span></td>`;}
-    return '<td><span class="mcl" style="background:var(--panel);color:var(--txt3)">—</span></td>';}).join('')+'</tr>'; });
-  mtx+='</tbody></table></div>';
+  // Ringkasan "Schedule Roaster Part per Section": section = kolom, part = baris; part bisa dipilih lewat filter
+  const _allSecs=sectionsOf(sel);
+  const _activeParts=CFG.parts.filter(p=>partHasData(sel,schedMap,_allSecs,p));
+  if(window._mPartsFor!==sel){ window._mParts=_activeParts.slice(); window._mPartsFor=sel; }   // default tiap mesin = part aktif
+  const _sumParts=CFG.parts.filter(p=>window._mParts.includes(p));
+  let mtx=schedMatrixHTML(sel,schedMap,_allSecs,_sumParts,'Tidak ada part dipilih. Buka filter (corong) untuk memilih part, atau klik <b>\uD83D\uDEA8 Maintenance Alert</b>.');
   document.getElementById('mbox').innerHTML=`<div class="mh">
       <div style="font-size:26px;font-weight:900;font-family:'Spline Sans Mono';color:var(--accent2)">${sel}</div>
       <div style="font-weight:700;font-size:12.5px;color:var(--txt2);background:var(--panel2);border:1px solid var(--line2);padding:5px 13px;border-radius:20px;letter-spacing:.3px">${brandOf(sel)}</div>
@@ -1271,18 +1447,18 @@ function renderMachineModal(){
       </div>
       <div class="mpop-right">
         <div class="sched-head">
-          <div class="sectiontitle">🔔 Jadwal Schedule per Section <span style="font-size:11px;color:var(--txt3);font-weight:600">(number = days left · <span style="color:var(--teal)">♻ = scheduled roaster</span> · klik sel → detail)</span></div>
+          <div class="sectiontitle schedtitle-click" onclick="openSchedFull()" title="Klik untuk Maintenance Alert Equipment (semua part per area)">🔔 Schedule Roaster Part per Section <span class="schedmore">🚨 Maintenance Alert</span></div>
           <div class="filt-wrap">
-            <button class="filt-btn ${window._mFiltOpen?'on':''}" onclick="toggleMFilt()" title="Filter section & part"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 5h18l-7 8v5l-4 2v-7z"/></svg></button>
+            <button class="filt-btn ${window._mFiltOpen?'on':''}" onclick="toggleMFilt()" title="Pilih part yang tampil"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 5h18l-7 8v5l-4 2v-7z"/></svg></button>
             <div class="filt-pop ${window._mFiltOpen?'show':''}">
-              <div style="display:flex;align-items:center;margin-bottom:2px"><b style="font-size:12px">Filter Tampilan</b><button class="x" style="margin-left:auto;width:24px;height:24px" onclick="toggleMFilt()">✕</button></div>
-              <div class="fclabel">Section · <a onclick="mAllSecs(true)" style="cursor:pointer;color:var(--blue)">all</a> / <a onclick="mAllSecs(false)" style="cursor:pointer;color:var(--txt3)">empty</a></div>
-              <div class="fchips">${sectionsOf(sel).map(x=>`<span class="fchip ${window._mSecs.includes(x)?'on':''}" onclick="toggleMSec('${x}')">${x}</span>`).join('')}</div>
-              <div class="fclabel">Part · <a onclick="mAllParts(true)" style="cursor:pointer;color:var(--blue)">all</a> / <a onclick="mAllParts(false)" style="cursor:pointer;color:var(--txt3)">empty</a></div>
-              <div class="fchips">${CFG.parts.map(x=>`<span class="fchip ${window._mParts.includes(x)?'on':''}" onclick="toggleMPart('${x}')">${x}</span>`).join('')}</div>
+              <div style="display:flex;align-items:center;margin-bottom:2px"><b style="font-size:12px">Pilih Part yang Tampil</b><button class="x" style="margin-left:auto;width:24px;height:24px" onclick="toggleMFilt()">✕</button></div>
+              <div class="fclabel">Part · <a onclick="mActiveParts()" style="cursor:pointer;color:var(--blue)">aktif</a> / <a onclick="mAllParts(true)" style="cursor:pointer;color:var(--blue)">semua</a> / <a onclick="mAllParts(false)" style="cursor:pointer;color:var(--txt3)">kosong</a></div>
+              <div class="fchips">${CFG.parts.map(x=>`<span class="fchip ${window._mParts.includes(x)?'on':''}" onclick="toggleMPart('${jsAttr(x)}')">${esc(x)}</span>`).join('')}</div>
             </div>
           </div>
+          <button class="filt-btn" onclick="openSchedFull()" title="Maintenance Alert Equipment (semua part per area)" aria-label="Maintenance Alert"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
         </div>
+        <div class="schedhint" style="font-size:10.5px;color:var(--txt3);font-weight:600;margin:-4px 0 6px">Ringkasan roaster part · angka = sisa hari · <span style="color:var(--teal)">♻ roaster</span> · pilih part lewat filter (corong) · <b>klik judul</b> → Maintenance Alert (semua part per area)</div>
         ${mtx}
       </div>
     </div>
@@ -3040,6 +3216,28 @@ function vSet(){
     </div>
     <div class="note" style="margin-top:12px">Dark & Ocean/Forest/Sunset suit display monitors; Light for bright rooms. Theme choice is saved automatically.</div>
   </div>
+  <div class="card" style="margin-top:14px"><h3>🔍 Display Scale (Zoom)<span class="tag">${CFG.uiScale||100}%</span></h3>
+    <div class="note" style="margin:0 0 12px">Perkecil / perbesar <b>seluruh</b> tampilan (teks, kartu, grafik). Untuk layar besar, pakai <b>75–85%</b> agar lebih banyak data muat tanpa scroll.</div>
+    <div class="scalebar">
+      <div class="scale-nudge"><button onclick="nudgeScale(-5)" title="Perkecil">−</button></div>
+      <input id="scaleRange" type="range" min="50" max="140" step="5" value="${CFG.uiScale||100}" oninput="previewScale(this.value)" onchange="setScale(this.value)" aria-label="Skala tampilan">
+      <div class="scale-nudge"><button onclick="nudgeScale(5)" title="Perbesar">+</button></div>
+      <div id="scaleVal" class="scaleval">${CFG.uiScale||100}%</div>
+    </div>
+    <div class="scalepresets">
+      <button class="themebtn ${(CFG.uiScale||100)==70?'on':''}" data-scale="70" onclick="setScale(70)">70%<span class="ps-sub">Padat</span></button>
+      <button class="themebtn ${(CFG.uiScale||100)==80?'on':''}" data-scale="80" onclick="setScale(80)">80%<span class="ps-sub">Lega</span></button>
+      <button class="themebtn ${(CFG.uiScale||100)==90?'on':''}" data-scale="90" onclick="setScale(90)">90%<span class="ps-sub">Sedang</span></button>
+      <button class="themebtn ${(CFG.uiScale||100)==100?'on':''}" data-scale="100" onclick="setScale(100)">100%<span class="ps-sub">Normal</span></button>
+      <button class="themebtn ${(CFG.uiScale||100)==110?'on':''}" data-scale="110" onclick="setScale(110)">110%<span class="ps-sub">Besar</span></button>
+      <button class="themebtn ${(CFG.uiScale||100)==125?'on':''}" data-scale="125" onclick="setScale(125)">125%<span class="ps-sub">Sangat besar</span></button>
+    </div>
+    <div class="toolbar" style="margin:14px 0 0;flex-wrap:wrap;gap:10px">
+      <button class="btn" onclick="toggleFullscreen()">⛶ Mode Layar Penuh</button>
+      <button class="btn sec" onclick="resetScale()">↺ Reset 100%</button>
+    </div>
+    <div class="note" style="margin-top:12px"><b>Mode Layar Penuh</b> menyembunyikan toolbar browser — cocok untuk tampilan dinding workshop. Tekan <b>F</b> kapan saja untuk masuk/keluar, atau <b>Esc</b> untuk keluar. Skala &amp; pilihan tersimpan otomatis di perangkat ini.</div>
+  </div>
   <div class="card" style="margin-top:14px;border-color:${CFG.demo?'var(--accent)':'var(--line2)'}"><h3>🖥️ Auto-Scroll / Demo Mode (Workshop Display)<span class="tag">${CFG.demo?'▶️ active':'off'}</span></h3>
     <div class="note" style="margin:0 0 12px">Dashboard auto-rotates for workshop display: summary dashboard → each machine popup (C1.1 → C5.5) → back to dashboard, repeating. Set each slide duration below.</div>
     <div class="toolbar" style="margin:0;flex-wrap:wrap;align-items:flex-end;gap:14px">
@@ -3100,11 +3298,20 @@ function vSet(){
         <div style="display:flex;gap:8px"><input id="pr_in_${i}" placeholder="add reason for ${esc(p)}…" style="flex:1"><button class="btn sm" onclick="addPartReasonManual(${i})">➕ Add</button></div>
       </div>`}).join('')}
   </div>
+  <div class="card" style="margin-top:14px"><h3>🧩 Part per Area Equipment<span class="tag">${CFG.parts.length} part</span></h3>
+    <div class="note" style="margin:0 0 12px">Kategorikan part PM per <b>area equipment</b>. Part akan tampil berkelompok di pop-up <b>🚨 Maintenance Alert Equipment</b>. Bisa tambah beberapa sekaligus dengan dipisah koma. Menghapus part tidak menghapus data riwayat lama.</div>
+    ${areaListAll().map((a,i)=>{const ps=CFG.partAreas[a]||[];return `
+      <div class="areaedit">
+        <div class="area-h">${esc(a)}<small>${ps.length} part</small></div>
+        <div class="partchips">${ps.length?ps.map(p=>`<span class="partchip">${esc(p)}<button title="Hapus part" onclick="delPartArea('${jsAttr(a)}','${jsAttr(p)}')">×</button></span>`).join(''):'<span class="note" style="margin:0">Belum ada part di area ini.</span>'}</div>
+        <div class="partadd"><input id="np_${i}" placeholder="Nama part baru (mis. Plunger, Tube, Orifice)" onkeydown="if(event.key==='Enter'){event.preventDefault();addPartArea(${i});}"><button class="btn sec sm" onclick="addPartArea(${i})">+ Tambah</button></div>
+      </div>`;}).join('')}
+  </div>
   <div class="card" style="margin-top:14px"><h3>📋 Master List</h3>
     <div class="grid g2">
       <div class="fg"><label>Machines (comma-separated)</label><textarea rows="2" onchange="setList('machines',this.value)">${CFG.machines.join(', ')}</textarea></div>
       <div class="fg"><label>Sections</label><textarea rows="2" onchange="setList('sections',this.value)">${CFG.sections.join(', ')}</textarea></div>
-      <div class="fg"><label>Parts</label><textarea rows="2" onchange="setList('parts',this.value)">${CFG.parts.join(', ')}</textarea></div>
+      <div class="fg"><label>Parts</label><div class="note" style="margin:0;padding:9px 11px;background:var(--panel2);border:1px solid var(--line2);border-radius:9px">Dikelola di <b>🧩 Part per Area Equipment</b> (di atas). Saat ini <b>${CFG.parts.length}</b> part.</div></div>
       <div class="fg"><label>Shift</label><textarea rows="2" onchange="setList('shifts',this.value)">${(CFG.shifts||[]).join(', ')}</textarea></div>
       <div class="fg" style="grid-column:1/-1"><label>Consumable Part (single-use on change — others reusable)</label><textarea rows="2" onchange="setList('consumables',this.value)">${(CFG.consumables||[]).join(', ')}</textarea></div>
     </div>
@@ -3117,6 +3324,27 @@ function addPartReasonManual(i){ const part=CFG.parts[i]; const el=$('#pr_in_'+i
   CFG.partReasons[part].push(r); if(!CFG.reasons.some(x=>x.toLowerCase()===r.toLowerCase()))CFG.reasons.push(r);
   saveAll(); toast('✓ "'+r+'" added to '+part); render(); }
 function setLT(p,v){CFG.lifetimes[p]=+v;saveAll();toast('Lifetime '+p+' = '+v+'h');render();}
+function addPartArea(idx){
+  const areas=areaListAll(); const area=areas[idx]; if(!area)return;
+  const el=document.getElementById('np_'+idx); if(!el)return;
+  const raw=(el.value||'').trim(); if(!raw){toast('Ketik nama part dulu',1);return;}
+  const names=raw.split(',').map(s=>s.trim()).filter(Boolean);
+  let added=0, dup=0;
+  names.forEach(function(nm){
+    if(partAreaOf(nm)){ dup++; return; }
+    CFG.partAreas[area]=CFG.partAreas[area]||[]; CFG.partAreas[area].push(nm);
+    if(CFG.lifetimes[nm]==null) CFG.lifetimes[nm]=90;
+    added++;
+  });
+  syncPartsFromAreas(); saveAll();
+  toast(added?('✓ '+added+' part ke '+area+(dup?(' · '+dup+' sudah ada'):'')):'Part sudah ada',added?0:1);
+  render();
+}
+function delPartArea(area,part){
+  if(!confirm('Hapus part "'+part+'" dari '+area+'?\nData riwayat lama tetap tersimpan.'))return;
+  if(CFG.partAreas[area]) CFG.partAreas[area]=CFG.partAreas[area].filter(function(p){return p!==part;});
+  syncPartsFromAreas(); saveAll(); toast('Part "'+part+'" dihapus'); render();
+}
 function toggleMachineSec(m,s){ if(!CFG.machineSecs)CFG.machineSecs={};
   let cur=CFG.machineSecs[m]; if(!Array.isArray(cur)) cur=sectionsOf(m).slice();
   const i=cur.indexOf(s); if(i<0)cur.push(s); else{ if(cur.length<=1){toast('At least 1 section per machine',1);return;} cur.splice(i,1); }
@@ -3188,6 +3416,7 @@ async function saveExcel(){
 }
 function importJSON(inp){const f=inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=e=>{try{const o=JSON.parse(e.target.result);
   if(o.db)DB=o.db;if(o.cfg)CFG=Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)),o.cfg);if(o.actions)actionStatus=o.actions;
+  if(o.cfg) ensurePartAreas(!!(o.cfg.partAreas&&typeof o.cfg.partAreas==='object'));
   if(Array.isArray(o.jc))JCPLANS=o.jc; if(Array.isArray(o.stock))STOCK=o.stock;
   saveLocal();   // simpan ke perangkat DULU (pasti aman, tidak tergantung cloud)
   toast('✓ Diimpor & disimpan di perangkat: '+DB.length+' record · '+JCPLANS.length+' JC · '+STOCK.length+' stock');
@@ -3206,6 +3435,8 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
   try{ await loadAll(); }catch(e){ console.error('loadAll failed:',e); }
   try{ Cloud.dirty = (localStorage.getItem('pm_dirty')==='1'); }catch(e){}   // pulihkan status "belum tersinkron" setelah reload → lindungi input lokal
   try{ applyTheme(); }catch(e){ console.error(e); }
+  try{ applyScale(); }catch(e){ console.error(e); }
+  try{ updateFsBtn(); }catch(e){ console.error(e); }
   try{ tickClock(); }catch(e){ console.error(e); }
   try{ buildNav(); }catch(e){ console.error(e); }
   try{ render(); }catch(e){ console.error('initial render failed:',e); }
@@ -3219,12 +3450,25 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
   document.addEventListener('input',e=>{if(['i_part','i_date','i_reason','i_reason_sel','i_section','i_machine'].includes(e.target.id))previewLive();});
   // re-apply desktop side-nav / mobile bottom-nav on resize
   let _rt; window.addEventListener('resize',()=>{clearTimeout(_rt);_rt=setTimeout(syncLayout,150);});
+  // keep header fullscreen icon in sync (mis. saat keluar via Esc)
+  ['fullscreenchange','webkitfullscreenchange','mozfullscreenchange','MSFullscreenChange'].forEach(function(ev){ document.addEventListener(ev, updateFsBtn); });
+  // shortcut: tekan F untuk masuk/keluar layar penuh (tidak aktif saat mengetik di form)
+  document.addEventListener('keydown',function(e){
+    if(e.ctrlKey||e.metaKey||e.altKey)return;
+    var t=e.target, tag=(t&&t.tagName)||'';
+    if(/^(INPUT|TEXTAREA|SELECT)$/.test(tag)||(t&&t.isContentEditable))return;
+    if(e.key==='f'||e.key==='F'){ e.preventDefault(); toggleFullscreen(); }
+  });
   // swipe left/right ganti mesin — DIMATIKAN: di iOS gesture ini memblok scroll tabel ke samping.
   // Ganti mesin tetap bisa lewat tombol panah ‹ › dan tombol keyboard ←/→.
   // (sengaja tidak memasang touchstart/touchend pada #mbox)
   // arrow keys when popup open
   document.addEventListener('keydown',e=>{const hm=document.getElementById('hmodal');
     if(hm&&hm.classList.contains('show')){ if(e.key==='Escape')closeHmodal(); return; }
+    const cmod=document.getElementById('cmodal');
+    if(cmod&&cmod.classList.contains('show')){ if(e.key==='Escape')closeCmodal(); return; }
+    const sf=document.getElementById('sfmodal');
+    if(sf&&sf.classList.contains('show')){ if(e.key==='Escape')closeSchedFull(); return; }
     const mm=document.getElementById('mmodal');
     if(mm&&mm.classList.contains('show')){ if(e.key==='ArrowRight')navMachine(1); else if(e.key==='ArrowLeft')navMachine(-1); else if(e.key==='Escape')closeMmodal(); }});
   // resume rolling/demo mode if it was left on
@@ -3234,7 +3478,7 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
 
 /* ===== Tarik-tutup sheet: geser header ke bawah untuk menutup pop-up (mobile) ===== */
 (function(){
-  var closers={mmodal:'closeMmodal',jcmodal:'closeJC',jcmmodal:'closeJCMaster',hmodal:'closeHmodal',amodal:'closeAmodal'};
+  var closers={mmodal:'closeMmodal',jcmodal:'closeJC',jcmmodal:'closeJCMaster',hmodal:'closeHmodal',amodal:'closeAmodal',sfmodal:'closeSchedFull'};
   var drag=null;
   function isSheet(){return window.matchMedia('(max-width:680px)').matches;}
   document.addEventListener('touchstart',function(e){
