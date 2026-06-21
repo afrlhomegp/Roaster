@@ -1044,7 +1044,7 @@ const SEED_DATA = [{"date":"2026-05-02","machine":"C5.5","section":"S1","part":"
 /* ============ CONFIG / STATE ============ */
 const DEFAULT_CFG = {
   lifetimes:{ 'Catridge':60,'Baffle Arm':90,'Blow Head':90,'T/O Head':90,'Neckring Arm':90 },
-  urgent:7, warning:14, pmTarget:70,
+  urgent:7, warning:14, urgentDiv:4, warnDiv:2, pmTarget:70,
   bottomNav:['dash','input','plan','ana'], theme:'dark',
   machines:['C1.1','C1.2','C1.3','C2.1','C2.2','C2.3','C2.4','C5.1','C5.2','C5.3','C5.5'],
   sections:['S1','S2','S3','S4','S5','S6','S7','S8','S9','S10'],
@@ -1402,7 +1402,9 @@ function classifyCat(reason){
   return 'Trouble';
 }
 function lifetimeOf(part){ return CFG.lifetimes[part]||90; }
-function statusOf(rem){ if(rem<0)return'OVERDUE'; if(rem<=CFG.urgent)return'URGENT'; if(rem<=CFG.warning)return'WARNING'; return'OK'; }
+function warnDaysFor(part){ var d=+CFG.warnDiv||2; return Math.max(1,Math.round(lifetimeOf(part)/d)); }
+function urgentDaysFor(part){ var d=+CFG.urgentDiv||4; return Math.max(1,Math.round(lifetimeOf(part)/d)); }
+function statusOf(rem,part){ if(rem<0)return'OVERDUE'; var u=(part!=null)?urgentDaysFor(part):(+CFG.urgent||7); var w=(part!=null)?warnDaysFor(part):(+CFG.warning||14); if(rem<=u)return'URGENT'; if(rem<=w)return'WARNING'; return'OK'; }
 function daysBetween(a,b){ return Math.round((b-a)/86400000); }
 function parseD(s){ const d=new Date(s+'T00:00:00'); d.setHours(0,0,0,0); return d; }
 function fmtD(d){ if(!d)return'—'; const x=(d instanceof Date)?d:parseD(d); return String(x.getDate()).padStart(2,'0')+'/'+String(x.getMonth()+1).padStart(2,'0')+'/'+x.getFullYear(); }
@@ -1435,7 +1437,7 @@ function monitoring(){
   });
   return Object.values(combo).map(o=>{
     const lt=lifetimeOf(o.part); const nd=new Date(o.last.getTime()+lt*86400000);
-    const rem=daysBetween(TODAY,nd); const st=statusOf(rem);
+    const rem=daysBetween(TODAY,nd); const st=statusOf(rem,o.part);
     return {...o,lt,nextDue:nd,rem,status:st,key:o.machine+'|'+o.section+'|'+o.part};
   }).sort((a,b)=>a.rem-b.rem);
 }
@@ -1526,7 +1528,7 @@ const _SB={OVERDUE:['var(--redbg)','var(--red)'],URGENT:['var(--orangebg)','var(
 function machineSchedule(sel){var list=enriched().filter(function(r){return r.machine===sel;});var g={};
   list.forEach(function(r){var k=r.section+'|'+r.part; if(!g[k])g[k]={section:r.section,part:r.part,sched:[],trbl:[]}; if(r.cat==='Scheduled')g[k].sched.push(r); else g[k].trbl.push(r);});
   var map={}; Object.keys(g).forEach(function(k){var o=g[k]; var lt=lifetimeOf(o.part); o.sched.sort(function(a,b){return a.d-b.d;}); o.trbl.sort(function(a,b){return b.d-a.d;});
-    var lastSched=o.sched.length?o.sched[o.sched.length-1].d:null; var nd=lastSched?new Date(lastSched.getTime()+lt*86400000):null; var rem=nd?daysBetween(TODAY,nd):null; var status=rem===null?'NO DATA':statusOf(rem);
+    var lastSched=o.sched.length?o.sched[o.sched.length-1].d:null; var nd=lastSched?new Date(lastSched.getTime()+lt*86400000):null; var rem=nd?daysBetween(TODAY,nd):null; var status=rem===null?'NO DATA':statusOf(rem,o.part);
     map[k]={section:o.section,part:o.part,lt:lt,lastSched:lastSched,nextDue:nd,rem:rem,status:status,count:o.sched.length+o.trbl.length,trouble:o.trbl.length,troubleList:o.trbl.map(function(r){return {date:r.date,reason:r.reason};}),schedList:o.sched.slice().reverse().map(function(r){return {date:r.date,reason:r.reason};})};});
   return map; }
 const THEMES=[['dark','🌙 Gelap'],['light','☀️ Terang']];
@@ -1669,7 +1671,7 @@ function machinePartStatus(sel,part){
   sched.sort(function(a,b){return a.d-b.d;}); trbl.sort(function(a,b){return b.d-a.d;});
   var lt=lifetimeOf(part); var lastSched=sched.length?sched[sched.length-1].d:null;
   var nd=lastSched?new Date(lastSched.getTime()+lt*86400000):null; var rem=nd?daysBetween(TODAY,nd):null;
-  var status=rem===null?'NO DATA':statusOf(rem);
+  var status=rem===null?'NO DATA':statusOf(rem,part);
   return {part:part,lt:lt,lastSched:lastSched,nextDue:nd,rem:rem,status:status,count:sched.length+trbl.length,trouble:trbl.length,troubleList:trbl.map(function(r){return {date:r.date,reason:r.reason};}),schedList:sched.slice().reverse().map(function(r){return {date:r.date,reason:r.reason};})};
 }
 function machPartRowHTML(sel,p){
@@ -2043,7 +2045,7 @@ function avgLifePerMachine(){
   en.forEach(r=>{ if(r.actual!=null && map[r.machine] && map[r.machine][r.part]) map[r.machine][r.part].vals.push(r.actual); });
   return map;
 }
-function _alpStatus(a,lt){ return a==null?'—':a<lt*0.7?'CRITICAL':a<lt?'UNDER TARGET':'ON TARGET'; }
+function _alpStatus(a,lt){ if(a==null)return'—'; var t=(+CFG.pmTarget||100)/100; return a<lt*t*0.7?'CRITICAL':a<lt*t?'UNDER TARGET':'ON TARGET'; }
 function _alpColor(st){ return st==='CRITICAL'?'#ff5a5a':st==='UNDER TARGET'?'#ff8c3b':st==='ON TARGET'?'#3fd77a':'#64789a'; }
 function renderAvgLifePop(){
   const map=avgLifePerMachine();
@@ -2081,7 +2083,7 @@ function renderAvgLifePop(){
       </div>
       <div class="sub" style="margin-bottom:10px">${subTxt}</div>
       <div class="tblwrap"><table><thead><tr><th>Part</th><th>Target</th><th>Avg Actual</th><th>Min</th><th>Max</th><th>Data</th><th>Achievement</th><th>Status</th></tr></thead><tbody>${body}</tbody></table></div>
-      <div class="note" style="margin-top:10px">Status: <b style="color:#ff5a5a">CRITICAL</b> &lt;70% target · <b style="color:#ff8c3b">UNDER TARGET</b> &lt;100% · <b style="color:#3fd77a">ON TARGET</b> ≥100%. <b>Avg Actual</b> = rata-rata hari antar pergantian part yang sama di mesin tersebut.</div>
+      <div class="note" style="margin-top:10px">Status: <b style="color:#ff5a5a">CRITICAL</b> &lt;${Math.round((CFG.pmTarget||100)*0.7)}% · <b style="color:#ff8c3b">UNDER TARGET</b> &lt;${CFG.pmTarget||100}% · <b style="color:#3fd77a">ON TARGET</b> ≥${CFG.pmTarget||100}%. <b>Avg Actual</b> = rata-rata hari antar pergantian part yang sama di mesin tersebut.</div>
     </div>`;
 }
 function openAvgLifePop(){ renderAvgLifePop(); document.getElementById('almodal').classList.add('show'); document.body.classList.add('mmodal-open'); }
@@ -2133,18 +2135,19 @@ function sparkSVG(vals,color){ if(!vals||!vals.length||!vals.some(v=>v>0)) retur
 /* dashed "target = 100%" reference line on the avg-lifetime achievement chart */
 const dashTargetLine={id:'dashTargetLine',afterDatasetsDraw(ch){
   const a=ch.chartArea, c=ch.ctx; if(!a)return;
+  const TGT=(+CFG.pmTarget||100);
   const horiz=ch.options&&ch.options.indexAxis==='y';
   const big=ch.width>640; const fs=big?12:8;
-  if(horiz){ const xs=ch.scales&&ch.scales.x; if(!xs)return; const x=xs.getPixelForValue(100); if(!isFinite(x)||x<a.left||x>a.right)return;
+  if(horiz){ const xs=ch.scales&&ch.scales.x; if(!xs)return; const x=xs.getPixelForValue(TGT); if(!isFinite(x)||x<a.left||x>a.right)return;
     c.save(); c.strokeStyle='rgba(255,193,77,.9)'; c.lineWidth=big?2:1.4; c.setLineDash([5,3]);
     c.beginPath(); c.moveTo(x,a.top); c.lineTo(x,a.bottom); c.stroke(); c.setLineDash([]);
     c.fillStyle='#ffc14d'; c.font='700 '+fs+'px Archivo,sans-serif'; c.textAlign='center'; c.textBaseline='bottom';
-    c.fillText('target 100%',x,a.top); c.restore();
-  } else { const ys=ch.scales&&ch.scales.y; if(!ys)return; const y=ys.getPixelForValue(100); if(!isFinite(y)||y<a.top||y>a.bottom)return;
+    c.fillText('target '+TGT+'%',x,a.top); c.restore();
+  } else { const ys=ch.scales&&ch.scales.y; if(!ys)return; const y=ys.getPixelForValue(TGT); if(!isFinite(y)||y<a.top||y>a.bottom)return;
     c.save(); c.strokeStyle='rgba(255,193,77,.9)'; c.lineWidth=big?2:1.4; c.setLineDash([5,3]);
     c.beginPath(); c.moveTo(a.left,y); c.lineTo(a.right,y); c.stroke(); c.setLineDash([]);
     c.fillStyle='#ffc14d'; c.font='700 '+fs+'px Archivo,sans-serif'; c.textAlign='right'; c.textBaseline='bottom';
-    c.fillText('target 100%',a.right-2,y-2); c.restore();
+    c.fillText('target '+TGT+'%',a.right-2,y-2); c.restore();
   } }};
 
 /* ---- DASHBOARD ---- */
@@ -2191,7 +2194,8 @@ function vDash(){
     if($('#chAvgLife')){
       const _alLabels=_alRows.map(x=>x.p);
       const _alData=_alRows.map(x=>x.n>0?Math.round(x.ach):null); // null keeps the label, draws no bar
-      const _alCol=_alRows.map(x=>x.n===0?'#64789a':x.ach<70?'#ff5a5a':x.ach<100?'#ff8c3b':'#3fd77a');
+      const _alTgt=(+CFG.pmTarget||100);
+      const _alCol=_alRows.map(x=>x.n===0?'#64789a':x.ach<_alTgt*0.7?'#ff5a5a':x.ach<_alTgt?'#ff8c3b':'#3fd77a');
       const _alMax=Math.max(120,..._alData.filter(v=>v!=null));
       const _alTip=ctx=>{const r=_alRows[ctx.dataIndex];
         if(r.n===0) return r.p+': belum ada interval lifetime (perlu pergantian ke-2 pada kombinasi mesin·section·part yang sama)';
@@ -2205,7 +2209,7 @@ function vDash(){
         options:_alOpt});
       window._dashZoom=window._dashZoom||{};
       window._dashZoom.avglife={title:'⏱️ Avg Lifetime per Part — % Achievement',
-        sub:'Garis putus = target 100%.  <b style="color:#3fd77a">Hijau</b> ≥100% · <b style="color:#ff8c3b">oranye</b> 70–99% · <b style="color:#ff5a5a">merah</b> &lt;70% · <b style="color:#64789a">abu</b> belum ada data.',
+        sub:'Garis putus = target '+_alTgt+'%.  <b style="color:#3fd77a">Hijau</b> ≥'+_alTgt+'% · <b style="color:#ff8c3b">oranye</b> '+Math.round(_alTgt*0.7)+'–'+(_alTgt-1)+'% · <b style="color:#ff5a5a">merah</b> &lt;'+Math.round(_alTgt*0.7)+'% · <b style="color:#64789a">abu</b> belum ada data.',
         make:cv=>{const o={...chOptL(false)};
           o.scales.y=Object.assign({},o.scales.y,{suggestedMax:_alMax,ticks:{color:o.scales.y.ticks.color,font:{family:"Archivo",size:13},callback:v=>v+'%'}});
           o.plugins={legend:{display:false},tooltip:{callbacks:{label:_alTip}},
@@ -2290,8 +2294,8 @@ function vDash(){
   ${dashFilterBar(en.length, m.length)}
   <div class="statbadges">
     ${badge('#ff5a5a',c.OVERDUE,'OVERDUE','Lewat jadwal','🔴','OVERDUE')}
-    ${badge('#ff8c3b',c.URGENT,'URGENT','Due ≤ '+CFG.urgent+' hari','🟠','URGENT')}
-    ${badge('#ffd23f',c.WARNING,'WARNING','Due ≤ '+CFG.warning+' hari','🟡','WARNING')}
+    ${badge('#ff8c3b',c.URGENT,'URGENT','Sisa ≤ lifetime ÷ '+(CFG.urgentDiv||4),'🟠','URGENT')}
+    ${badge('#ffd23f',c.WARNING,'WARNING','Sisa ≤ lifetime ÷ '+(CFG.warnDiv||2),'🟡','WARNING')}
     ${badge('#3fd77a',c.OK,'OK / NORMAL','Aman','🟢','OK')}
     ${badge('#4f9dff',en.length,dashFilterActive()?'TERFILTER':'TOTAL',dashFilterActive()?'Record sesuai filter':'Semua record','📊')}
   </div>
@@ -2459,7 +2463,7 @@ function previewLive(){
   const date=$('#i_date')?$('#i_date').value:'', reason=curReason();
   if(!secs.length||!parts.length){pv.innerHTML='<span style="color:var(--orange)">Select at least 1 section & 1 part.</span>';return;}
   const part=parts[0]; const lt=lifetimeOf(part);
-  let due=''; if(date){const nd=new Date(parseD(date).getTime()+lt*86400000);const rem=daysBetween(TODAY,nd);due=` · Next Due ${part}: <b>${fmtD(nd)}</b> (sisa ${rem}h) ${pill(statusOf(rem))}`;}
+  let due=''; if(date){const nd=new Date(parseD(date).getTime()+lt*86400000);const rem=daysBetween(TODAY,nd);due=` · Next Due ${part}: <b>${fmtD(nd)}</b> (sisa ${rem}h) ${pill(statusOf(rem,part))}`;}
   pv.innerHTML=`Akan membuat <b style="color:var(--accent2)">${n} record</b> (${secs.length} section × ${parts.length} part) · Category: <b>${classifyCat(reason)}</b>${due}`;
 }
 function addRec(close){
@@ -2515,7 +2519,7 @@ function rowMon(x){
   return `<tr data-m="${x.machine}" data-s="${x.section}" data-p="${x.part}" data-st="${x.status}" data-q="${(x.machine+x.section+x.part).toLowerCase()}" style="cursor:pointer" onclick="openComboHistory('${x.machine}','${x.section}','${x.part}')" title="Klik untuk lihat riwayat & tren">
   <td><b>${x.machine}</b></td><td>${x.section}</td><td>${x.part}</td><td class="mono">${x.lt}h</td>
   <td class="mono">${fmtD(x.last)}</td><td class="mono">${fmtD(x.nextDue)}</td>
-  <td class="remain" style="color:${x.rem<0?'#ff5a5a':x.rem<=CFG.urgent?'#ff8c3b':x.rem<=CFG.warning?'#ffd23f':'#3fd77a'}">${x.rem}</td>
+  <td class="remain" style="color:${x.rem<0?'#ff5a5a':x.rem<=urgentDaysFor(x.part)?'#ff8c3b':x.rem<=warnDaysFor(x.part)?'#ffd23f':'#3fd77a'}">${x.rem}</td>
   <td>${pill(x.status)}</td><td>${x.count}</td><td>${x.trouble>0?'<span style="color:#ff5a5a">'+x.trouble+'</span>':'0'}</td>
   <td style="color:var(--txt2);font-size:11.5px">${act}</td></tr>`;
 }
@@ -2550,7 +2554,7 @@ function roasterCov(machine,part){
   const lt=lifetimeOf(part);
   const en=enriched().filter(r=>r.machine===machine&&r.part===part&&r.cat==='Scheduled');
   const bySec={}; en.forEach(r=>{const o=bySec[r.section]; if(!o||r.d>o)bySec[r.section]=r.d;});
-  return sectionsOf(machine).map(s=>{const last=bySec[s]||null; const due=last?new Date(last.getTime()+lt*86400000):null; const rem=last?daysBetween(TODAY,due):null; const st=last?statusOf(rem):'NODATA'; return {section:s,last,due,rem,status:st};});
+  return sectionsOf(machine).map(s=>{const last=bySec[s]||null; const due=last?new Date(last.getTime()+lt*86400000):null; const rem=last?daysBetween(TODAY,due):null; const st=last?statusOf(rem,part):'NODATA'; return {section:s,last,due,rem,status:st};});
 }
 function jcTotalParts(){return Object.values(CFG.jcAreas||{}).reduce((a,arr)=>a+arr.length,0);}
 function vPlan(){
@@ -2586,7 +2590,7 @@ function vPlan(){
     <div class="tblwrap"><table><thead><tr><th>Section</th><th>Last Roaster</th><th>Window Berakhir</th><th>Days Left</th><th>Status</th></tr></thead><tbody>
     ${cov.map(r=>`<tr><td><b>${r.section}</b></td><td class="mono">${r.last?fmtD(r.last):'<span style="color:var(--red)">never</span>'}</td>
       <td class="mono">${r.due?fmtD(r.due):'—'}</td>
-      <td class="mono" style="color:${r.rem==null?'#ff5a5a':r.rem<0?'#ff5a5a':r.rem<=CFG.urgent?'#ff8c3b':r.rem<=CFG.warning?'#ffd23f':'#3fd77a'};font-weight:700">${r.rem==null?'—':r.rem}</td>
+      <td class="mono" style="color:${r.rem==null?'#ff5a5a':r.rem<0?'#ff5a5a':r.rem<=urgentDaysFor(pp)?'#ff8c3b':r.rem<=warnDaysFor(pp)?'#ffd23f':'#3fd77a'};font-weight:700">${r.rem==null?'—':r.rem}</td>
       <td>${r.last?pill(r.status):'<span class="pill pNODATA">NO DATA</span>'}</td></tr>`).join('')}
     </tbody></table></div>
     <div class="note" style="margin-top:12px">💡 Roaster can cover 2–4 sections at once. Prioritize sections that are <b>never replaced</b> & <b>past their window</b> so all ${totalSec} sections are covered within ${lt} days. Log a roaster via the + button (reason: <b>Roaster</b>).</div>
@@ -3400,7 +3404,7 @@ function vAna(){
   <div class="card" style="margin-bottom:18px"><h3>⏱️ Average Lifetime per Part${infoIcon('**Avg Actual** = days between consecutive replacements of the same combination. Lower = replaced more often (more trouble), which indicates a problem.')}</h3>
   <div class="tblwrap"><table><thead><tr><th>Part</th><th>Target</th><th>Avg Actual</th><th>Min</th><th>Max</th><th>Data</th><th>Achievement</th><th>Status</th></tr></thead><tbody>
   ${CFG.parts.map(p=>{const s=partStat[p];const a=avg(s.vals);const ach=a!=null?(a/s.lt*100):null;
-    const st=a==null?'—':a<s.lt*0.7?'CRITICAL':a<s.lt?'UNDER TARGET':'ON TARGET';
+    const st=a==null?'—':a<s.lt*((+CFG.pmTarget||100)/100)*0.7?'CRITICAL':a<s.lt*((+CFG.pmTarget||100)/100)?'UNDER TARGET':'ON TARGET';
     const col=st==='CRITICAL'?'#ff5a5a':st==='UNDER TARGET'?'#ff8c3b':st==='ON TARGET'?'#3fd77a':'#64789a';
     return `<tr><td><b>${p}</b></td><td class="mono">${s.lt}h</td><td class="mono">${a!=null?a.toFixed(1)+'h':'—'}</td>
     <td class="mono">${s.vals.length?Math.min(...s.vals)+'h':'—'}</td><td class="mono">${s.vals.length?Math.max(...s.vals)+'h':'—'}</td>
@@ -3685,7 +3689,7 @@ async function exportExcelFull(byPeriod){
     CFG.parts.forEach(p=>{ putS(st,[p,lifetimeOf(p)]); st++; }); st++;
     wsS.getCell('A'+st).value='STATUS THRESHOLD'; wsS.getCell('A'+st).font={bold:true,size:12}; st++;
     putS(st,['Parameter','Nilai'],true); st++;
-    [['URGENT ≤ (hari)',CFG.urgent],['WARNING ≤ (hari)',CFG.warning],['Replacement Target %',(CFG.pmTarget||70)+'%']].forEach(k=>{ putS(st,[k[0],k[1]]); st++; }); st++;
+    [['WARNING (lifetime ÷ N)',CFG.warnDiv||2],['URGENT (lifetime ÷ N)',CFG.urgentDiv||4],['Replacement Target %',(CFG.pmTarget||70)+'%']].forEach(k=>{ putS(st,[k[0],k[1]]); st++; }); st++;
     wsS.getCell('A'+st).value='MASTER LIST'; wsS.getCell('A'+st).font={bold:true,size:12}; st++;
     putS(st,['Kategori','Daftar'],true); st++;
     [['Machines',(CFG.machines||[]).join(', ')],['Sections',(CFG.sections||[]).join(', ')],['Parts',(CFG.parts||[]).join(', ')],['Shifts',(CFG.shifts||[]).join(', ')],['Consumables',(CFG.consumables||[]).join(', ')],['Processes',(CFG.processes||[]).join(', ')]].forEach(k=>{ putS(st,[k[0],k[1]]); st++; });
@@ -3750,11 +3754,12 @@ function vSet(){
     <div class="card"><h3>⏱️ Lifetime Target (days)</h3>
       ${CFG.parts.map(p=>`<div class="fg" style="flex-direction:row;align-items:center;gap:12px;margin-bottom:9px"><label style="width:130px">${p}</label><input type="number" value="${CFG.lifetimes[p]}" onchange="setLT('${p}',this.value)" style="width:100px"></div>`).join('')}
     </div>
-    <div class="card"><h3>🎚️ Status Threshold (days)</h3>
-      <div class="fg" style="flex-direction:row;align-items:center;gap:12px;margin-bottom:9px"><label style="width:130px">URGENT ≤</label><input type="number" value="${CFG.urgent}" onchange="CFG.urgent=+this.value;saveAll();render()" style="width:100px"></div>
-      <div class="fg" style="flex-direction:row;align-items:center;gap:12px;margin-bottom:9px"><label style="width:130px">WARNING ≤</label><input type="number" value="${CFG.warning}" onchange="CFG.warning=+this.value;saveAll();render()" style="width:100px"></div>
-      <div class="fg" style="flex-direction:row;align-items:center;gap:12px"><label style="width:130px">Replacement Target %</label><input type="number" min="0" max="100" value="${CFG.pmTarget||70}" onchange="CFG.pmTarget=Math.min(100,Math.max(0,+this.value));saveAll();render()" style="width:100px"></div>
-      <div class="note" style="margin-top:14px">OVERDUE &lt; 0 · URGENT ≤ ${CFG.urgent} · WARNING ≤ ${CFG.warning} · OK &gt; ${CFG.warning}<br>Replacement Category target: <b>${CFG.pmTarget||70}%</b> terjadwal</div>
+    <div class="card"><h3>🎚️ Status Threshold (pembagi lifetime)</h3>
+      <div class="note" style="margin:0 0 12px">Threshold otomatis menyesuaikan lifetime tiap part. Mis. lifetime 60h → WARNING di ${Math.round(60/(CFG.warnDiv||2))}h, URGENT di ${Math.round(60/(CFG.urgentDiv||4))}h. Lifetime 730h → WARNING di ${Math.round(730/(CFG.warnDiv||2))}h, URGENT di ${Math.round(730/(CFG.urgentDiv||4))}h.</div>
+      <div class="fg" style="flex-direction:row;align-items:center;gap:12px;margin-bottom:9px"><label style="width:150px">WARNING = lifetime ÷</label><input type="number" min="1" step="0.5" value="${CFG.warnDiv||2}" onchange="CFG.warnDiv=Math.max(1,+this.value||2);saveAll();render()" style="width:90px"></div>
+      <div class="fg" style="flex-direction:row;align-items:center;gap:12px;margin-bottom:9px"><label style="width:150px">URGENT = lifetime ÷</label><input type="number" min="1" step="0.5" value="${CFG.urgentDiv||4}" onchange="CFG.urgentDiv=Math.max(1,+this.value||4);saveAll();render()" style="width:90px"></div>
+      <div class="fg" style="flex-direction:row;align-items:center;gap:12px"><label style="width:150px">Replacement Target %</label><input type="number" min="0" max="100" value="${CFG.pmTarget||70}" onchange="CFG.pmTarget=Math.min(100,Math.max(0,+this.value));saveAll();render()" style="width:90px"></div>
+      <div class="note" style="margin-top:14px">OVERDUE &lt; 0 · URGENT ≤ lifetime÷${CFG.urgentDiv||4} · WARNING ≤ lifetime÷${CFG.warnDiv||2} · OK di atasnya<br>Replacement Category & target Avg-Lifetime: <b>${CFG.pmTarget||70}%</b></div>
     </div>
   </div>
   </div>
