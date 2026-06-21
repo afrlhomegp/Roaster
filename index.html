@@ -382,6 +382,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .drawer .di .die{font-size:18px;width:22px;text-align:center}
   .drawer .di .dbadge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;padding:1px 7px;border-radius:9px;font-weight:700}
   .drawer .dfoot{padding:14px 20px;border-top:1px solid var(--line);font-size:10.5px;color:var(--txt3)}
+  .drawer .dfoot .dfoot-mod{font-size:10.5px;color:var(--txt2);margin-bottom:4px;display:flex;align-items:center;gap:6px}
+  .drawer .dfoot .dfoot-mod svg{width:13px;height:13px;flex:0 0 auto;opacity:.85}
+  .drawer .dfoot .dfoot-mod b{color:var(--accent2);font-family:'Spline Sans Mono';font-weight:700}
+  .drawer .dfoot .dfoot-hint{font-size:10px;color:var(--txt3)}
   .mchips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px}
   .mchip{padding:8px 13px;border-radius:10px;background:var(--panel);border:1px solid var(--line);color:var(--txt2);font-weight:700;font-size:13px;cursor:pointer;transition:.13s;font-family:"Spline Sans Mono"}
   .mchip:hover{border-color:var(--accent);color:var(--txt)}
@@ -655,6 +659,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     /* tabel jadwal schedule per section (matx pakai border-spacing) */
     table.matx.freezecol th:first-child{position:sticky;left:0;z-index:6;background:var(--panel2)}
     table.matx.freezecol td:first-child{position:sticky;left:0;z-index:4;background:var(--bg2);box-shadow:none}
+    /* tutup celah 5px (border-spacing) antar-baris kolom freeze: backdrop solid sehingga chip/badge
+       data yang ter-scroll di belakang tidak tembus pandang melalui sela antar-sel */
+    table.matx.freezecol td:first-child::before{content:'';position:absolute;left:0;right:0;top:-4px;bottom:-4px;
+      background:var(--bg2);z-index:-1;pointer-events:none}
+    table.matx.matx-grouped.freezecol tr.area-row td:first-child::before{display:none}
     /* shadow & latar hanya pada chip S1 (kotak rounded), bukan seluruh sel */
     table.matx.freezecol td:first-child .sec{box-shadow:4px 0 8px -5px rgba(0,0,0,.4)}
     /* beri ruang agar badge ⚠/♻ (menonjol ke luar sel) tidak terpotong tepi area scroll */
@@ -774,7 +783,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     #backdrop{opacity:0!important;pointer-events:none!important}
     .fab{bottom:30px;right:30px}
     /* full-height one-screen dashboard — flex-fill, dikompensasi terhadap display-scale (zoom) */
-    #main:has(.dashpage){display:flex;flex-direction:column;min-height:calc(100vh / var(--uizoom, 1) - 63px)}
+    #main:has(.dashpage){display:flex;flex-direction:column;min-height:calc(100vh / var(--uizoom, 1) - 63px);max-width:none}
+    /* dashboard pakai seluruh lebar layar (lepas batas 1500px) agar tak ada sisi kosong horizontal;
+       header ikut full-width supaya logo/lonceng tetap sejajar tepi kartu */
+    body:has(.dashpage) .hwrap{max-width:none}
     #main:has(.dashpage)>.view.on{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
     .dashpage{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:10px;overflow:hidden}
     .dashpage .kpis{margin-bottom:0!important}
@@ -973,7 +985,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     <button class="x" onclick="closeDrawer()">✕</button>
   </div>
   <div class="dlist" id="dlist"></div>
-  <div class="dfoot">IS Machine PM · ketuk sheet untuk berpindah</div>
+  <div class="dfoot">
+    <div class="dfoot-mod" id="dfootMod"></div>
+    <div class="dfoot-hint">IS Machine PM · ketuk sheet untuk berpindah</div>
+  </div>
 </aside>
 <div class="backdrop" id="backdrop" onclick="closeDrawer()"></div>
 <div id="shell">
@@ -1128,7 +1143,11 @@ const Store = {
   _mem:null
 };
 async function saveLocal(){ await Store.set('pm_db',JSON.stringify(DB)); await Store.set('pm_cfg',JSON.stringify(CFG)); await Store.set('pm_act',JSON.stringify(actionStatus)); await Store.set('pm_jc',JSON.stringify(JCPLANS)); await Store.set('pm_stock',JSON.stringify(STOCK)); }
-async function saveAll(){ await saveLocal(); if(typeof cloudPush==='function') cloudPush(); }
+/* catat waktu update/modifikasi data terakhir (tiap input atau perubahan) */
+function touchMod(){ try{ var t=Date.now(); if(typeof CFG==='object'&&CFG) CFG.lastMod=t; localStorage.setItem('pm_lastmod',String(t)); }catch(e){} }
+function lastModTime(){ var a=(typeof CFG==='object'&&CFG&&CFG.lastMod)?+CFG.lastMod:0; var b=0; try{ b=parseInt(localStorage.getItem('pm_lastmod'),10)||0; }catch(e){} var m=Math.max(a,b); return isNaN(m)?0:m; }
+function fmtModTime(ms){ if(!ms)return''; try{ var d=new Date(new Date(+ms).toLocaleString('en-US',{timeZone:'Asia/Bangkok'})); var p=function(n){return String(n).padStart(2,'0');}; return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear()+' · '+p(d.getHours())+':'+p(d.getMinutes()); }catch(e){ return''; } }
+async function saveAll(){ touchMod(); await saveLocal(); if(typeof cloudPush==='function') cloudPush(); }
 async function loadAll(){
   let d=await Store.get('pm_db'), c=await Store.get('pm_cfg'), a=await Store.get('pm_act'), j=await Store.get('pm_jc'), k=await Store.get('pm_stock');
   if(d){ try{DB=JSON.parse(d)}catch(e){DB=[]} } else { DB=SEED_DATA.map(r=>({...r})); }
@@ -1506,6 +1525,12 @@ function renderDrawer(){
     const b=id==='action'&&urgent>0?`<span class="dbadge">${urgent}</span>`:'';
     return `<div class="di ${id===current?'on':''}" onclick="go('${id}')"><span class="die">${navIcon(id)}</span>${nm}${b}</div>`;
   }).join('');
+  // info update/modifikasi data terakhir (tanggal + jam) di kaki sidebar
+  var fm=document.getElementById('dfootMod');
+  if(fm){ var lm=(typeof lastModTime==='function')?lastModTime():0; var ft=lm?fmtModTime(lm):'';
+    var clk='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+    fm.innerHTML = ft ? (clk+'<span>Update terakhir: <b>'+ft+'</b></span>') : (clk+'<span>Belum ada perubahan data</span>');
+  }
 }
 function toggleDrawer(){const d=document.getElementById('drawer');d.classList.contains('show')?closeDrawer():openDrawer();}
 function openDrawer(){renderDrawer();document.getElementById('drawer').classList.add('show');document.getElementById('backdrop').classList.add('show');document.body.classList.add('dwopen');}
