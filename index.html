@@ -1879,7 +1879,7 @@ function vMachine(){
     <td>${pill(x.status)}</td><td>${x.count}</td><td>${x.trouble>0?'<span style="color:#ff5a5a">'+x.trouble+'</span>':'0'}</td></tr>`).join('')}
   </tbody></table></div>`:`<div class="empty"><div class="big">\U0001F4ED</div><b>No data yet for ${sel}</b><div style="margin-top:6px">Add a replacement in the Input Data tab.</div></div>`}`;
 }
-function go(id){ current=id; buildNav(); render(); if(!isDesktop())closeDrawer(); if(typeof closeMmodal==='function')closeMmodal(); if(typeof closeHmodal==='function')closeHmodal(); if(typeof closeRack==='function')closeRack(); if(typeof closeBellPop==='function')closeBellPop(); if(typeof closeAmodal==='function')closeAmodal(); if(typeof closeAvgLifePop==='function')closeAvgLifePop(); if(typeof closeChartZoom==='function')closeChartZoom(); }
+function go(id){ if(id==='set'&&current!=='set')_setOpen={}; current=id; buildNav(); render(); if(!isDesktop())closeDrawer(); if(typeof closeMmodal==='function')closeMmodal(); if(typeof closeHmodal==='function')closeHmodal(); if(typeof closeRack==='function')closeRack(); if(typeof closeBellPop==='function')closeBellPop(); if(typeof closeAmodal==='function')closeAmodal(); if(typeof closeAvgLifePop==='function')closeAvgLifePop(); if(typeof closeChartZoom==='function')closeChartZoom(); }
 
 /* ============ RENDER ============ */
 function render(){
@@ -3741,7 +3741,7 @@ function enhanceSettingsCollapse(){
     card.classList.add('setcard');
     if(!h.querySelector('.setchev')){ const cv=document.createElement('span'); cv.className='setchev'; cv.textContent='\u25B8'; h.appendChild(cv); }
     h.classList.add('setcard-h'); h.setAttribute('data-key',key); h.style.cursor='pointer';
-    const open=(_setOpen[key]===undefined)?true:!!_setOpen[key]; card.classList.toggle('open',open);
+    const open=(_setOpen[key]===undefined)?false:!!_setOpen[key]; card.classList.toggle('open',open);
     h.addEventListener('click',function(){ const willOpen=!card.classList.contains('open'); _setOpen[key]=willOpen; card.classList.toggle('open',willOpen); });
     if(card.parentElement && card.parentElement.classList.contains('grid')) card.parentElement.style.alignItems='flex-start';
   });
@@ -4036,7 +4036,17 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
   const hs=$('#hstat'); if(hs){const m=monitoring();const bad=m.filter(x=>x.status==='OVERDUE'||x.status==='URGENT').length; hs.textContent=bad>0?bad+' perlu aksi':'Aman ✓'; hs.style.color=bad>0?'#ff8c3b':'#3fd77a';}}
 (async function(){
   // surface any uncaught error visibly instead of a blank screen — tapi data tetap aman di perangkat
-  window.addEventListener('error',ev=>{ try{ var b=document.getElementById('bootErr'); if(b){ b.textContent='⚠️ '+(ev.message||'Script error')+' — data Anda tetap tersimpan di perangkat (aman). Ketuk untuk menutup.'; b.style.display='block'; b.style.cursor='pointer'; b.onclick=function(){ b.style.display='none'; }; } }catch(_){ } });
+  function _showBootErr(msg){ try{ var b=document.getElementById('bootErr'); if(b){ b.textContent='⚠️ '+msg+' — data Anda tetap tersimpan di perangkat (aman). Ketuk untuk menutup.'; b.style.display='block'; b.style.cursor='pointer'; b.onclick=function(){ b.style.display='none'; }; } }catch(_){ } }
+  window.addEventListener('error',function(ev){ try{
+    // Error "opaque" lintas-origin (mis. respons JSONP cloud-sync dari Apps Script) tidak membawa
+    // detail apa pun & hampir selalu transient — cukup catat ke console, JANGAN munculkan banner.
+    var opaque = (!ev.filename) && (!ev.lineno) && (!ev.message || ev.message==='Script error.' || ev.message==='Script error');
+    if(opaque){ try{ console.warn('Sinkron cloud / lintas-origin transient diabaikan (data aman).'); }catch(_){ } return; }
+    var detail=(ev.message||'Script error'); if(ev.lineno) detail+=' [baris '+ev.lineno+(ev.colno?':'+ev.colno:'')+']';
+    try{ if(ev.error&&ev.error.stack) console.error(ev.error.stack); }catch(_){ }
+    _showBootErr(detail);
+  }catch(_){ } });
+  window.addEventListener('unhandledrejection',function(ev){ try{ console.warn('Promise ditolak (diabaikan, data aman):', ev&&ev.reason); }catch(_){ } });
   try{ await loadAll(); }catch(e){ console.error('loadAll failed:',e); }
   try{ Cloud.dirty = (localStorage.getItem('pm_dirty')==='1'); }catch(e){}   // pulihkan status "belum tersinkron" setelah reload → lindungi input lokal
   try{ var _lr0=parseInt(localStorage.getItem('pm_lastrev'),10); Cloud.lastRev=isNaN(_lr0)?null:_lr0; }catch(e){}   // pulihkan revisi cloud terakhir yang sudah diserap
