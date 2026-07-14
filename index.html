@@ -403,7 +403,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .view{display:none;animation:fade .35s ease}
   .view.on{display:block}
   @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-  h2.title{font-size:21px;font-weight:800;letter-spacing:-.4px;margin-bottom:3px;display:flex;align-items:center;gap:10px}
+  h2.title{font-size:21px;font-weight:800;letter-spacing:-.4px;margin-bottom:3px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .synced{display:inline-grid;place-items:center;color:var(--txt3);opacity:.8}
   .synced.cl-connected{color:var(--green);opacity:1}
   .synced.cl-error{color:var(--red);opacity:1}
@@ -431,7 +431,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   /* ===== Compact status badges (replaces the two big KPI rows) ===== */
   .statbadges{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:12px}
   /* ===== Dashboard view toggle (Charts ↔ JC Summary) ===== */
-  .dashview-toggle{display:inline-flex;gap:4px;margin-left:auto;background:var(--panel2);border:1px solid var(--line2);border-radius:11px;padding:3px}
+  .dashview-toggle{display:inline-flex;gap:4px;margin-left:auto;background:var(--panel2);border:1px solid var(--line2);border-radius:11px;padding:3px;max-width:100%}
   .dvt-btn{position:relative;border:0;background:transparent;color:var(--txt2);font-family:inherit;font-size:12px;font-weight:700;
     padding:6px 12px;border-radius:8px;cursor:pointer;transition:.14s;white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
   .dvt-btn:hover{color:var(--txt)}
@@ -439,6 +439,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .dvt-badge{display:inline-grid;place-items:center;min-width:17px;height:17px;padding:0 4px;border-radius:9px;
     background:var(--red);color:#fff;font-size:10px;font-weight:800;line-height:1}
   .dvt-btn.on .dvt-badge{background:#0d0d0f;color:var(--accent)}
+  /* tombol Riwayat JC di ujung kanan judul Machine Status */
+  .sectiontitle .jchbtn{margin-left:auto;flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;
+    font-family:inherit;font-size:10.5px;font-weight:800;letter-spacing:.3px;text-transform:none;
+    background:var(--panel2);border:1px solid var(--line2);color:var(--txt2);
+    border-radius:9px;padding:5px 11px;cursor:pointer;transition:.15s}
+  .sectiontitle .jchbtn:hover{border-color:var(--accent);color:var(--accent);background:rgba(245,166,35,.1)}
+  .sectiontitle .jchbtn:active{transform:scale(.94)}
   /* ===== JC SUMMARY panel ===== */
   .jcsum{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;overflow:hidden}
   .jcsum-bar{flex:0 0 auto;display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;padding:9px 14px;
@@ -469,7 +476,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .jcs-preptbl tr:last-child td{border-bottom:0}
   .jcsum-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
     background:var(--panel);border:1px dashed var(--line2);border-radius:14px;padding:40px 20px}
-  @media(max-width:680px){ .jcsum-grid{grid-template-columns:1fr} .dashview-toggle{margin-left:0} .dvt-btn{padding:6px 9px;font-size:11px} }
+  @media(max-width:680px){ .jcsum-grid{grid-template-columns:1fr}
+    .dashview-toggle{margin-left:0} .dvt-btn{padding:6px 9px;font-size:11px}
+    .sectiontitle .jchbtn{font-size:10px;padding:5px 9px}
+  }
   /* ===== JC SUMMARY — matrix pivot (part × jobchange) ===== */
   .jcsum-hint{margin-left:auto;font-size:11px;color:var(--txt3)}
   .jcmx-legend{display:inline-flex;gap:7px;align-items:center;flex-wrap:wrap}
@@ -965,6 +975,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     /* area scroll: harus bisa menyusut (min-height:0) agar overflow aktif */
     .mbox{scrollbar-width:none}
     .mscroll{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px 18px}
+    /* popup Riwayat JC: di HP biar sheet-nya yang scroll vertikal, deck cukup geser horizontal */
+    .swipepage{max-height:none;overflow-y:visible}
+    .jch-gcard{flex:1 1 44%}
+    .specgrid .spec-fix{width:118px}
+    table.spectbl th,table.spectbl td{font-size:11px;padding:5px 6px}
 
     /* ===== FREEZE kolom pertama (Section / Part) saat tabel di-swipe kiri-kanan ===== */
     /* tabel biasa (spec & transisi JC) */
@@ -1055,6 +1070,29 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     border:1px solid rgba(200,155,255,.42);border-radius:12px;padding:2px 9px;text-transform:uppercase;letter-spacing:.4px;vertical-align:middle}
   .histnote{margin-top:10px;padding:8px 11px;border-radius:10px;border:1px dashed rgba(200,155,255,.45);
     background:rgba(200,155,255,.08);font-size:11.5px;color:var(--txt2);line-height:1.5}
+  /* ===== Kartu Spec & Transisi JC: Part beku, kolom nilai yang digeser ===== */
+  .specgrid{display:flex;align-items:flex-start;border:1px solid var(--line2);border-radius:12px;overflow:hidden}
+  .specgrid .spec-fix{flex:0 0 auto;width:158px;border-right:1px solid var(--line2);
+    box-shadow:6px 0 10px -6px rgba(0,0,0,.5)}
+  .specgrid .mspecdeck{flex:1 1 auto;min-width:0;border-radius:0}
+  .mspecdeck .mspecpage{max-height:none;overflow-y:visible;padding:0}
+  .mspecnav{margin:2px 0 0}
+  .consdot{color:#ff8c3b;font-size:8px;vertical-align:middle}
+  /* dua tabel harus punya tinggi baris identik supaya sejajar */
+  table.spectbl{border-collapse:collapse;width:100%;table-layout:fixed}
+  table.spectbl th,table.spectbl td{height:34px;box-sizing:border-box;padding:5px 9px;font-size:12px;
+    line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid var(--line)}
+  table.spectbl thead th{height:44px;background:var(--panel2);vertical-align:middle}
+  table.spectbl tr.cmp-area td{height:26px;padding:2px 9px;font-size:10px;font-weight:800;letter-spacing:.4px;
+    text-transform:uppercase;color:var(--accent2);background:var(--panel2)}
+  table.spectbl.spec-fix tbody td{font-weight:700;text-align:left;background:var(--panel)}
+  table.spectbl.spec-val td{text-align:center}
+  table.spectbl.spec-val td:last-child{text-align:right}
+  .mspec-ph{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 10px;border-radius:10px;
+    background:var(--panel2);border:1px solid var(--line2)}
+  .mspec-ph b{font-size:12.5px;font-family:'Spline Sans Mono'}
+  .mspec-now{font-size:10px;font-weight:800;color:#3fd77a;background:rgba(63,215,122,.12);
+    border:1px solid rgba(63,215,122,.4);border-radius:12px;padding:2px 9px;text-transform:uppercase;letter-spacing:.4px}
   /* ===== Popup Riwayat JC (swipe) ===== */
   .jch-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
   .jch-tab{font-size:11.5px;font-weight:800;padding:6px 13px;border-radius:10px;background:var(--panel2);
@@ -2501,11 +2539,19 @@ function lineOf(m){ return String(m).split('.')[0]; }
 function dashLines(){ const s=[]; CFG.machines.forEach(m=>{const l=lineOf(m); if(s.indexOf(l)<0)s.push(l);}); return s; }
 function dashBrands(){ const s=[]; CFG.machines.forEach(m=>{const b=brandOf(m); if(s.indexOf(b)<0)s.push(b);}); return s; }
 function dashPeriodDays(){ const p=dashF().period; return ({'30':30,'90':90,'180':180,'365':365})[p]||null; }
+/* satu-satunya sumber rentang tanggal dashboard (dipakai juga oleh popup Riwayat JC) */
+function dashPeriodFrom(){ const p=dashF().period;
+  if(p==='mtd'){ const d=new Date(TODAY.getFullYear(),TODAY.getMonth(),1); d.setHours(0,0,0,0); return d; }
+  const n=dashPeriodDays(); if(!n) return null;
+  const d=new Date(TODAY.getTime()-n*86400000); d.setHours(0,0,0,0); return d; }
+function dashPeriodLabel(){ const p=dashF().period;
+  if(p==='mtd') return 'Bulan ini ('+JCH_MON[TODAY.getMonth()]+' '+TODAY.getFullYear()+')';
+  const n=dashPeriodDays(); return n?(n+' hari terakhir'):'Semua periode'; }
 function machPass(m){ const F=dashF(); if(F.line!=='all'&&lineOf(m)!==F.line)return false; if(F.brand!=='all'&&brandOf(m)!==F.brand)return false; return true; }
 function dashScopeMachines(){ return CFG.machines.filter(machPass); }
 function dashScopeParts(){ const F=dashF(); return (F.part!=='all'&&CFG.parts.indexOf(F.part)>=0)?[F.part]:CFG.parts.slice(); }
 function dashScopeMon(arr){ const F=dashF(); return arr.filter(x=> machPass(x.machine) && (F.part==='all'||x.part===F.part)); }
-function dashScopeEn(arr){ const F=dashF(); const days=dashPeriodDays(); const cut=days?new Date(TODAY.getTime()-days*86400000):null;
+function dashScopeEn(arr){ const F=dashF(); const cut=dashPeriodFrom();
   return arr.filter(r=> machPass(r.machine) && (F.part==='all'||r.part===F.part) && (!cut || r.d>=cut)); }
 function dashFilterActive(){ const F=dashF(); return F.line!=='all'||F.brand!=='all'||F.part!=='all'||F.period!=='all'; }
 function setDashF(k,v){ dashF()[k]=v; render(); }
@@ -2552,7 +2598,7 @@ function dashFilterBar(enN, monN){
   const grp=(key,label,inner)=>`<div class="dfgroup"><span class="dflbl">${label}</span><div class="dfseg">${inner}</div></div>`;
   const lineG=grp('line','Line', seg('line','Semua','all')+dashLines().map(l=>seg('line',l,l)).join(''));
   const brandG=grp('brand','Brand', seg('brand','Semua','all')+dashBrands().map(b=>seg('brand',b,b)).join(''));
-  const periodG=grp('period','Periode', seg('period','Semua','all')+seg('period','30 hr','30')+seg('period','90 hr','90')+seg('period','180 hr','180')+seg('period','1 thn','365'));
+  const periodG=grp('period','Periode', seg('period','Semua','all')+seg('period','Bulan ini','mtd')+seg('period','30 hr','30')+seg('period','90 hr','90')+seg('period','180 hr','180')+seg('period','1 thn','365'));
   const partOpt=`<option value="all"${F.part==='all'?' selected':''}>Semua part</option>`+CFG.parts.map(p=>`<option value="${esc(p)}"${F.part===p?' selected':''}>${esc(p)}</option>`).join('');
   const partG=`<div class="dfgroup"><span class="dflbl">Part</span><select class="dfsel" onchange="setDashF('part',this.value)">${partOpt}</select></div>`;
   const sum=`<span class="dfsum">${enN} record · ${monN} part dimonitor</span>`;
@@ -2833,7 +2879,6 @@ function vDash(){
     <span class="dashview-toggle">
       <button class="dvt-btn${_dv==='charts'?' on':''}" onclick="setDashView('charts')" title="Tampilan grafik & machine status">📊 Charts</button>
       <button class="dvt-btn${_dv==='jc'?' on':''}" onclick="setDashView('jc')" title="Ringkasan JobChange terdekat & persiapan part">🔧 JC Summary${jcCount?'<span class="dvt-badge">'+jcCount+'</span>':''}</button>
-      <button class="dvt-btn" onclick="openJcHist(null,'count')" title="Riwayat JC & hitung berapa kali part diganti (ikut filter periode)">📜 Riwayat JC</button>
     </span></h2>
   <div class="dashpage">
   ${dashFilterBar(en.length, m.length)}
@@ -2864,7 +2909,8 @@ function vDash(){
       <div class="card trendcard"><h3>📈 Planned vs Trouble — 6 Bulan Terakhir<span class="tag">tren</span><button class="chzbtn" onclick="openChartZoom('month')" title="Perbesar grafik">⤢</button></h3><div class="chwrap chwrap-zoom" onclick="openChartZoom('month')" title="Klik untuk memperbesar"><canvas id="chMonth"></canvas></div></div>
     </div>
     <div class="dashright">
-      <div class="sectiontitle">🏭 Machine Status <span style="font-size:11px;color:var(--txt3);font-weight:600">— per line · klik mesin untuk detail</span></div>
+      <div class="sectiontitle">🏭 Machine Status <span style="font-size:11px;color:var(--txt3);font-weight:600">— per line · klik mesin untuk detail</span>
+        <button class="jchbtn" onclick="openJcHist(null,'count')" title="Riwayat JC & hitung berapa kali part diganti (ikut filter dashboard)">📜 Riwayat JC</button></div>
       <div class="mgroups">${mgroupsHTML}</div>
     </div>
   </div>`}
@@ -3860,17 +3906,8 @@ function specHistNow(){ window._mSpecBack=0; window._mSpecSel=null; renderMachin
 const JCH_MON=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 function jchMonLbl(m){ const a=String(m).split('-'); return (JCH_MON[(+a[1])-1]||a[1])+' '+a[0]; }
 function jchState(){ if(!window._jch) window._jch={m:null,tab:'hist',part:'all',month:null,pg:0}; return window._jch; }
-function jcHRange(){
-  const S=jchState();
-  if(S.month){ const a=S.month.split('-').map(Number);
-    const from=new Date(a[0],a[1]-1,1); from.setHours(0,0,0,0);
-    const to=new Date(a[0],a[1],0); to.setHours(0,0,0,0);
-    return {from,to,label:'Bulan '+jchMonLbl(S.month)}; }
-  const d=dashPeriodDays();
-  if(!d) return {from:null,to:TODAY,label:'Semua periode'};
-  const from=new Date(TODAY.getTime()-d*86400000); from.setHours(0,0,0,0);
-  return {from,to:TODAY,label:d+' hari terakhir'};
-}
+/* rentang popup = rentang dashboard. Tidak ada filter periode kedua. */
+function jcHRange(){ return {from:dashPeriodFrom(), to:TODAY, label:dashPeriodLabel()}; }
 function jcParts(){ const o=[]; Object.keys(CFG.jcAreas).forEach(a=>CFG.jcAreas[a].forEach(p=>{if(o.indexOf(p)<0)o.push(p);})); return o; }
 function jchMachines(){ const ms=dashScopeMachines(); return ms.length?ms:CFG.machines.slice(); }
 /* satu event = satu job change (transisi dari JC sebelumnya ke JC ini) */
@@ -3909,6 +3946,75 @@ function jcPartStats(R,ms){
   return {p,tot};
 }
 function jchSetPartIdx(i){ const p=jcParts()[i]; if(p) jchSet('part',p); }
+/* ---- data JC utk EXPORT: dipakai laporan Excel utama & tombol export di popup ---- */
+function jcHistRows(ms,from,to){
+  const ev=[], cmap={}, smap={}, jcN={};
+  ms.forEach(m=>{
+    const evs=jcChangeEvents(m,from,to); jcN[m]=evs.length;
+    evs.forEach(e=>{
+      const p=e.plan;
+      e.all.filter(d=>d.status!=='same').forEach(d=>ev.push({
+        dt:p.jcDate?parseD(p.jcDate):'', bl:String(p.jcDate||'').slice(0,7), m, br:brandOf(m),
+        tj:p.typeJob||'', ds:p.description||'', pr:p.process||'', cd:p.cd||'', w:p.weight||'',
+        pt:d.part, ol:d.oldV||'', nw:d.newV||'', ak:actTxt(d), cs:d.consumable?'Ya':'Tidak'}));
+      e.chg.forEach(d=>{
+        const k=m+'|'+d.part;
+        if(!cmap[k]) cmap[k]={m,br:brandOf(m),pt:d.part,n:0,dates:[]};
+        cmap[k].n++; cmap[k].dates.push(p.jcDate||'');
+        const v=String(d.newV||'').trim()||'(kosong)', k2=d.part+'|'+v;
+        if(!smap[k2]) smap[k2]={pt:d.part,sz:v,n:0,mc:{},last:''};
+        smap[k2].n++; smap[k2].mc[m]=1; if(String(p.jcDate||'')>smap[k2].last) smap[k2].last=p.jcDate||'';
+      });
+    });
+  });
+  ev.sort((a,b)=>String(b.bl+a.pt).localeCompare(String(a.bl+b.pt)));
+  const cnt=Object.keys(cmap).map(k=>cmap[k]).sort((a,b)=>b.n-a.n||a.m.localeCompare(b.m))
+    .map(x=>({m:x.m,br:x.br,pt:x.pt,n:x.n,jc:jcN[x.m]||0,dates:x.dates.slice().sort().map(d=>fmtD(d)).join(' · ')}));
+  const ptot={}; Object.keys(cmap).forEach(k=>{const x=cmap[k]; ptot[x.pt]=(ptot[x.pt]||0)+x.n;});
+  Object.keys(ptot).sort((a,b)=>ptot[b]-ptot[a]).forEach(pt=>cnt.push({m:'» TOTAL SEMUA MESIN',br:'',pt,n:ptot[pt],jc:'',dates:''}));
+  const partTot={}; Object.keys(smap).forEach(k=>{const x=smap[k]; partTot[x.pt]=(partTot[x.pt]||0)+x.n;});
+  const sz=Object.keys(smap).map(k=>smap[k])
+    .sort((a,b)=> a.pt===b.pt ? b.n-a.n : (partTot[b.pt]-partTot[a.pt] || a.pt.localeCompare(b.pt)))
+    .map(x=>({pt:x.pt,sz:x.sz,n:x.n,pc:partTot[x.pt]?Math.round(x.n/partTot[x.pt]*100):0,
+      mc:Object.keys(x.mc).join(', '), last:x.last?parseD(x.last):''}));
+  return {ev,cnt,sz};
+}
+const JC_COLS_EV=[{header:'Tgl JC',key:'dt',width:12,style:{numFmt:'dd/mm/yyyy'}},{header:'Bulan',key:'bl',width:9},{header:'Machine',key:'m',width:9},{header:'Brand',key:'br',width:11},
+  {header:'Type Job',key:'tj',width:10},{header:'Description',key:'ds',width:20},{header:'Process',key:'pr',width:10},{header:'CD',key:'cd',width:7},{header:'Weight',key:'w',width:9},
+  {header:'Part',key:'pt',width:22},{header:'Lama',key:'ol',width:11},{header:'Baru',key:'nw',width:11},{header:'Aksi',key:'ak',width:18},{header:'Consumable',key:'cs',width:11}];
+const JC_COLS_CNT=[{header:'Machine',key:'m',width:20},{header:'Brand',key:'br',width:11},{header:'Part',key:'pt',width:22},
+  {header:'Jml Ganti',key:'n',width:10},{header:'Jml JC',key:'jc',width:9},{header:'Tanggal JC',key:'dates',width:44}];
+const JC_COLS_SZ=[{header:'Part',key:'pt',width:22},{header:'Ukuran',key:'sz',width:12},{header:'Jml Dipasang',key:'n',width:13},
+  {header:'% dari Part',key:'pc',width:11},{header:'Mesin',key:'mc',width:24},{header:'Terakhir',key:'last',width:12,style:{numFmt:'dd/mm/yyyy'}}];
+/* export langsung dari popup Riwayat JC (ikut scope & periode dashboard) */
+async function exportJcHistExcel(){
+  toast('Menyusun Excel…');
+  try{
+    await ensureLib('lib-exceljs','ExcelJS');
+    const R=jcHRange(), ms=jchMachines();
+    const D=jcHistRows(ms,R.from,R.to);
+    if(!D.ev.length){ toast('Tidak ada data JC pada scope/periode ini',1); return; }
+    const wb=new ExcelJS.Workbook(); wb.creator='IS Machine PM'; wb.created=new Date();
+    const HEADFILL={type:'pattern',pattern:'solid',fgColor:{argb:'FF0B121E'}};
+    const sh=(name,cols,rows)=>{ const ws=wb.addWorksheet(name); ws.columns=cols; rows.forEach(o=>ws.addRow(o));
+      const r=ws.getRow(1); r.height=20; r.eachCell(c=>{c.font={bold:true,color:{argb:'FFFFFFFF'}};c.fill=HEADFILL;});
+      ws.views=[{state:'frozen',ySplit:1}]; ws.autoFilter={from:{row:1,column:1},to:{row:1,column:cols.length}}; return ws; };
+    const wsI=wb.addWorksheet('Info'); wsI.getColumn(1).width=22; wsI.getColumn(2).width=52;
+    wsI.getCell('A1').value='RIWAYAT JOB CHANGE — IS MACHINE'; wsI.getCell('A1').font={bold:true,size:14};
+    [['Dibuat',fmtD(TODAY)],['Periode',R.label+(R.from?(' ('+fmtD(R.from)+' s/d '+fmtD(R.to)+')'):'')],
+     ['Line',dashF().line==='all'?'Semua':dashF().line],['Brand',dashF().brand==='all'?'Semua':dashF().brand],
+     ['Mesin',ms.join(', ')],['Total pergantian',D.ev.length],
+     ['Catatan','Ganti = ukuran berubah / part baru dipasang antar-JC (consumable seperti Orifice: 1 perubahan = 1 pemakaian)']
+    ].forEach((k,i)=>{ wsI.getCell('A'+(i+3)).value=k[0]; wsI.getCell('A'+(i+3)).font={bold:true}; wsI.getCell('B'+(i+3)).value=k[1]; });
+    sh('Riwayat JC',JC_COLS_EV,D.ev);
+    sh('Hitung Ganti',JC_COLS_CNT,D.cnt);
+    sh('Trend Ukuran',JC_COLS_SZ,D.sz);
+    const buf=await wb.xlsx.writeBuffer();
+    dl(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),
+       'Riwayat_JC_'+(R.from?ymd(R.from)+'_sd_'+ymd(R.to):'SEMUA')+'.xlsx');
+    toast('✓ Excel Riwayat JC dibuat');
+  }catch(e){ toast('Gagal membuat Excel: '+e.message,1); }
+}
 function trBar(label,n,mx,tot,cls,attrs,wide){
   const pct=mx?Math.round(n/mx*100):0, share=tot?Math.round(n/tot*100):0;
   return `<div class="trrow ${cls||''}" ${attrs||''}><span class="trlbl ${wide?'wide':''}">${esc(label)}</span>
@@ -3926,9 +4032,6 @@ function closeJcHist(){ const el=document.getElementById('jchmodal'); if(el)el.c
   const mm=document.getElementById('mmodal');
   if(!(mm&&mm.classList.contains('show'))) document.body.classList.remove('mmodal-open'); }
 function jchSet(k,v){ const S=jchState(); S[k]=v; S.pg=0; renderJcHist(); }
-function jchPeriod(v){ dashF().period=v; const S=jchState(); S.month=null; S.pg=0; renderJcHist();
-  try{ if(typeof current!=='undefined'&&current==='dash') render(); }catch(e){} }
-function jchMonth(v){ const S=jchState(); S.month=v||null; S.pg=0; renderJcHist(); }
 function jchGo(d){ const dk=document.getElementById('jchdeck'); if(!dk)return;
   const S=jchState(), n=window._jchN||1;
   S.pg=Math.max(0,Math.min(n-1,S.pg+d));
@@ -3951,13 +4054,8 @@ function renderJcHist(){
   if(ms.indexOf(S.m)<0) S.m=ms[0]||CFG.machines[0];
 
   const tab=(k,l)=>`<span class="jch-tab ${S.tab===k?'on':''}" onclick="jchSet('tab','${k}')">${l}</span>`;
-  const pchip=(v,l)=>`<span class="jch-chip ${(!S.month&&dashF().period===v)?'on':''}" onclick="jchPeriod('${v}')">${l}</span>`;
-  const months=[]; JCPLANS.forEach(p=>{ if(p.trial||!p.jcDate)return; const k=p.jcDate.slice(0,7); if(months.indexOf(k)<0)months.push(k); });
-  months.sort().reverse();
-  const monSel=`<select class="jch-sel" onchange="jchMonth(this.value)"><option value="">— per bulan —</option>${months.map(m=>`<option value="${m}"${S.month===m?' selected':''}>${jchMonLbl(m)}</option>`).join('')}</select>`;
   const partSel=`<select class="jch-sel" onchange="jchSet('part',this.value)"><option value="all">Semua part</option>${jcParts().map(p=>`<option value="${esc(p)}"${S.part===p?' selected':''}>${esc(p)}</option>`).join('')}</select>`;
   const scopeTxt=(dashF().line!=='all'?'Line '+dashF().line:'Semua line')+' · '+(dashF().brand!=='all'?dashF().brand:'Semua brand')+' · '+ms.length+' mesin';
-  const filt=`<div class="jch-f"><span class="lbl">Periode</span>${pchip('all','Semua')}${pchip('30','30 hr')}${pchip('90','90 hr')}${pchip('180','180 hr')}${pchip('365','1 thn')}${monSel}</div>`;
 
   let body='', dots='', lbls=[], n=0;
 
@@ -4039,72 +4137,131 @@ function renderJcHist(){
     <div class="jch-pglbl" id="jchpglbl">${(S.pg+1)}/${n} · ${lbls[S.pg]||''}</div>`:'';
 
   box.innerHTML=`<div class="mh"><h2 style="margin:0;font-size:17px">📜 Riwayat Job Change</h2>
-      <button class="x" onclick="closeJcHist()" style="margin-left:auto">✕</button></div>
+      <button class="btn sec sm" onclick="exportJcHistExcel()" style="margin-left:auto" title="Export scope & periode ini ke Excel">⬇️ Excel</button>
+      <button class="x" onclick="closeJcHist()">✕</button></div>
+    <div class="mscroll">
     <div class="jch-tabs">${tab('hist','🔁 Transisi JC')}${tab('count','🔢 Hitung Ganti')}</div>
-    ${filt}
-    <div class="note" style="margin:0 0 10px">Scope: <b>${scopeTxt}</b> · Rentang: <b>${R.label}</b>${R.from?' ('+fmtD(R.from)+' → '+fmtD(R.to)+')':''} — mengikuti filter dashboard.</div>
+    <div class="note" style="margin:0 0 10px">Scope (ikut filter dashboard): <b>${scopeTxt}</b><br>Periode: <b>${R.label}</b>${R.from?' — '+fmtD(R.from)+' → '+fmtD(R.to):' (semua job change tercatat)'}</div>
     ${body}
     ${nav}
-    ${n>1?'<div class="swipehint" style="font-size:10.5px;color:var(--txt3);font-weight:700;text-align:center;margin-top:4px">← geser tabel untuk pindah '+(S.tab==='hist'?'JC':'mesin')+' →</div>':''}`;
+    ${n>1?'<div style="font-size:10.5px;color:var(--txt3);font-weight:700;text-align:center;margin-top:4px">← geser tabel untuk pindah '+(S.tab==='hist'?'JC':'mesin')+' →</div>':''}
+    </div>`;
   jchDeckInit();
 }
 function selSpec(k){window._mSpecSel=k;renderMachineModal();}
 function planField(p,k){ if(!p)return ''; if(k==='description')return p.description||p.bottleSize||''; if(k==='weight')return p.weight?p.weight+' gr':''; if(k==='jcDate')return p.jcDate?fmtD(parseD(p.jcDate)):''; return p[k]||''; }
-function machineSpecHTML(machine){
-  const W=specWindow(machine);
-  const cur=W.cur, prev=W.prev, nxt=W.nxt, HIST=W.hist;
-  if(!cur&&!prev&&!nxt){
-    return `<div class="card noswipe" style="padding:14px;margin-top:14px"><h3>🧰 JC Spec & Transition</h3><div class="note" style="margin:4px 0 10px">No jobchange plan yet for ${machine}. Create one in JC Planning to record the installed variable sizes.</div><button class="btn sec sm" onclick="closeMmodal();go('plan')">➕ Create in JC Planning</button></div>`;
-  }
+/* ---- Kartu Spec & Transisi JC: kolom Part BEKU, hanya kolom nilai yang digeser ---- */
+function specRowSet(tl){
+  return Object.keys(CFG.jcAreas).map(area=>({
+    area, parts: CFG.jcAreas[area].filter(part=> tl.some(p=>String((p.specs&&p.specs[part])||'').trim()) )
+  })).filter(x=>x.parts.length);
+}
+/* isi satu halaman = kolom nilai (Sebelum/Lama · Sekarang/JC ini · Baru/Sesudah · Stock) */
+function specValPage(b,tl,ci,AREAS){
+  const si=ci-b;
+  const prev=tl[si-1]||null, cur=tl[si]||null, nxt=tl[si+1]||null, HIST=b>0;
   const slots={lama:prev,sekarang:cur,baru:nxt};
-  let selKey=window._mSpecSel; if(!selKey||!slots[selKey]) selKey=cur?'sekarang':(nxt?'baru':'lama'); window._mSpecSel=selKey;
+  let selKey=window._mSpecSel; if(!selKey||!slots[selKey]) selKey=cur?'sekarang':(nxt?'baru':'lama');
+  const dLbl=p=>(p&&p.jcDate)?fmtD(parseD(p.jcDate)):'—';
+  const LBL=HIST?{lama:'Sebelum',sekarang:'JC Ini',baru:'Sesudah'}:{lama:'Lama',sekarang:'Sekarang',baru:'Baru'};
+  const th=k=>{const p=slots[k];const hc=(HIST&&k==='sekarang')?' thhist':'';
+    return `<th class="${selKey===k?'thsel':''} thcol-${k} thdated${hc}" ${p?`onclick="selSpec('${k}')" style="cursor:pointer"`:''}><span class="thlab">${LBL[k]}</span><span class="thdate">${dLbl(p)}</span></th>`;};
+  const cls=k=>'tdcol-'+k+(selKey===k?' tdsel':'')+((HIST&&k==='sekarang')?' tdhist':'');
+  const rows=AREAS.map(A=>`<tr class="cmp-area"><td colspan="4"></td></tr>`+A.parts.map(part=>{
+      const lv=String((prev&&prev.specs&&prev.specs[part])||'').trim();
+      const cv=String((cur&&cur.specs&&cur.specs[part])||'').trim();
+      const nv=String((nxt&&nxt.specs&&nxt.specs[part])||'').trim();
+      let status='none';
+      if(nxt){ status=(!cv&&!nv)?'none':(!cv&&nv)?'add':(cv&&!nv)?'remove':(cv.toLowerCase()===nv.toLowerCase())?'same':'change'; }
+      const scol={same:'#3fd77a',change:'#ff8c3b',add:'#4f9dff',remove:'#ff5a5a'}[status]||'var(--txt)';
+      const stitle={same:'Tetap',change:'Ganti ukuran',add:'Pasang baru',remove:'Dilepas'}[status]||'';
+      const prep=nxt?nv:cv; let stk='<span style="color:var(--txt3)">—</span>';
+      if(prep&&!HIST){ const sf=stockFor(part,prep); const q=sf.sizeTot!=null?sf.sizeTot:sf.partTot;
+        stk=`<span class="mono" style="color:${q<=0?'#ff5a5a':q<=2?'#ff8c3b':'#3fd77a'};font-weight:700">${q}</span>`; }
+      return `<tr><td class="mono ${cls('lama')}">${lv||'—'}</td><td class="mono ${cls('sekarang')}">${cv||'—'}</td>
+        <td class="mono ${cls('baru')}" title="${stitle}"><b style="color:${scol}">${nv||'—'}</b></td>
+        <td style="text-align:right">${stk}</td></tr>`;
+    }).join('')).join('');
+  return `<div class="swipepage mspecpage"><table class="spectbl spec-val"><thead><tr>${th('lama')}${th('sekarang')}${th('baru')}<th class="thdated"><span class="thlab">Stock</span><span class="thdate">&nbsp;</span></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+/* strip header + info chips + tombol apply per halaman (di-update saat geser, tidak ikut bergerak) */
+function specMetaFor(b,tl,ci){
+  const si=ci-b;
+  const prev=tl[si-1]||null, cur=tl[si]||null, nxt=tl[si+1]||null, HIST=b>0;
+  const slots={lama:prev,sekarang:cur,baru:nxt};
+  let selKey=window._mSpecSel; if(!selKey||!slots[selKey]) selKey=cur?'sekarang':(nxt?'baru':'lama');
   const selPlan=slots[selKey];
   const FMAP=[['Type Job','typeJob'],['Description','description'],['Process','process'],['CD','cd'],['Weight','weight'],['Tgl JC','jcDate']];
   const fieldChanged=k=> cur&&nxt && String(planField(cur,k)).toLowerCase()!==String(planField(nxt,k)).toLowerCase();
   const info=selPlan?FMAP.map(([label,key])=>{const v=planField(selPlan,key); if(!v)return ''; return `<span class="ichip ${fieldChanged(key)?'chg':''}"><b>${label}:</b> ${v}</span>`;}).filter(Boolean).join(''):'';
   let hasChange=false;
   if(cur&&nxt){ FMAP.forEach(([l,k])=>{ if(fieldChanged(k))hasChange=true; });
-    Object.values(CFG.jcAreas).forEach(arr=>arr.forEach(part=>{ const o=((cur.specs&&cur.specs[part])||'').trim().toLowerCase(), n=((nxt.specs&&nxt.specs[part])||'').trim().toLowerCase(); if(o!==n)hasChange=true; })); }
+    Object.values(CFG.jcAreas).forEach(arr=>arr.forEach(part=>{ const o=String((cur.specs&&cur.specs[part])||'').trim().toLowerCase(), n=String((nxt.specs&&nxt.specs[part])||'').trim().toLowerCase(); if(o!==n)hasChange=true; })); }
   const dLbl=p=>(p&&p.jcDate)?fmtD(parseD(p.jcDate)):'—';
-  const LBL=HIST?{lama:'Sebelum',sekarang:'JC Ini',baru:'Sesudah'}:{lama:'Lama',sekarang:'Sekarang',baru:'Baru'};
-  const histBar=(W.maxBack>0)?`<div class="spechist">
-    <span class="hbtn" onclick="openJcHist('${machine}','hist')">📜 Riwayat JC (swipe)</span>
-    <span class="hbtn" onclick="openJcHist('${machine}','count')">🔢 Hitung ganti part</span>
-    <span class="hlbl">${W.maxBack} JC lampau tersimpan</span>
-  </div>`:'';
-  const histNote=HIST?`<div class="histnote">🕘 <b>Mode riwayat (mundur ${W.back} JC).</b> Tabel menampilkan transisi <b>${dLbl(cur)} → ${dLbl(nxt)}</b>. Kolom <b>Stock</b> tetap stok saat ini (bukan stok historis), dan <b>Apply to Stock</b> dimatikan agar riwayat tidak mengubah stok.</div>`:'';
-  const tab=(k,label,plan)=>`<span class="spectab ${selKey===k?'on':''} ${plan?'':'off'}" data-k="${k}" ${plan?`onclick="selSpec('${k}')"`:''}>${label}${plan&&plan.jcDate?' · '+fmtD(parseD(plan.jcDate)):' · —'}</span>`;
-  const th=(k,label)=>{const p=slots[k];const hc=(HIST&&k==='sekarang')?' thhist':'';
-    return `<th class="${selKey===k?'thsel':''} thcol-${k} thdated${hc}" ${p?`onclick="selSpec('${k}')" style="cursor:pointer"`:''}><span class="thlab">${label}</span><span class="thdate">${dLbl(p)}</span></th>`;};
-  const cls=k=>'tdcol-'+k+(selKey===k?' tdsel':'')+((HIST&&k==='sekarang')?' tdhist':'');
-  let rowsHTML=Object.keys(CFG.jcAreas).map(area=>{
-    const ds=CFG.jcAreas[area].map(part=>{
-      const lv=((prev&&prev.specs&&prev.specs[part])||'').trim();
-      const cv=((cur&&cur.specs&&cur.specs[part])||'').trim();
-      const nv=((nxt&&nxt.specs&&nxt.specs[part])||'').trim();
-      if(!lv&&!cv&&!nv)return '';
-      const cons=isConsumable(part);
-      let act='—',acol='var(--txt3)';
-      if(nxt){ const o=cv,n=nv; const status=(!o&&!n)?'none':(!o&&n)?'add':(o&&!n)?'remove':(o.toLowerCase()===n.toLowerCase())?'same':'change';
-        if(status!=='none'){ act=actTxt({status,consumable:cons}); acol=status==='same'?'#3fd77a':status==='change'?'#ff8c3b':status==='add'?'#4f9dff':'#ff5a5a'; } }
-      const prep=nxt?nv:cv; let stk='<span style="color:var(--txt3)">—</span>';
-      if(prep){ const sf=stockFor(part,prep); const q=sf.sizeTot!=null?sf.sizeTot:sf.partTot; stk=`<span class="mono" style="color:${q<=0?'#ff5a5a':q<=2?'#ff8c3b':'#3fd77a'};font-weight:700">${q}</span>`; }
-      return `<tr><td>${part}</td><td class="mono ${cls('lama')}">${lv||'—'}</td><td class="mono ${cls('sekarang')}">${cv||'—'}</td><td class="mono ${cls('baru')}"><b>${nv||'—'}</b></td>
-        <td>${cons?'<span style="color:#ff8c3b;font-size:11px">cons</span>':'<span style="color:#22c1c3;font-size:11px">reuse</span>'}</td>
-        <td style="color:${acol};font-size:11.5px">${act}</td><td style="text-align:right">${stk}</td></tr>`;
-    }).filter(Boolean).join('');
-    return ds?`<tr class="cmp-area"><td colspan="7">${areaIcon(area)} ${area}</td></tr>`+ds:'';
-  }).join('');
-  if(!rowsHTML) rowsHTML='<tr><td colspan="7" style="color:var(--txt3);padding:14px">No variable sizes filled in yet.</td></tr>';
-  const applyBtn=(!HIST&&cur&&nxt)?`<button class="btn sec sm" onclick="applyTransitionStock(${cur.id},${nxt.id})">📥 Apply to Stock</button>`:'';
-  const badge=HIST?'<span class="hist-badge">🕘 Riwayat</span>':(hasChange?'<span class="pulse-badge specpulse">Perubahan JC</span>':'');
-  return `<div class="card noswipe" style="padding:14px;margin-top:14px"><h3>🧰 Spec &amp; Transisi JC ${badge} <span class="spechint" style="font-size:11px;color:var(--txt3);font-weight:600">— klik ${LBL.lama} / ${LBL.sekarang} / ${LBL.baru}</span></h3>
-    <div class="ichips" style="margin:8px 0 10px">${info||'<span class="ichip">—</span>'}</div>
-    ${histBar}
-    <div class="tblwrap"><table class="freezecol"><thead><tr><th>Part</th>${th('lama',LBL.lama)}${th('sekarang',LBL.sekarang)}${th('baru',LBL.baru)}<th>Type</th><th>Action (→new)</th><th style="text-align:right">Stock</th></tr></thead><tbody>${rowsHTML}</tbody></table></div>
-    ${histNote}
-    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">${applyBtn}<button class="btn sec sm" onclick="closeMmodal();go('plan')">✏️ JC Planning</button><button class="btn sec sm" onclick="closeMmodal();go('stock')">📦 Stock</button></div>
+  const head=`<div class="mspec-ph">${HIST
+    ? `<span class="hist-badge">🕘 Mundur ${b} JC</span><b>${dLbl(cur)} → ${dLbl(nxt)}</b><span style="font-size:10.5px;color:var(--txt3);font-weight:700">stok & apply nonaktif</span>`
+    : `<span class="mspec-now">⏱️ Terkini</span><b>${dLbl(cur)} → ${dLbl(nxt)}</b>${hasChange?'<span class="pulse-badge specpulse">Perubahan JC</span>':''}`}</div>`;
+  const apply=(!HIST&&cur&&nxt)?`<button class="btn sec sm" onclick="applyTransitionStock(${cur.id},${nxt.id})">📥 Apply to Stock</button>`:'';
+  return {head, info:`<div class="ichips" style="margin:8px 0 10px">${info||'<span class="ichip">—</span>'}</div>`, apply};
+}
+function machineSpecHTML(machine){
+  const tl=jcTimeline(machine), t=ymd(TODAY);
+  let ci=-1; tl.forEach((p,i)=>{ if(String(p.jcDate||'')<=t) ci=i; });
+  if(!tl.length){
+    return `<div class="card noswipe" style="padding:14px;margin-top:14px"><h3>🧰 JC Spec &amp; Transition</h3><div class="note" style="margin:4px 0 10px">Belum ada rencana job change untuk ${machine}. Buat di JC Planning untuk mencatat ukuran variable yang terpasang.</div><button class="btn sec sm" onclick="closeMmodal();go('plan')">➕ Buat di JC Planning</button></div>`;
+  }
+  const AREAS=specRowSet(tl);
+  const maxBack=Math.max(0,ci);
+  let b=+(window._mSpecBack||0); if(!isFinite(b)||b<0)b=0; if(b>maxBack)b=maxBack;
+  window._mSpecBack=b; window._mSpecMax=maxBack;
+  const backs=[]; for(let k=maxBack;k>=0;k--) backs.push(k);          // kiri = paling lampau · kanan = terkini
+  const metas=backs.map(k=>specMetaFor(k,tl,ci));
+  window._mSpecMeta=metas;
+  window._mSpecLbls=backs.map(k=>{ const p=tl[ci-k]; const d=(p&&p.jcDate)?fmtD(parseD(p.jcDate)):'—';
+    return k===0?('Terkini · '+d):(d+' · mundur '+k+' JC'); });
+  const idx=maxBack-b;
+  const fixRows=AREAS.map(A=>`<tr class="cmp-area"><td>${areaIcon(A.area)} ${A.area}</td></tr>`
+    +A.parts.map(p=>`<tr><td title="${esc(p)}">${p}${isConsumable(p)?' <span class="consdot" title="consumable — sekali pakai">●</span>':''}</td></tr>`).join('')).join('');
+  const fixTbl=AREAS.length?`<table class="spectbl spec-fix"><thead><tr><th class="thdated"><span class="thlab">Part</span><span class="thdate">&nbsp;</span></th></tr></thead><tbody>${fixRows}</tbody></table>`:'';
+  const pages=backs.map(k=>specValPage(k,tl,ci,AREAS)).join('');
+  const dots=backs.map((k,i)=>`<i class="${i===idx?'on':''}"></i>`).join('');
+  const nav=maxBack>0?`<div class="swipenav mspecnav"><button class="nb" onclick="mspecGo(-1)" title="JC lebih lampau">‹</button>
+      <div class="swipedots" id="mspecdots">${dots}</div>
+      <button class="nb" onclick="mspecGo(1)" title="JC lebih baru">›</button></div>
+    <div class="jch-pglbl" id="mspeclbl" style="margin:5px 0 8px">${window._mSpecLbls[idx]}</div>`:'';
+  setTimeout(()=>mspecDeckInit(maxBack),0);
+  const body=AREAS.length
+    ? `<div class="specgrid">${fixTbl}<div class="swipedeck mspecdeck" id="mspecdeck">${pages}</div></div>`
+    : '<div class="note">Belum ada ukuran variable yang diisi.</div>';
+  return `<div class="card noswipe" style="padding:14px;margin-top:14px"><h3>🧰 Spec &amp; Transisi JC ${maxBack>0?`<span class="tag">${maxBack} JC lampau</span>`:''} <span class="spechint" style="font-size:11px;color:var(--txt3);font-weight:600">— klik header kolom untuk pilih</span></h3>
+    ${nav}
+    <div id="mspechead">${metas[idx].head}</div>
+    <div id="mspecinfo">${metas[idx].info}</div>
+    ${body}
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><span id="mspecapply">${metas[idx].apply}</span><button class="btn sec sm" onclick="openJcHist('${machine}','count')">🔢 Hitung ganti part</button><button class="btn sec sm" onclick="closeMmodal();go('plan')">✏️ JC Planning</button><button class="btn sec sm" onclick="closeMmodal();go('stock')">📦 Stock</button></div>
   </div>`;
+}
+function mspecDeckInit(maxBack){
+  const dk=document.getElementById('mspecdeck'); if(!dk)return;
+  const idx=maxBack-(+window._mSpecBack||0);
+  dk.scrollLeft=idx*dk.clientWidth;
+  dk.onscroll=function(){ clearTimeout(window._msT); window._msT=setTimeout(function(){
+    const i=Math.round(dk.scrollLeft/Math.max(1,dk.clientWidth)), nb=maxBack-i;
+    if(nb!==window._mSpecBack){ window._mSpecBack=nb; mspecSync(); } },70); };
+}
+function mspecSync(){
+  const mx=+window._mSpecMax||0, i=mx-(+window._mSpecBack||0);
+  document.querySelectorAll('#mspecdots i').forEach((el,k)=>el.classList.toggle('on',k===i));
+  const lb=document.getElementById('mspeclbl'); if(lb) lb.textContent=(window._mSpecLbls||[])[i]||'';
+  const M=(window._mSpecMeta||[])[i]; if(!M)return;
+  const h=document.getElementById('mspechead'), f=document.getElementById('mspecinfo'), a=document.getElementById('mspecapply');
+  if(h)h.innerHTML=M.head; if(f)f.innerHTML=M.info; if(a)a.innerHTML=M.apply;
+}
+function mspecGo(d){
+  const dk=document.getElementById('mspecdeck'); if(!dk)return;
+  const mx=+window._mSpecMax||0;
+  let i=mx-(+window._mSpecBack||0)+d; i=Math.max(0,Math.min(mx,i));
+  window._mSpecBack=mx-i; dk.scrollTo({left:i*dk.clientWidth,behavior:'smooth'}); mspecSync();
 }
 function applyTransitionStock(fromId,toId){
   const fromP=JCPLANS.find(p=>p.id===fromId), toP=JCPLANS.find(p=>p.id===toId);
@@ -4483,6 +4640,12 @@ async function exportExcelFull(byPeriod){
     putS(st,['Kategori','Daftar'],true); st++;
     [['Machines',(CFG.machines||[]).join(', ')],['Sections',(CFG.sections||[]).join(', ')],['Parts',(CFG.parts||[]).join(', ')],['Shifts',(CFG.shifts||[]).join(', ')],['Consumables',(CFG.consumables||[]).join(', ')],['Processes',(CFG.processes||[]).join(', ')]].forEach(k=>{ putS(st,[k[0],k[1]]); st++; });
     wsS.views=[{state:'frozen',ySplit:0}];
+
+    // ---------- Riwayat JC · Hitung Ganti · Trend Ukuran ----------
+    const _jcD=jcHistRows(CFG.machines.slice(), byPeriod?P.from:null, byPeriod?P.to:TODAY);
+    sheetFrom('Riwayat JC',JC_COLS_EV,_jcD.ev);
+    sheetFrom('Hitung Ganti',JC_COLS_CNT,_jcD.cnt);
+    sheetFrom('Trend Ukuran',JC_COLS_SZ,_jcD.sz);
 
     const buf=await wb.xlsx.writeBuffer();
     dl(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), byPeriod ? ('Laporan_PM_'+ymd(P.from)+'_sd_'+ymd(P.to)+'.xlsx') : ('Laporan_PM_SEMUA_'+ymd(TODAY)+'.xlsx'));
