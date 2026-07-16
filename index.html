@@ -978,8 +978,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     /* popup Riwayat JC: di HP biar sheet-nya yang scroll vertikal, deck cukup geser horizontal */
     .swipepage{max-height:none;overflow-y:visible}
     .jch-gcard{flex:1 1 44%}
-    .specgrid .spec-fix{width:118px}
-    table.spectbl th,table.spectbl td{font-size:11px;padding:5px 6px}
+    .specgrid .spec-fix{width:106px}
+    table.spectbl th,table.spectbl td{font-size:11.5px;padding:4px 5px;height:42px}
+    table.spectbl thead th{height:54px}
+    table.spectbl.spec-fix tbody td{font-size:11px}
+    th.thdated{padding-left:4px;padding-right:4px}
+    th.thdated .thlab{font-size:9.5px;letter-spacing:0}
+    th.thdated .thdate{font-size:8.5px;margin-top:2px}
 
     /* ===== FREEZE kolom pertama (Section / Part) saat tabel di-swipe kiri-kanan ===== */
     /* tabel biasa (spec & transisi JC) */
@@ -1080,14 +1085,19 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .consdot{color:#ff8c3b;font-size:8px;vertical-align:middle}
   /* dua tabel harus punya tinggi baris identik supaya sejajar */
   table.spectbl{border-collapse:collapse;width:100%;table-layout:fixed}
-  table.spectbl th,table.spectbl td{height:34px;box-sizing:border-box;padding:5px 9px;font-size:12px;
-    line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid var(--line)}
-  table.spectbl thead th{height:44px;background:var(--panel2);vertical-align:middle}
-  table.spectbl tr.cmp-area td{height:26px;padding:2px 9px;font-size:10px;font-weight:800;letter-spacing:.4px;
+  table.spectbl th,table.spectbl td{height:40px;box-sizing:border-box;padding:4px 8px;font-size:12px;
+    line-height:1.2;overflow:hidden;border-bottom:1px solid var(--line);vertical-align:middle}
+  /* isi sel boleh 2 baris, tapi tinggi baris tetap → kolom Part tetap sejajar */
+  table.spectbl td .cw{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+    white-space:normal;word-break:break-word;line-height:1.2;max-height:2.4em}
+  table.spectbl thead th{height:50px;background:var(--panel2);vertical-align:middle}
+  table.spectbl tr.cmp-area td{height:26px;padding:2px 8px;font-size:10px;font-weight:800;letter-spacing:.4px;
     text-transform:uppercase;color:var(--accent2);background:var(--panel2)}
   table.spectbl.spec-fix tbody td{font-weight:700;text-align:left;background:var(--panel)}
   table.spectbl.spec-val td{text-align:center}
-  table.spectbl.spec-val td:last-child{text-align:right}
+  table.spectbl.spec-val td .cw{text-align:center}
+  table.spectbl.spec-val:not(.hist3) td:last-child,
+  table.spectbl.spec-val:not(.hist3) th:last-child{text-align:right}
   .mspec-ph{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 10px;border-radius:10px;
     background:var(--panel2);border:1px solid var(--line2)}
   .mspec-ph b{font-size:12.5px;font-family:'Spline Sans Mono'}
@@ -4167,7 +4177,7 @@ function specValPage(b,tl,ci,AREAS){
   const th=k=>{const p=slots[k];const hc=(HIST&&k==='sekarang')?' thhist':'';
     return `<th class="${selKey===k?'thsel':''} thcol-${k} thdated${hc}" ${p?`onclick="selSpec('${k}')" style="cursor:pointer"`:''}><span class="thlab">${LBL[k]}</span><span class="thdate">${dLbl(p)}</span></th>`;};
   const cls=k=>'tdcol-'+k+(selKey===k?' tdsel':'')+((HIST&&k==='sekarang')?' tdhist':'');
-  const rows=AREAS.map(A=>`<tr class="cmp-area"><td colspan="4"></td></tr>`+A.parts.map(part=>{
+  const rows=AREAS.map(A=>`<tr class="cmp-area"><td colspan="${HIST?3:4}"></td></tr>`+A.parts.map(part=>{
       const lv=String((prev&&prev.specs&&prev.specs[part])||'').trim();
       const cv=String((cur&&cur.specs&&cur.specs[part])||'').trim();
       const nv=String((nxt&&nxt.specs&&nxt.specs[part])||'').trim();
@@ -4178,11 +4188,12 @@ function specValPage(b,tl,ci,AREAS){
       const prep=nxt?nv:cv; let stk='<span style="color:var(--txt3)">—</span>';
       if(prep&&!HIST){ const sf=stockFor(part,prep); const q=sf.sizeTot!=null?sf.sizeTot:sf.partTot;
         stk=`<span class="mono" style="color:${q<=0?'#ff5a5a':q<=2?'#ff8c3b':'#3fd77a'};font-weight:700">${q}</span>`; }
-      return `<tr><td class="mono ${cls('lama')}">${lv||'—'}</td><td class="mono ${cls('sekarang')}">${cv||'—'}</td>
-        <td class="mono ${cls('baru')}" title="${stitle}"><b style="color:${scol}">${nv||'—'}</b></td>
-        <td style="text-align:right">${stk}</td></tr>`;
+      return `<tr><td class="mono ${cls('lama')}"><span class="cw">${lv||'—'}</span></td><td class="mono ${cls('sekarang')}"><span class="cw">${cv||'—'}</span></td>
+        <td class="mono ${cls('baru')}" title="${stitle}"><span class="cw"><b style="color:${scol}">${nv||'—'}</b></span></td>
+        ${HIST?'':`<td style="text-align:right"><span class="cw">${stk}</span></td>`}</tr>`;
     }).join('')).join('');
-  return `<div class="swipepage mspecpage"><table class="spectbl spec-val"><thead><tr>${th('lama')}${th('sekarang')}${th('baru')}<th class="thdated"><span class="thlab">Stock</span><span class="thdate">&nbsp;</span></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  const thStock=HIST?'':`<th class="thdated"><span class="thlab">Stock</span><span class="thdate">&nbsp;</span></th>`;
+  return `<div class="swipepage mspecpage"><table class="spectbl spec-val ${HIST?'hist3':''}"><thead><tr>${th('lama')}${th('sekarang')}${th('baru')}${thStock}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 /* strip header + info chips + tombol apply per halaman (di-update saat geser, tidak ikut bergerak) */
 function specMetaFor(b,tl,ci){
@@ -4221,7 +4232,7 @@ function machineSpecHTML(machine){
     return k===0?('Terkini · '+d):(d+' · mundur '+k+' JC'); });
   const idx=maxBack-b;
   const fixRows=AREAS.map(A=>`<tr class="cmp-area"><td>${areaIcon(A.area)} ${A.area}</td></tr>`
-    +A.parts.map(p=>`<tr><td title="${esc(p)}">${p}${isConsumable(p)?' <span class="consdot" title="consumable — sekali pakai">●</span>':''}</td></tr>`).join('')).join('');
+    +A.parts.map(p=>`<tr><td title="${esc(p)}"><span class="cw">${p}${isConsumable(p)?' <span class="consdot" title="consumable — sekali pakai">●</span>':''}</span></td></tr>`).join('')).join('');
   const fixTbl=AREAS.length?`<table class="spectbl spec-fix"><thead><tr><th class="thdated"><span class="thlab">Part</span><span class="thdate">&nbsp;</span></th></tr></thead><tbody>${fixRows}</tbody></table>`:'';
   const pages=backs.map(k=>specValPage(k,tl,ci,AREAS)).join('');
   const dots=backs.map((k,i)=>`<i class="${i===idx?'on':''}"></i>`).join('');
