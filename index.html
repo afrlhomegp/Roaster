@@ -353,7 +353,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .clock b{color:var(--accent2);font-size:14px}
   /* ===== Header notification bell ===== */
   .bellbtn{position:relative;margin-left:auto;flex:0 0 auto;width:40px;height:40px;border-radius:11px;background:var(--panel2);border:1px solid var(--line2);color:var(--txt);font-size:19px;line-height:1;cursor:pointer;display:grid;place-items:center;transition:.15s}
-  .bellbtn:hover{border-color:var(--accent);color:var(--accent2)}
   .bellbtn.has{animation:bellRing 2.6s ease-in-out infinite;transform-origin:50% 4px}
   @keyframes bellRing{0%,55%,100%{transform:rotate(0)}58%{transform:rotate(14deg)}62%{transform:rotate(-12deg)}66%{transform:rotate(8deg)}70%{transform:rotate(-5deg)}74%{transform:rotate(0)}}
   .bell-badge{position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--red);color:#fff;font-size:10px;font-weight:800;font-family:'Spline Sans Mono';display:flex;align-items:center;justify-content:center;border:2px solid var(--bg2);box-shadow:0 2px 6px rgba(0,0,0,.4);animation:badgePulse 1.4s infinite}
@@ -371,7 +370,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .bellpop-empty{padding:26px 16px;text-align:center;color:var(--txt3);font-size:13px}
   .bp-day{font-size:11px;font-weight:800;color:var(--accent2);background:var(--panel2);padding:6px 14px;letter-spacing:.3px}
   .bp-row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);cursor:pointer;transition:.12s;border-left:4px solid transparent}
-  .bp-row:hover{background:rgba(245,166,35,.08);border-left-color:var(--accent)}
   .bp-mc{font-family:'Spline Sans Mono';font-weight:800;font-size:15px;color:var(--accent2);flex:0 0 auto;width:46px}
   .bp-mid{flex:1 1 auto;min-width:0}
   .bp-job{font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -395,7 +393,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   nav button{position:relative;background:none;border:none;color:var(--txt2);padding:9px 14px 10px;font-family:inherit;
     font-size:11px;font-weight:600;cursor:pointer;border-top:2.5px solid transparent;white-space:nowrap;
     transition:.15s;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:62px}
-  nav button:hover{color:var(--txt)}
   nav button.on{color:var(--accent2);border-top-color:var(--accent);background:rgba(245,166,35,.06)}
   nav button .ic2{font-size:17px;line-height:1}
   nav button .badge{position:absolute;top:3px;right:8px;background:var(--red);color:#fff;font-size:9px;padding:0 5px;border-radius:9px;font-weight:700}
@@ -415,12 +412,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
   .kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;position:relative;overflow:hidden}
   .kpi-click{cursor:pointer;transition:.15s}
-  .kpi-click:hover{transform:translateY(-2px);border-color:var(--c);box-shadow:0 10px 24px rgba(0,0,0,.35)}
   .kpi-click .kpi-go{position:absolute;top:10px;right:12px;color:var(--c);font-size:14px;font-weight:800;opacity:.55;transition:.15s}
-  .kpi-click:hover .kpi-go{opacity:1}
   .al-mc td{background:var(--panel2);color:var(--accent2);font-weight:800;font-size:12px;letter-spacing:.3px;padding:6px 12px!important}
   .al-row{cursor:pointer;transition:.12s}
-  .al-row:hover{background:rgba(245,166,35,.08)}
   .al-row .sec{background:var(--panel2);color:var(--accent2);font-weight:800;border-radius:6px;padding:3px 9px;font-family:'Spline Sans Mono';display:inline-block}
   .kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c)}
   .kpi .v{font-size:38px;font-weight:900;line-height:1;color:var(--c);font-family:'Spline Sans Mono'}
@@ -434,7 +428,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .dashview-toggle{display:inline-flex;gap:4px;margin-left:auto;background:var(--panel2);border:1px solid var(--line2);border-radius:11px;padding:3px;max-width:100%}
   .dvt-btn{position:relative;border:0;background:transparent;color:var(--txt2);font-family:inherit;font-size:12px;font-weight:700;
     padding:6px 12px;border-radius:8px;cursor:pointer;transition:.14s;white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
-  .dvt-btn:hover{color:var(--txt)}
   .dvt-btn.on{background:var(--accent);color:#0d0d0f;box-shadow:0 2px 8px rgba(245,166,35,.3)}
   .dvt-badge{display:inline-grid;place-items:center;min-width:17px;height:17px;padding:0 4px;border-radius:9px;
     background:var(--red);color:#fff;font-size:10px;font-weight:800;line-height:1}
@@ -444,7 +437,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     font-family:inherit;font-size:10.5px;font-weight:800;letter-spacing:.3px;text-transform:none;
     background:var(--panel2);border:1px solid var(--line2);color:var(--txt2);
     border-radius:9px;padding:5px 11px;cursor:pointer;transition:.15s}
-  .sectiontitle .jchbtn:hover{border-color:var(--accent);color:var(--accent);background:rgba(245,166,35,.1)}
   .sectiontitle .jchbtn:active{transform:scale(.94)}
   /* ===== JC SUMMARY panel ===== */
   .jcsum{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;overflow:hidden}
@@ -468,7 +460,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .jcs-prep-rdy{font-weight:700}
   .jcs-open{margin-left:auto;border:1px solid var(--line2);background:var(--panel2);color:var(--accent2);font-family:inherit;
     font-size:11px;font-weight:700;padding:4px 9px;border-radius:8px;cursor:pointer;transition:.14s}
-  .jcs-open:hover{border-color:var(--accent);color:var(--accent)}
   .jcs-preptbl{overflow-x:auto}
   .jcs-preptbl table{width:100%;border-collapse:collapse;font-size:11.5px}
   .jcs-preptbl th{text-align:left;color:var(--txt3);font-size:10px;text-transform:uppercase;letter-spacing:.4px;font-weight:700;padding:3px 6px;border-bottom:1px solid var(--line2)}
@@ -494,15 +485,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .jcmx .jcmx-corner{position:sticky;left:0;top:0;z-index:8;background:var(--panel2);text-align:left;padding:9px 13px;min-width:190px;
     font-size:10.5px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.4px;border-right:2px solid var(--line2)}
   .jcmx-jc{padding:7px 11px;text-align:center;min-width:106px;vertical-align:bottom;cursor:pointer;transition:.14s}
-  .jcmx-jc:hover{background:var(--panel)}
   .jcmx-jc .m{font-family:'Spline Sans Mono';font-weight:800;font-size:15px;color:var(--txt);display:block;letter-spacing:-.3px}
   .jcmx-jc .rem{font-size:10px;font-weight:800;display:block;margin-top:2px}
   .jcmx-jc .dt{font-size:9.5px;color:var(--txt3);display:block;font-family:'Spline Sans Mono';margin-top:1px}
   .jcmx-jc .tj{font-size:9.5px;color:var(--txt2);display:block;max-width:120px;margin:1px auto 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .jcmx .jcmx-part{position:sticky;left:0;z-index:3;background:var(--panel);color:var(--txt);font-weight:600;text-align:left;
     padding:5px 13px;min-width:190px;max-width:230px;border-right:2px solid var(--line2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .jcmx tbody tr:hover .jcmx-part{background:var(--panel2)}
-  .jcmx tbody tr:hover td.jcmx-cell{background:rgba(255,255,255,.04)}
   .jcmx-cell{text-align:center;padding:4px 10px;font-family:'Spline Sans Mono';font-size:11.5px;white-space:nowrap}
   .jcmx-cell.c-ganti{background:rgba(255,140,59,.15);color:#ffb074;font-weight:700}
   .jcmx-cell.c-roaster{background:rgba(34,193,195,.15);color:#5fdedf;font-weight:700}
@@ -513,14 +501,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .sbadge{display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--line);
     border-left:4px solid var(--c,var(--line2));border-radius:11px;padding:8px 13px 8px 11px;min-width:118px;flex:1 1 118px;position:relative}
   .sbadge.click{cursor:pointer;transition:.15s}
-  .sbadge.click:hover{transform:translateY(-1px);border-color:var(--c);box-shadow:0 6px 16px rgba(0,0,0,.3)}
   .sbadge .sb-ic{font-size:16px;line-height:1;flex:none;opacity:.9}
   .sbadge .sb-v{font-family:'Spline Sans Mono';font-weight:800;font-size:21px;line-height:1;color:var(--c,var(--txt));flex:none}
   .sbadge .sb-t{min-width:0}
   .sbadge .sb-l{font-size:10.5px;font-weight:800;letter-spacing:.3px;white-space:nowrap}
   .sbadge .sb-d{font-size:9px;color:var(--txt3);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .sbadge .sb-go{position:absolute;top:5px;right:7px;color:var(--c);font-size:11px;font-weight:800;opacity:.45}
-  .sbadge.click:hover .sb-go{opacity:1}
   /* ===== Achievement / vision banner (planned vs trouble) ===== */
   .achieve{display:flex;align-items:center;gap:18px;background:linear-gradient(120deg,var(--panel),var(--panel2));
     border:1px solid var(--line);border-radius:14px;padding:14px 18px;margin-bottom:12px;position:relative;overflow:hidden}
@@ -553,7 +539,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .pmhero-stats{flex:1 1 auto;display:grid;grid-template-columns:1fr 1fr;gap:9px;min-width:0}
   .pmstat{background:var(--bg2);border:1px solid var(--line);border-left:3px solid var(--pc,var(--line2));
     border-radius:11px;padding:10px 13px;min-width:0;transition:.15s}
-  .pmstat:hover{border-color:var(--pc,var(--line2));transform:translateY(-1px)}
   .pmstat .ps-v{font-family:'Spline Sans Mono';font-weight:800;font-size:20px;line-height:1;color:var(--pc,var(--txt));
     display:flex;align-items:baseline;gap:7px;white-space:nowrap}
   .pmstat .ps-delta{font-size:11px;font-weight:800}
@@ -564,7 +549,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .chwrap-zoom{cursor:zoom-in}
   /* expand-to-enlarge button in chart card headers */
   .chzbtn{margin-left:auto;flex:0 0 auto;width:28px;height:28px;border-radius:8px;background:var(--panel2);border:1px solid var(--line2);color:var(--txt2);font-size:15px;line-height:1;cursor:pointer;display:grid;place-items:center;transition:.13s;font-family:inherit;padding:0}
-  .chzbtn:hover{border-color:var(--accent);color:var(--accent2);transform:translateY(-1px)}
   .alcard h3 .chzbtn{margin-left:6px}
   /* chart zoom modal */
   .czbox .mh{margin-bottom:8px}
@@ -594,9 +578,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     padding:3px 9px;border-radius:20px;letter-spacing:0;text-transform:none}
   /* ===== Clickable Average-Lifetime dashboard card ===== */
   .alcard{cursor:pointer;transition:.15s}
-  .alcard:hover{border-color:var(--accent);box-shadow:0 10px 24px rgba(0,0,0,.35);transform:translateY(-2px)}
   .alcard .al-go{font-size:13px;font-weight:800;color:var(--accent2);opacity:.55;transition:.15s;text-transform:none;letter-spacing:0}
-  .alcard:hover .al-go{opacity:1}
   .alcard h3 .tag{margin-left:auto}
   .alcard h3 .al-go{margin-left:6px}
   /* per-machine avg-lifetime popup */
@@ -610,12 +592,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     font-size:11px;text-transform:uppercase;letter-spacing:.5px;position:sticky;top:0;white-space:nowrap;border-bottom:1px solid var(--line)}
   td{padding:9px 12px;border-bottom:1px solid var(--line);color:var(--txt);white-space:nowrap}
   tr:last-child td{border-bottom:none}
-  tbody tr:hover{background:rgba(79,157,255,.05)}
   .pill{display:inline-block;padding:2px 10px;border-radius:20px;font-size:10.5px;font-weight:700;letter-spacing:.3px}
   .pOVERDUE{background:var(--redbg);color:var(--red)} .pURGENT{background:var(--orangebg);color:var(--orange)}
   .pWARNING{background:var(--yellowbg);color:var(--yellow)} .pOK{background:var(--greenbg);color:var(--green)}
   .pNODATA{background:var(--panel2);color:var(--txt3)}
   .pScheduled{background:var(--greenbg);color:var(--green)} .pTrouble{background:var(--redbg);color:var(--red)}
+  .pJobChange{background:rgba(79,157,255,.16);color:#4f9dff} .pRoaster{background:var(--greenbg);color:var(--green)}
   .pEmergency{background:var(--orangebg);color:var(--orange)}
   /* forms */
   .form{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;align-items:end}
@@ -627,9 +609,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   select{cursor:pointer}
   .btn{background:linear-gradient(135deg,var(--accent),#e07a00);color:#1a1206;border:none;padding:11px 22px;
     border-radius:9px;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer;transition:.15s;letter-spacing:.3px}
-  .btn:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(245,166,35,.4)}
   .btn.sec{background:var(--panel2);color:var(--txt);border:1px solid var(--line2)}
-  .btn.sec:hover{box-shadow:none;border-color:var(--accent)}
   .btn.danger{background:var(--redbg);color:var(--red);border:1px solid var(--red)}
   .btn.sm{padding:6px 12px;font-size:11px;font-weight:700}
   .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
@@ -637,7 +617,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .toolbar .sp{margin-left:auto}
   .ico-btn{background:var(--panel2);border:1px solid var(--line2);color:var(--txt2);width:30px;height:30px;
     border-radius:7px;cursor:pointer;font-size:13px;display:grid;place-items:center;transition:.15s}
-  .ico-btn:hover{color:var(--red);border-color:var(--red)}
   .empty{text-align:center;padding:50px 20px;color:var(--txt3)}
   .empty .big{font-size:40px;margin-bottom:10px;opacity:.5}
   .sectiontitle{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--accent2);
@@ -662,7 +641,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     .form{grid-template-columns:1fr 1fr}.mini{grid-template-columns:1fr}}
 
   .kebab{margin-left:14px;width:38px;height:38px;border-radius:10px;background:var(--panel2);border:1px solid var(--line2);color:var(--txt);font-size:22px;line-height:1;cursor:pointer;display:grid;place-items:center;transition:.15s}
-  .kebab:hover{border-color:var(--accent);color:var(--accent2)}
   .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:70;opacity:0;pointer-events:none;transition:.25s}
   .backdrop.show{opacity:1;pointer-events:auto}
   .drawer{position:fixed;top:0;left:0;bottom:0;width:290px;max-width:85vw;background:var(--panel);border-right:1px solid var(--line2);z-index:80;transform:translateX(-105%);transition:.28s cubic-bezier(.4,0,.2,1);box-shadow:12px 0 40px rgba(0,0,0,.5);display:flex;flex-direction:column}
@@ -672,7 +650,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .drawer .dh .x{background:none;border:none;color:var(--txt2);font-size:20px;cursor:pointer}
   .drawer .dlist{padding:10px;overflow:auto;flex:1}
   .drawer .di{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;cursor:pointer;color:var(--txt2);font-weight:600;font-size:13.5px;transition:.12s;margin-bottom:2px}
-  .drawer .di:hover{background:var(--panel2);color:var(--txt)}
   .drawer .di.on{background:rgba(245,166,35,.12);color:var(--accent2)}
   .drawer .di .die{font-size:18px;width:22px;text-align:center}
   .drawer .di .dbadge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;padding:1px 7px;border-radius:9px;font-weight:700}
@@ -683,13 +660,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .drawer .dfoot .dfoot-hint{font-size:10px;color:var(--txt3)}
   .mchips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px}
   .mchip{padding:8px 13px;border-radius:10px;background:var(--panel);border:1px solid var(--line);color:var(--txt2);font-weight:700;font-size:13px;cursor:pointer;transition:.13s;font-family:"Spline Sans Mono"}
-  .mchip:hover{border-color:var(--accent);color:var(--txt)}
   .mchip.on{background:linear-gradient(135deg,var(--accent),#e07a00);color:#1a1206;border-color:transparent}
   .mchip .br{font-size:9px;font-weight:600;opacity:.75;margin-left:5px}
 
   .mtiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:11px;margin-top:6px}
   .mtile{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--sc,var(--line2));border-radius:13px;padding:13px 15px;cursor:pointer;transition:.15s}
-  .mtile:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 10px 22px rgba(0,0,0,.4)}
   .mtile .mt-code{font-family:'Spline Sans Mono';font-weight:800;font-size:19px;color:var(--txt)}
   .mtile .mt-dot{float:right;width:13px;height:13px;border-radius:50%;background:var(--sc,#3fd77a);box-shadow:0 0 10px var(--sc)}
   .mtile .mt-brand{font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
@@ -702,19 +677,16 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .dflbl{font-size:9.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--txt3);flex:0 0 auto}
   .dfseg{display:inline-flex;background:var(--bg2);border:1px solid var(--line2);border-radius:9px;padding:2px;gap:2px}
   .dfopt{font-family:inherit;font-size:12px;font-weight:700;color:var(--txt2);background:transparent;border:none;border-radius:7px;padding:5px 11px;cursor:pointer;transition:.13s;white-space:nowrap}
-  .dfopt:hover{color:var(--txt)}
   .dfopt.on{background:var(--accent);color:#1a1206}
   .dfsel{width:auto!important;min-width:128px;padding:6px 10px!important;font-size:12px!important;font-weight:700}
   .dfsum{font-size:11px;font-weight:700;color:var(--txt3);font-family:'Spline Sans Mono',monospace;margin-left:auto;white-space:nowrap}
   .dfreset{font-family:inherit;font-size:11px;font-weight:800;color:var(--txt2);background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:6px 12px;cursor:pointer;transition:.13s;flex:0 0 auto}
-  .dfreset:hover{color:var(--red);border-color:var(--red)}
   /* ===== Filter dashboard — tombol kotak di top bar, ukuran sama dengan lonceng & fullscreen ===== */
   .dashfilter{display:none}
   .df-trigger-wrap{display:none}
   .filterhandle{display:none;position:relative;flex:0 0 auto;width:40px;height:40px;border-radius:11px;
     background:var(--panel2);border:1px solid var(--line2);color:var(--txt);
     cursor:pointer;place-items:center;transition:.15s;padding:0;margin-left:0}
-  .filterhandle:hover{border-color:var(--accent);color:var(--accent2)}
   .filterhandle.on{background:rgba(245,166,35,.14);border-color:var(--accent);color:var(--accent2)}
   /* tiga garis filter icon */
   .filterhandle .fh-grip{position:relative;width:18px;height:14px;flex:0 0 auto}
@@ -748,13 +720,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .mbox{background:var(--bg2);border:1px solid var(--line2);border-radius:16px;width:100%;max-width:940px;box-shadow:0 28px 80px rgba(0,0,0,.65);padding:20px 22px;animation:fade .22s ease}
   .mbox .mh{display:flex;align-items:center;gap:14px;margin-bottom:16px}
   .mbox .mh .x{margin-left:auto;background:var(--panel2);border:1px solid var(--line2);color:var(--txt2);width:36px;height:36px;border-radius:10px;font-size:17px;cursor:pointer;transition:.15s}
-  .mbox .mh .x:hover{border-color:var(--red);color:var(--red)}
   .navbtn{flex:0 0 auto;background:var(--panel2);border:1px solid var(--line2);color:var(--txt);width:34px;height:34px;border-radius:9px;font-size:22px;line-height:1;cursor:pointer;transition:.15s;display:grid;place-items:center;font-family:inherit}
-  .navbtn:hover{border-color:var(--accent);color:var(--accent2)}
   .fclabel{font-size:10.5px;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin:8px 0 3px}
   .fchips{display:flex;gap:6px;flex-wrap:wrap}
   .fchip{padding:5px 11px;border-radius:8px;background:var(--panel);border:1px solid var(--line);color:var(--txt2);font-size:11.5px;font-weight:700;cursor:pointer;transition:.12s;font-family:'Spline Sans Mono'}
-  .fchip:hover{border-color:var(--accent)}
   .fchip.on{background:var(--accent);color:var(--bg);border-color:transparent}
   table.matx{border-collapse:separate;border-spacing:5px;width:auto}
   table.matx th{background:var(--panel2);color:var(--txt2);font-size:10px;padding:5px 5px;border-radius:6px;text-align:center;border:none;position:static}
@@ -767,7 +736,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   table.matx th.pcorner{text-align:left;color:var(--txt3);white-space:nowrap}
   /* judul "Jadwal Schedule per Section" bisa diklik → buka tabel lengkap */
   .schedtitle-click{cursor:pointer;transition:.12s}
-  .schedtitle-click:hover{color:var(--accent)}
   .schedmore{display:inline-block;font-size:10px;font-weight:800;color:var(--accent2);border:1px solid var(--accent);border-radius:20px;padding:1px 8px;letter-spacing:.3px;vertical-align:middle;margin-left:5px;white-space:nowrap}
   /* baris header area equipment di tabel Maintenance Alert */
   table.matx.matx-grouped tr.area-row td{position:static!important;left:auto!important;background:transparent!important;box-shadow:none!important;padding:10px 2px 4px!important}
@@ -781,7 +749,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .partchips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:9px}
   .partchip{display:inline-flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line2);border-radius:20px;padding:4px 6px 4px 12px;font-size:12px;font-weight:700}
   .partchip button{width:20px;height:20px;border-radius:50%;border:none;background:var(--redbg);color:var(--red);font-size:13px;font-weight:900;line-height:1;cursor:pointer;display:grid;place-items:center;transition:.12s}
-  .partchip button:hover{background:var(--red);color:#fff}
   .partadd{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .partadd input{flex:1 1 200px;min-width:160px}
   /* ===== Maintenance Alert: area mode 'grouped' (Feeder / Ware Handling) — tanpa section ===== */
@@ -801,7 +768,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .setcard>h3.setcard-h{display:flex;align-items:center;gap:8px;margin:0;cursor:pointer;user-select:none}
   .setcard>h3.setcard-h .setchev{margin-left:auto;color:var(--txt3);font-size:13px;transition:transform .18s;flex:0 0 auto}
   .setcard.open>h3.setcard-h .setchev{transform:rotate(90deg)}
-  .setcard:not(.open):hover{border-color:var(--accent)}
   .setcard .setbody{display:none;margin-top:14px}
   .setcard.open .setbody{display:block}
   /* ===== iOS-style grouped settings ===== */
@@ -810,7 +776,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .setgroup-title:first-child,.setgroup+.setgroup-title{margin-top:24px}
   .setgroup .card{background:transparent!important;border:none!important;border-radius:0!important;border-bottom:1px solid var(--line)!important;margin:0!important;padding:15px 14px!important;box-shadow:none!important}
   .setgroup .card:last-child{border-bottom:none!important}
-  .setgroup .setcard:not(.open):hover{border:none!important;background:var(--panel2)!important;border-radius:12px!important}
   .setgroup .setcard.open{background:var(--panel2)!important;border-radius:12px!important;margin:4px 0!important;border-bottom:1px solid var(--line)!important}
   .setgroup .setcard.open+.setcard{border-top:none!important}
   .setgroup>.card>h3,.setgroup>.setcard>h3{font-size:14.5px}
@@ -825,7 +790,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .mechcard .mech-h span:first-child{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .mc-cnt{flex:0 0 auto;background:var(--panel2);color:var(--txt3);border-radius:20px;padding:1px 8px;font-size:10px;letter-spacing:0;font-weight:700}
   .mpart-row{display:flex;align-items:center;gap:10px;padding:5px 4px;border-radius:8px;cursor:pointer;transition:.12s}
-  .mpart-row:hover{background:var(--panel2)}
   .mpart-name{flex:1 1 auto;min-width:0;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .mpart-val{position:relative;flex:0 0 auto;border-radius:7px;padding:5px 12px;font-family:'Spline Sans Mono';font-weight:700;font-size:13px;min-width:48px;text-align:center;overflow:visible}
   .tbadge2{position:absolute;top:-8px;right:-7px;background:var(--red);color:#fff;font-size:9px;font-weight:800;line-height:1.5;padding:0 5px;border-radius:9px;font-family:'Spline Sans Mono';box-shadow:0 2px 7px rgba(0,0,0,.5);border:1.5px solid var(--bg2);white-space:nowrap}
@@ -835,7 +799,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .mech-elbl{font-weight:800;font-size:12.5px;flex:1 1 auto;min-width:120px}
   .mech-eh .lnk{background:none;border:none;color:var(--blue);font-size:11px;font-weight:700;cursor:pointer;padding:2px 4px;border-radius:6px}
   .mech-eh .lnk.del{color:var(--red)}
-  .mech-eh .lnk:hover{background:var(--panel2)}
   .tbadge{position:absolute;top:-8px;right:-7px;background:var(--red);color:#fff;font-size:9px;font-weight:800;line-height:1.5;padding:0 5px;border-radius:9px;font-family:'Spline Sans Mono';box-shadow:0 2px 7px rgba(0,0,0,.5);border:1.5px solid var(--bg2);z-index:3;pointer-events:none;white-space:nowrap}
 
   body.light{ --bg:#eef2f7; --bg2:#e6ecf4; --panel:#ffffff; --panel2:#eef3fa; --line:#d8e0ec; --line2:#c6d2e2; --txt:#1a2435; --txt2:#4a5a72; --txt3:#8493a8; --redbg:#fde8ea; --orangebg:#fdeede; --yellowbg:#faf3d6; --greenbg:#e2f6ea; --shadow:0 10px 30px rgba(30,50,80,.10); --hbg:rgba(255,255,255,.9); }
@@ -846,12 +809,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .cmodal.show{display:flex}
   .cbox{background:var(--bg2);border:1px solid var(--line2);border-radius:14px;width:100%;max-width:470px;box-shadow:0 28px 80px rgba(0,0,0,.55);padding:18px 20px;max-height:82vh;overflow:auto}
   .xrowc{display:flex;justify-content:space-between;gap:14px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px}
-  .mcl.clk{cursor:pointer;transition:.12s}.mcl.clk:hover{filter:brightness(1.2);box-shadow:0 0 0 2px var(--accent) inset}
+  .mcl.clk{cursor:pointer;transition:.12s}
   .themebtn{padding:9px 16px;border-radius:9px;border:1px solid var(--line2);background:var(--panel2);color:var(--txt2);font-weight:700;cursor:pointer;font-family:inherit;font-size:13px}
   .themebtn.on{background:var(--accent);color:#1a1206;border-color:transparent}
   /* ===== Fullscreen toggle button (header) ===== */
   .fsbtn{position:relative;flex:0 0 auto;margin-left:0;width:40px;height:40px;border-radius:11px;background:var(--panel2);border:1px solid var(--line2);color:var(--txt);cursor:pointer;display:grid;place-items:center;transition:.15s;padding:0}
-  .fsbtn:hover{border-color:var(--accent);color:var(--accent2)}
   .fsbtn:active{transform:scale(.93)}
   .fsbtn svg{width:20px;height:20px;display:block}
   .fsbtn .fs-exit{display:none}
@@ -864,7 +826,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .scaleval{font-family:'Spline Sans Mono';font-weight:800;font-size:22px;color:var(--accent2);min-width:74px;text-align:center;background:var(--panel2);border:1px solid var(--line2);border-radius:9px;padding:6px 4px;line-height:1}
   .scale-nudge{display:flex;gap:6px}
   .scale-nudge button{width:40px;height:40px;border-radius:10px;background:var(--panel2);border:1px solid var(--line2);color:var(--txt);font-size:20px;font-weight:800;line-height:1;cursor:pointer;display:grid;place-items:center;transition:.15s}
-  .scale-nudge button:hover{border-color:var(--accent);color:var(--accent2)}
   .scale-nudge button:active{transform:scale(.92)}
   .scalepresets{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
   .scalepresets .themebtn{padding:7px 13px;font-size:12px}
@@ -873,7 +834,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   /* ---- header title (current sheet) ---- */
   .menubtn{flex:0 0 auto;width:38px;height:38px;border-radius:50%;background:var(--panel2);border:1px solid var(--line2);color:var(--txt);font-size:18px;line-height:1;cursor:pointer;display:grid;place-items:center;transition:.15s;overflow:hidden;padding:0}
   .menubtn img{width:100%;height:100%;object-fit:cover;display:block;border-radius:50%}
-  .menubtn:hover{border-color:var(--accent);color:var(--accent2)}
   .htitle{min-width:0;flex:1 1 auto}
   .htitle .ht-main{font-size:17px;font-weight:800;letter-spacing:-.3px;display:flex;align-items:center;gap:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .htitle .ht-sub{font-size:11px;color:var(--txt3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
@@ -900,14 +860,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
   /* floating add-record button (input sheet) */
   .fab{position:fixed;right:22px;bottom:88px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#e07a00);color:#1a1206;border:none;font-size:30px;font-weight:800;line-height:1;cursor:pointer;box-shadow:0 10px 26px rgba(245,166,35,.4);z-index:90;transition:.15s;display:grid;place-items:center;opacity:.5}
-  .fab:hover{transform:translateY(-2px) scale(1.04);opacity:1;box-shadow:0 14px 32px rgba(245,166,35,.6)}
   body.fabopen .fab{opacity:1;transform:rotate(45deg)}
   .fabmenu-back{position:fixed;inset:0;z-index:94;display:none}
   .fabmenu-back.show{display:block}
   .fabmenu{position:fixed;right:22px;bottom:152px;z-index:95;display:none;flex-direction:column;gap:9px;align-items:flex-end}
   .fabmenu.show{display:flex}
   .fabmenu-item{background:var(--bg2);border:1px solid var(--line2);color:var(--txt);border-radius:12px;padding:10px 15px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.45);display:flex;align-items:center;gap:9px;white-space:nowrap;transition:.15s;animation:fabIn .18s ease}
-  .fabmenu-item:hover{border-color:var(--accent);color:var(--accent2);transform:translateX(-3px)}
   @keyframes fabIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
   @media(min-width:1001px){.fabmenu{right:30px;bottom:96px}}
 
@@ -917,7 +875,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
      truly fixed to the viewport and do not scroll with the popup content.
      Hidden on mobile (navigation via swipe); shown only on desktop. */
   .mnav{position:fixed;top:50%;transform:translateY(-50%);width:50px;height:50px;border-radius:50%;background:rgba(20,20,23,.94);border:1px solid var(--line2);color:var(--txt);font-size:30px;line-height:1;cursor:pointer;z-index:125;display:none;place-items:center;box-shadow:0 8px 24px rgba(0,0,0,.55);transition:.15s;font-family:inherit}
-  .mnav:hover{border-color:var(--accent);color:var(--accent2);background:var(--panel2)}
   .mnav-l{left:max(12px, calc(50% - 700px))}.mnav-r{right:max(12px, calc(50% - 700px))}
   body.light .mnav{background:#ffffff}
   /* desktop only: reveal arrows while the machine popup is open */
@@ -1038,7 +995,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .jcrow label{flex:1 1 52%;min-width:0;font-size:11.5px;text-transform:none;letter-spacing:0;color:var(--txt2);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .jcrow input{flex:1 1 48%;padding:7px 9px;font-size:12.5px}
   .jc-same{flex:0 0 auto;background:var(--panel2);border:1px solid var(--line2);color:var(--accent2);font-family:'Spline Sans Mono';font-size:10px;font-weight:700;border-radius:7px;padding:5px 7px;cursor:pointer;white-space:nowrap;transition:.12s}
-  .jc-same:hover{border-color:var(--accent);background:rgba(245,166,35,.12)}
   .jc-same.match{color:var(--green);border-color:var(--green)}
 
   /* installed spec in machine popup */
@@ -1067,7 +1023,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .spechist .hbtn{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;padding:5px 11px;border-radius:9px;
     background:var(--panel2);border:1px solid var(--line2);color:var(--txt2);cursor:pointer;transition:.15s;user-select:none}
   .spechist .hbtn:not(.dis):active{transform:scale(.93)}
-  .spechist .hbtn:not(.dis):hover{border-color:var(--accent2);color:var(--txt)}
   .spechist .hbtn.dis{opacity:.3;cursor:not-allowed}
   .spechist .hbtn.now{border-color:rgba(63,215,122,.55);color:#3fd77a}
   .spechist .hlbl{font-size:10.5px;font-weight:800;font-family:'Spline Sans Mono';color:var(--txt3);letter-spacing:.2px;margin-left:auto}
@@ -1197,8 +1152,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .sched-head{display:flex;align-items:center;gap:10px;margin-top:10px}
   .sched-head .sectiontitle{margin:0;flex:1 1 auto;min-width:0}
   .filt-wrap{position:relative;flex:0 0 auto}
-  .filt-btn{width:34px;height:34px;border-radius:9px;background:var(--panel2);border:1px solid var(--line2);color:var(--txt2);display:grid;place-items:center;cursor:pointer;transition:.15s}
-  .filt-btn:hover,.filt-btn.on{border-color:var(--accent);color:var(--accent2)}
+  .filt-btn{width:34px;height:34px;border-radius:9px;background:var(--panel2);border:1px solid var(--line2);color:var(--txt2);display:grid;place-items:center;cursor:pointer;transition:.15s}.filt-btn.on{border-color:var(--accent);color:var(--accent2)}
   .filt-pop{display:none;position:absolute;top:calc(100% + 6px);right:0;width:300px;max-width:78vw;max-height:54vh;overflow:auto;background:var(--bg2);border:1px solid var(--line2);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.6);padding:12px 14px;z-index:8}
   .filt-pop.show{display:block}
   .filt-pop .fchip{font-size:10.5px;padding:3px 8px}
@@ -1269,7 +1223,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .jc-pulse.trial{background:var(--blue);color:#06121f}
   @keyframes jcpulse{0%{box-shadow:0 0 0 0 rgba(245,166,35,.65);transform:scale(1)}60%{box-shadow:0 0 0 9px rgba(245,166,35,0);transform:scale(1.12)}100%{box-shadow:0 0 0 0 rgba(245,166,35,0);transform:scale(1)}}
   .info{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:1.5px solid var(--txt3);color:var(--txt3);font-size:10px;font-weight:700;font-style:italic;font-family:Georgia,'Times New Roman',serif;cursor:pointer;margin-left:6px;vertical-align:middle;line-height:1;user-select:none;transition:.15s;flex:none}
-  .info:hover{border-color:var(--accent);color:var(--accent);background:rgba(245,166,35,.1)}
   .infopop-back{position:fixed;inset:0;z-index:199;background:transparent}
   .infopop{position:fixed;z-index:200;max-width:300px;background:var(--panel);border:1px solid var(--line2);border-radius:11px;box-shadow:0 14px 44px rgba(0,0,0,.55);padding:12px 14px;font-size:12.5px;line-height:1.6;color:var(--txt2);animation:popfx .14s ease-out}
   .infopop b{color:var(--txt)} .infopop code{background:var(--panel2);padding:1px 5px;border-radius:5px;font-size:11px}
@@ -1290,7 +1243,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .denah-stage img.notrans,.denah-pan.notrans{transition:none}
   .denah-zoomctl{position:absolute;right:10px;bottom:10px;z-index:6;display:flex;flex-direction:column;gap:6px}
   .denah-zoomctl button{width:38px;height:38px;border-radius:11px;background:rgba(8,8,10,.86);backdrop-filter:blur(6px);border:1px solid var(--line2);color:var(--txt);font-size:19px;font-weight:800;cursor:pointer;display:grid;place-items:center;line-height:1;box-shadow:0 4px 14px rgba(0,0,0,.45);transition:.15s}
-  .denah-zoomctl button:hover{border-color:var(--accent);color:var(--accent2)}
   .denah-zoomctl button:active{transform:scale(.92)}
   .denah-zoomctl .zlvl{font-family:'Spline Sans Mono';font-size:10px;font-weight:700;color:var(--txt2);text-align:center;background:rgba(8,8,10,.86);border:1px solid var(--line2);border-radius:9px;padding:3px 0}
   .denah-empty{display:grid;place-items:center;min-height:300px;padding:30px;text-align:center;color:var(--txt3)}
@@ -1324,7 +1276,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .rackitem .ri-main .sz{font-size:11px;color:var(--txt3);font-family:'Spline Sans Mono'}
   .rackitem.low{border-color:var(--red)}
   .qtybtn{width:30px;height:30px;border-radius:8px;border:1px solid var(--line2);background:var(--panel2);color:var(--txt);font-size:16px;font-weight:800;cursor:pointer;flex:0 0 auto;line-height:1}
-  .qtybtn:hover{border-color:var(--accent);color:var(--accent2)}
   .rackitem .qv{min-width:34px;text-align:center;font-family:'Spline Sans Mono';font-weight:800;font-size:14px}
 
   /* ===================== MOBILE POLISH & MOTION DISCIPLINE ===================== */
@@ -1414,6 +1365,139 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .fab{ border:1px solid var(--glass-hi); }
   /* sorotan tepi atas tipis ala kaca pada kartu */
   .tblwrap{ border-radius:14px; }
+
+
+/* ===== Semua efek :hover hanya untuk perangkat dengan mouse. =====
+   Di layar sentuh, :hover "nyangkut" setelah disentuh sampai kita menyentuh
+   tempat lain — tombol terlihat seperti masih aktif padahal tidak. */
+@media (hover:hover){
+.bellbtn:hover{border-color:var(--accent);color:var(--accent2)}
+.bp-row:hover{background:rgba(245,166,35,.08);border-left-color:var(--accent)}
+nav button:hover{color:var(--txt)}
+.kpi-click:hover{transform:translateY(-2px);border-color:var(--c);box-shadow:0 10px 24px rgba(0,0,0,.35)}
+.kpi-click:hover .kpi-go{opacity:1}
+.al-row:hover{background:rgba(245,166,35,.08)}
+.dvt-btn:hover{color:var(--txt)}
+.sectiontitle .jchbtn:hover{border-color:var(--accent);color:var(--accent);background:rgba(245,166,35,.1)}
+.jcs-open:hover{border-color:var(--accent);color:var(--accent)}
+.jcmx-jc:hover{background:var(--panel)}
+.jcmx tbody tr:hover .jcmx-part{background:var(--panel2)}
+.jcmx tbody tr:hover td.jcmx-cell{background:rgba(255,255,255,.04)}
+.sbadge.click:hover{transform:translateY(-1px);border-color:var(--c);box-shadow:0 6px 16px rgba(0,0,0,.3)}
+.sbadge.click:hover .sb-go{opacity:1}
+.pmstat:hover{border-color:var(--pc,var(--line2));transform:translateY(-1px)}
+.chzbtn:hover{border-color:var(--accent);color:var(--accent2);transform:translateY(-1px)}
+.alcard:hover{border-color:var(--accent);box-shadow:0 10px 24px rgba(0,0,0,.35);transform:translateY(-2px)}
+.alcard:hover .al-go{opacity:1}
+tbody tr:hover{background:rgba(79,157,255,.05)}
+.btn:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(245,166,35,.4)}
+.btn.sec:hover{box-shadow:none;border-color:var(--accent)}
+.ico-btn:hover{color:var(--red);border-color:var(--red)}
+.kebab:hover{border-color:var(--accent);color:var(--accent2)}
+.drawer .di:hover{background:var(--panel2);color:var(--txt)}
+.mchip:hover{border-color:var(--accent);color:var(--txt)}
+.mtile:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 10px 22px rgba(0,0,0,.4)}
+.dfopt:hover{color:var(--txt)}
+.dfreset:hover{color:var(--red);border-color:var(--red)}
+.filterhandle:hover{border-color:var(--accent);color:var(--accent2)}
+.mbox .mh .x:hover{border-color:var(--red);color:var(--red)}
+.navbtn:hover{border-color:var(--accent);color:var(--accent2)}
+.fchip:hover{border-color:var(--accent)}
+.schedtitle-click:hover{color:var(--accent)}
+.partchip button:hover{background:var(--red);color:#fff}
+.setcard:not(.open):hover{border-color:var(--accent)}
+.setgroup .setcard:not(.open):hover{border:none!important;background:var(--panel2)!important;border-radius:12px!important}
+.mpart-row:hover{background:var(--panel2)}
+.mech-eh .lnk:hover{background:var(--panel2)}
+.mcl.clk:hover{filter:brightness(1.2);box-shadow:0 0 0 2px var(--accent) inset}
+.fsbtn:hover{border-color:var(--accent);color:var(--accent2)}
+.scale-nudge button:hover{border-color:var(--accent);color:var(--accent2)}
+.menubtn:hover{border-color:var(--accent);color:var(--accent2)}
+.fab:hover{transform:translateY(-2px) scale(1.04);opacity:1;box-shadow:0 14px 32px rgba(245,166,35,.6)}
+.fabmenu-item:hover{border-color:var(--accent);color:var(--accent2);transform:translateX(-3px)}
+.mnav:hover{border-color:var(--accent);color:var(--accent2);background:var(--panel2)}
+.jc-same:hover{border-color:var(--accent);background:rgba(245,166,35,.12)}
+.spechist .hbtn:not(.dis):hover{border-color:var(--accent2);color:var(--txt)}
+.filt-btn:hover{border-color:var(--accent);color:var(--accent2)}
+.info:hover{border-color:var(--accent);color:var(--accent);background:rgba(245,166,35,.1)}
+.denah-zoomctl button:hover{border-color:var(--accent);color:var(--accent2)}
+.qtybtn:hover{border-color:var(--accent);color:var(--accent2)}
+}
+
+
+/* ============================================================
+   OPTIMALISASI SENTUH & MOBILE
+   Diletakkan paling akhir supaya menimpa aturan di atasnya.
+   ============================================================ */
+
+/* --- 1. Sentuhan terasa langsung: tanpa kilatan biru, tanpa jeda 300ms --- */
+html{ -webkit-tap-highlight-color:transparent; }
+button,.btn,.ico-btn,.chip,.fchip,.kpi-click,.mcl.clk,.spectab,.filt-btn,.qtybtn,
+nav button,.fabmenu-item,.x,.bellbtn,.seg,.tabbtn,.sbadge,.mtile,.di,.bp-row,.al-row,
+.swipenav .nb,.swipedots,label.sw,.fab{
+  touch-action:manipulation;
+  -webkit-user-select:none; user-select:none;
+}
+/* teks data tetap bisa disorot & disalin */
+td,th,.note,.roaster-note,.sub,input,textarea,select{ -webkit-user-select:text; user-select:text; }
+
+/* --- 2. iOS: input dengan huruf < 16px membuat layar ikut ter-zoom saat disentuh,
+        dan tidak kembali sendiri. Di layar kecil huruf input dinaikkan ke 16px. --- */
+@media (max-width:1000px){
+  input:not([type=checkbox]):not([type=radio]),
+  select,textarea,.jcrow input{ font-size:16px !important; }
+  /* saat keyboard muncul, sisakan ruang supaya kolom yang diisi tidak tertutup */
+  input,select,textarea{ scroll-margin-bottom:150px; scroll-margin-top:90px; }
+}
+
+/* --- 3. Target sentuh minimal ~44px (standar Apple & Google) --- */
+@media (hover:none){
+  /* dibesarkan pas: cukup untuk jari, tapi TIDAK saling tumpang tindih
+     dengan tombol baris di atas/bawahnya (agar tidak salah hapus baris) */
+  .ico-btn{ width:36px; height:36px; font-size:15px; }
+  .btn.sm{ padding:10px 16px; font-size:12px; }
+  .swipenav .nb{ width:42px; height:42px; font-size:16px; }
+  .mbox .mh .x{ width:42px; height:42px; }
+
+  /* kotak centang baris riwayat: bawaan ~13px, terlalu kecil untuk jari */
+  .rowchk{ width:24px; height:24px; accent-color:var(--accent); }
+  #histBody td:first-child{ padding-left:14px; padding-right:8px; }
+
+  /* jarak antar chip sedikit dilonggarkan supaya tidak salah tekan */
+  .chip,.fchip{ margin-bottom:2px; }
+}
+
+/* --- 4. Tombol tambah (FAB) tidak tertutup bar bawah / home indicator --- */
+@media (max-width:1000px){
+  .fab{ bottom:max(88px, calc(env(safe-area-inset-bottom,0px) + 78px)); right:16px; }
+}
+
+/* --- 5. Tabel lebar: batang gulir tipis yang selalu terlihat, supaya jelas
+        masih ada kolom di sebelah kanan --- */
+@media (hover:none){
+  .tblwrap,.swipedeck,.mscroll{ scrollbar-width:thin; scrollbar-color:var(--line2) transparent; }
+  .tblwrap::-webkit-scrollbar{ height:5px; }
+  .tblwrap::-webkit-scrollbar-thumb{ background:var(--line2); border-radius:3px; }
+  .tblwrap::-webkit-scrollbar-track{ background:transparent; }
+}
+
+/* --- 6. Gulir lebih rapi: tarikan di dalam pop-up tidak menarik halaman di belakangnya --- */
+/* PENTING: hanya sumbu MENDATAR yang boleh di-"contain".
+   Kalau kedua sumbu di-contain, putaran roda mouse / dua jari di trackpad saat kursor
+   berada di atas tabel akan ditelan wadah tabel dan TIDAK diteruskan ke halaman —
+   akibatnya halaman hanya bisa digulir kalau kursor ditaruh di pinggir tabel. */
+.tblwrap,.swipedeck{ -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain; overscroll-behavior-y:auto; }
+
+/* --- 7. Hormati setelan "kurangi gerakan" di HP (aksesibilitas + hemat baterai) --- */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.001ms !important; animation-iteration-count:1 !important;
+    transition-duration:.001ms !important; scroll-behavior:auto !important;
+  }
+}
+
+/* --- 8. Fokus keyboard tetap terlihat (untuk yang memakai keyboard di tablet/PC) --- */
+:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:6px; }
 </style>
 </head>
 <body>
@@ -1486,6 +1570,14 @@ const DEFAULT_CFG = {
   sections:['S1','S2','S3','S4','S5','S6','S7','S8','S9','S10'],
   machineSecs:{},
   partReasons:{}, commonReasons:['JobChange','Roaster'],
+  /* BAB REASON (level 1) — tetap, tidak bisa dihapus. planned=true dihitung sbg
+     pekerjaan terencana pada KPI Planned vs Unplanned. */
+  reasonGroups:[
+    {id:'jc',      name:'Job Change', planned:true,  color:'#4f9dff'},
+    {id:'roaster', name:'Roaster',    planned:true,  color:'#3fd77a'},
+    {id:'trouble', name:'Trouble',    planned:false, color:'#ff5a5a'}
+  ],
+  reasonGroupOf:{},          /* sub-bab: reason(huruf kecil) -> id bab */
   parts:['Catridge','Baffle Arm','Blow Head','T/O Head','Neckring Arm'],
   partAreas:{'Feeder Equipment':{mode:'grouped',groups:[]},'Section Equipment':{mode:'section',groups:[{name:'Preventive Maintenance 1',parts:['Catridge','Baffle Arm','Blow Head','T/O Head','Neckring Arm']},{name:'Preventive Maintenance 2',parts:[]}]},'Ware Handling Equipment':{mode:'grouped',groups:[]}},
   reasons:['JobChange','Roaster','Lock ring patah','Lock ring keras','Lock ring lemah','Lock pin kendor',
@@ -1563,7 +1655,14 @@ const Store = {
     this._mem=this._mem||{}; this._mem[k]=v; },
   _mem:null
 };
-async function saveLocal(){ await Store.set('pm_db',JSON.stringify(DB)); await Store.set('pm_cfg',JSON.stringify(CFG)); await Store.set('pm_act',JSON.stringify(actionStatus)); await Store.set('pm_jc',JSON.stringify(JCPLANS)); await Store.set('pm_stock',JSON.stringify(STOCK)); await Store.set('pm_jccheck',JSON.stringify(JCCHECKS)); }
+/* ===== BATCH 1: gambar denah disimpan TERPISAH dari CFG =====
+   Sebelumnya gambar denah (base64, bisa ratusan KB) ikut di dalam CFG, sehingga ikut
+   ditulis ulang & dikirim ke cloud setiap kali ada input. Sekarang dipisah. */
+function denahImgGet(){ return (typeof CFG==='object'&&CFG&&CFG.denah&&typeof CFG.denah.img==='string')?CFG.denah.img:''; }
+function cfgLite(){ var c=Object.assign({},CFG); if(CFG&&CFG.denah&&typeof CFG.denah==='object'){ c.denah=Object.assign({},CFG.denah); c.denah.img=''; } return c; }
+/* penanda versi gambar denah (ringkas) — dipakai untuk tahu kapan gambar perlu dikirim/ditarik */
+function denahImgRev(s){ s=s||''; if(!s) return ''; var h=5381,g=52711; for(var i=0;i<s.length;i++){ var c=s.charCodeAt(i); h=(h*33^c)>>>0; g=(g*31+c)>>>0; } return s.length+'-'+h.toString(36)+g.toString(36); }
+async function saveLocal(){ await Store.set('pm_db',JSON.stringify(DB)); await Store.set('pm_cfg',JSON.stringify(cfgLite())); await Store.set('pm_denah',denahImgGet()); await Store.set('pm_act',JSON.stringify(actionStatus)); await Store.set('pm_jc',JSON.stringify(JCPLANS)); await Store.set('pm_stock',JSON.stringify(STOCK)); await Store.set('pm_jccheck',JSON.stringify(JCCHECKS)); }
 /* catat waktu update/modifikasi data terakhir (tiap input atau perubahan) */
 function touchMod(){ try{ var t=Date.now(); if(typeof CFG==='object'&&CFG) CFG.lastMod=t; localStorage.setItem('pm_lastmod',String(t)); }catch(e){} }
 function lastModTime(){ var a=(typeof CFG==='object'&&CFG&&CFG.lastMod)?+CFG.lastMod:0; var b=0; try{ b=parseInt(localStorage.getItem('pm_lastmod'),10)||0; }catch(e){} var m=Math.max(a,b); return isNaN(m)?0:m; }
@@ -1586,15 +1685,90 @@ async function loadAll(){
   if(!CFG.denah||typeof CFG.denah!=='object') CFG.denah={img:'',racks:[]};
   if(!Array.isArray(CFG.denah.racks)) CFG.denah.racks=[];
   if(typeof CFG.denah.img!=='string') CFG.denah.img='';
+  if(!CFG.denah.img){ try{ var _di=await Store.get('pm_denah'); if(typeof _di==='string'&&_di) CFG.denah.img=_di; }catch(e){} }
   if(!CFG.machineSecs||typeof CFG.machineSecs!=='object') CFG.machineSecs={};
   if(!CFG.commonReasons||!CFG.commonReasons.length) CFG.commonReasons=['JobChange','Roaster'];
   if(!CFG.partReasons||typeof CFG.partReasons!=='object'){ CFG.partReasons={}; }
   if(Object.keys(CFG.partReasons).length===0){ analyzePartReasons(true); }   // seed dari data yang ada
   // Equipment areas untuk part (Feeder / Section / Ware Handling)
   ensurePartAreas(window.__cfgHadAreas!==false);
+  ensureRecIds();   // BATCH 2: beri id unik pada record lama yang belum punya
+  migrateReasonGroups();   // pastikan tiap reason punya induk bab
 }
+/* ============ BATCH 2 — ID UNIK PER RECORD ============
+   Dulu record dikenali dari NOMOR URUT di array (index). Kalau data cloud masuk tepat saat
+   kita menekan hapus, nomor urut bergeser → yang terhapus bisa record lain. Sekarang setiap
+   record punya id sendiri yang tidak pernah berubah. */
+var _recSeq=0;
+function newRecId(){ _recSeq++; return 'r'+Date.now().toString(36)+_recSeq.toString(36)+Math.random().toString(36).slice(2,6); }
+function ensureRecIds(){ var seen={}, changed=false;
+  (DB||[]).forEach(function(r){ if(!r||typeof r!=='object') return;
+    if(!r.id || seen[r.id]){ r.id=newRecId(); changed=true; }
+    seen[r.id]=1; });
+  return changed; }
+function recIndexById(id){ for(var i=0;i<DB.length;i++){ if(DB[i]&&DB[i].id===id) return i; } return -1; }
 /* ============ REASON ↔ PART CLASSIFICATION ============ */
 function isCommonReason(r){ return (CFG.commonReasons||[]).some(x=>x.toLowerCase()===String(r||'').trim().toLowerCase()); }
+/* ============ BAB REASON (2 tingkat) ============
+   Tingkat 1 = bab   : Job Change | Roaster | Trouble
+   Tingkat 2 = reason: mis. "Kotor", "Baffle mark"  -> selalu punya induk bab
+   Tingkat 3 = per part (CFG.partReasons) — dipakai untuk memfilter pilihan saat input. */
+var DEFAULT_RGROUPS=[
+  {id:'jc',      name:'Job Change', planned:true,  color:'#4f9dff'},
+  {id:'roaster', name:'Roaster',    planned:true,  color:'#3fd77a'},
+  {id:'trouble', name:'Trouble',    planned:false, color:'#ff5a5a'}
+];
+function rgList(){
+  if(!Array.isArray(CFG.reasonGroups)||!CFG.reasonGroups.length)
+    CFG.reasonGroups=JSON.parse(JSON.stringify(DEFAULT_RGROUPS));
+  return CFG.reasonGroups;
+}
+function rgById(id){ var L=rgList(); return L.find(function(g){return g.id===id;})||L[L.length-1]; }
+function rgKey(r){ return String(r==null?'':r).trim().toLowerCase(); }
+/* tebakan induk untuk reason yang belum pernah dipetakan */
+function rgGuess(k){
+  k=rgKey(k);
+  if(k==='jobchange'||k==='job change'||k==='jc') return 'jc';
+  if(k==='roaster') return 'roaster';
+  return 'trouble';                       // termasuk bekas kategori "Emergency"
+}
+function rgOf(reason){
+  var k=rgKey(reason); if(!k) return rgById('trouble');
+  var id=(CFG.reasonGroupOf||{})[k];
+  return rgById(id||rgGuess(k));
+}
+function rgSet(reason,gid){ CFG.reasonGroupOf=CFG.reasonGroupOf||{}; CFG.reasonGroupOf[rgKey(reason)]=gid; }
+/* semua reason yang dikenal sistem: daftar global + per part + yang sudah terpakai di data */
+function rgAllReasons(){
+  var out=[], seen={};
+  var push=function(r){ var k=rgKey(r); if(!k||seen[k])return; seen[k]=1; out.push(String(r).trim()); };
+  (CFG.reasons||[]).forEach(push);
+  Object.keys(CFG.partReasons||{}).forEach(function(p){ (CFG.partReasons[p]||[]).forEach(push); });
+  (DB||[]).forEach(function(r){ if(r&&r.reason) push(r.reason); });
+  return out;
+}
+/* pastikan setiap reason punya induk bab (dipanggil saat load & saat data cloud masuk) */
+function migrateReasonGroups(){
+  rgList(); CFG.reasonGroupOf=CFG.reasonGroupOf||{};
+  rgAllReasons().forEach(function(r){ var k=rgKey(r); if(!CFG.reasonGroupOf[k]) CFG.reasonGroupOf[k]=rgGuess(k); });
+}
+/* daftar reason milik satu bab */
+function rgReasonsOf(gid){ return rgAllReasons().filter(function(r){ return rgOf(r).id===gid; })
+  .sort(function(a,b){ return a.localeCompare(b,undefined,{numeric:true}); }); }
+/* hitung record per bab + ringkasan planned/unplanned */
+function rgCount(list){
+  var o={byId:{},planned:0,unplanned:0,total:0};
+  rgList().forEach(function(g){ o.byId[g.id]=0; });
+  (list||[]).forEach(function(r){
+    var g=r&&r.gid?rgById(r.gid):rgOf(r&&r.reason);
+    o.byId[g.id]=(o.byId[g.id]||0)+1; o.total++;
+    if(g.planned)o.planned++; else o.unplanned++;
+  });
+  o.Scheduled=o.planned; o.Trouble=o.byId.trouble||0; o.Emergency=0;   // alias lama
+  return o;
+}
+function rgMove(reason,gid){ rgSet(reason,gid); saveAll(); toast('"'+reason+'" → bab '+rgById(gid).name); render(); }
+function rgRebuild(){ CFG.reasonGroupOf={}; migrateReasonGroups(); saveAll(); toast('Bab reason disusun ulang'); render(); }
 // Hitung reason aktual per part dari DB: {part:{reason:count}}
 function partReasonStats(){ const m={}; DB.forEach(r=>{ const p=r.part, rs=String(r.reason||'').trim(); if(!p||!rs)return; m[p]=m[p]||{}; m[p][rs]=(m[p][rs]||0)+1; }); return m; }
 // Bangun daftar reason yang diizinkan per part dari data. merge=true → gabung dgn yang sudah ada (tidak menghapus tambahan manual)
@@ -1737,12 +1911,47 @@ function _ensureSyncForm(){
     document.body.appendChild(frm);
   }
 }
+/* ---- BATCH 1: gambar denah dikirim ke "ruang" cloud terpisah, HANYA saat gambarnya berubah ---- */
+function denahRoom(){ return (Cloud.room||'pmdata')+'__img'; }
+function denahRevSent(){ try{ return localStorage.getItem('pm_denahrev_'+denahRoom())||''; }catch(e){ return ''; } }
+function denahRevMark(r){ try{ localStorage.setItem('pm_denahrev_'+denahRoom(), r||''); }catch(e){} }
+function _ensureImgForm(){
+  if(!document.getElementById('__imgIfr')){
+    const ifr=document.createElement('iframe'); ifr.id='__imgIfr'; ifr.name='__imgIfr';
+    ifr.style.cssText='display:none!important;width:0;height:0;position:absolute;top:-9999px;left:-9999px;border:0';
+    document.body.appendChild(ifr); }
+  if(!document.getElementById('__imgFrm')){
+    const frm=document.createElement('form'); frm.id='__imgFrm'; frm.method='POST'; frm.target='__imgIfr';
+    frm.enctype='text/plain'; frm.setAttribute('enctype','text/plain'); frm.acceptCharset='utf-8'; frm.style.display='none';
+    const inp=document.createElement('input'); inp.type='hidden'; inp.name='body'; frm.appendChild(inp);
+    document.body.appendChild(frm); } }
+function gsPushDenah(img,rev){ if(!Cloud.enabled||!Cloud.url) return;
+  try{
+    _ensureImgForm();
+    const frm=document.getElementById('__imgFrm'); frm.action=Cloud.url;
+    frm.querySelector('input[name=body]').value=JSON.stringify({action:'set',room:denahRoom(),secret:Cloud.secret||'',w:'img:'+rev,data:{img:img,rev:rev}});
+    frm.submit(); denahRevMark(rev);
+  }catch(e){}
+}
+function gsPullDenah(rev){ if(!Cloud.enabled||!Cloud.url) return;
+  gsJsonp({action:'get',room:denahRoom(),secret:Cloud.secret||''},(err,j)=>{
+    if(err||!j||!j.ok||!j.data||typeof j.data.img!=='string') return;
+    CFG.denah=CFG.denah||{img:'',racks:[]}; CFG.denah.img=j.data.img;
+    denahRevMark(j.data.rev||rev||'');
+    try{ Store.set('pm_denah',j.data.img); }catch(e){}
+    try{ toast&&toast('\ud83d\uddfa\ufe0f Denah terbaru diterima'); }catch(e){}
+    try{ if(!cloudBusy()) render&&render(); }catch(e){}
+  }); }
 function gsPush(immediate){ if(!Cloud.enabled||!Cloud.url||Cloud.suppress) return; clearTimeout(_cloudTimer);
   const doWrite=()=>{
     const token=CLIENT_ID+':'+Date.now(); Cloud.pending=token; Cloud.pendingSince=Date.now(); Cloud.lastToken=token; markDirty();
     if(Cloud.status!=='error') Cloud.status='connected'; if(!cloudBusy()) render&&render();
+    // BATCH 1: gambar denah TIDAK ikut di sini — yang dikirim hanya penanda versinya (beberapa byte).
+    const _img=denahImgGet(), _rev=denahImgRev(_img);
+    const _cfgOut=cfgLite(); if(_cfgOut.denah) _cfgOut.denah.imgRev=_rev;
     const payload=JSON.stringify({ action:'set', room:Cloud.room, secret:Cloud.secret||'', w:token,
-      data:{ db:DB, cfg:CFG, actions:actionStatus, jc:JCPLANS, stock:STOCK, jccheck:JCCHECKS } });
+      data:{ db:DB, cfg:_cfgOut, actions:actionStatus, jc:JCPLANS, stock:STOCK, jccheck:JCCHECKS } });
+    if(_rev && _rev!==denahRevSent()) setTimeout(function(){ gsPushDenah(_img,_rev); }, 1500);   // kirim gambar hanya bila berubah
     // ── Metode 1: Hidden form POST — bebas CORS, bekerja dari file:// maupun http/https, aman untuk data besar
     try{
       _ensureSyncForm();
@@ -1759,8 +1968,43 @@ function gsPush(immediate){ if(!Cloud.enabled||!Cloud.url||Cloud.suppress) retur
   };
   if(immediate) doWrite(); else _cloudTimer=setTimeout(doWrite, 800);
 }
+/* ===== BATCH 3 — cadangan otomatis + rem darurat sebelum data lokal ditimpa data cloud ===== */
+function snapshotSave(why){
+  try{
+    localStorage.setItem('pm_snapshot', JSON.stringify({ t:Date.now(), why:why||'', n:(DB||[]).length,
+      db:DB, cfg:cfgLite(), actions:actionStatus, jc:JCPLANS, stock:STOCK, jccheck:JCCHECKS }));
+  }catch(e){}
+}
+function snapshotInfo(){ try{ const s=JSON.parse(localStorage.getItem('pm_snapshot')||'null');
+  return (s&&s.t)?{t:s.t,n:s.n||0,why:s.why||''}:null; }catch(e){ return null; } }
+function snapshotRestore(){
+  const info=snapshotInfo(); if(!info){ toast('Belum ada cadangan otomatis',1); return; }
+  if(!confirm('Pulihkan data ke kondisi '+fmtModTime(info.t)+' ('+info.n+' record)?\n\nData yang ada sekarang akan diganti.')) return;
+  try{
+    const s=JSON.parse(localStorage.getItem('pm_snapshot')); const img=denahImgGet();
+    if(Array.isArray(s.db)) DB=s.db;
+    if(s.cfg){ CFG=Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)),s.cfg);
+      CFG.denah=CFG.denah||{img:'',racks:[]}; CFG.denah.img=img; ensurePartAreas(true); }
+    if(s.actions) actionStatus=s.actions;
+    if(Array.isArray(s.jc)) JCPLANS=s.jc;
+    if(Array.isArray(s.stock)) STOCK=s.stock;
+    if(Array.isArray(s.jccheck)) JCCHECKS=s.jccheck;
+    ensureRecIds(); saveAll(); buildNav&&buildNav(); render&&render();
+    toast('✓ Data dipulihkan dari cadangan');
+  }catch(e){ toast('Gagal memulihkan cadangan',1); }
+}
 function cloudApply(data){ if(Cloud.dirty) return;   // ada perubahan lokal belum terkonfirmasi → jangan timpa
+  // REM DARURAT: kalau data cloud tiba-tiba jauh lebih sedikit, tanya dulu — jangan hilang diam-diam.
+  try{
+    const nOld=(DB||[]).length, nNew=Array.isArray(data.db)?data.db.length:0;
+    if(nOld>=10 && nNew<nOld*0.8){
+      snapshotSave('sebelum data cloud yang lebih sedikit');
+      if(!confirm('⚠️ Data dari cloud berisi '+nNew+' record, sedangkan di perangkat ini ada '+nOld+' record.\n\nKemungkinan perangkat lain menimpa data.\n\nTetap timpa data di perangkat ini?\n(Cadangan otomatis sudah dibuat — bisa dipulihkan di Settings)')) return;
+    }
+  }catch(e){}
+  snapshotSave('sebelum menerima data cloud');
   Cloud.suppress=true;
+  const _imgKeep=denahImgGet();
   try{
     if(Array.isArray(data.db)) DB=data.db;
     if(data.cfg) CFG=Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)),data.cfg);
@@ -1773,6 +2017,15 @@ function cloudApply(data){ if(Cloud.dirty) return;   // ada perubahan lokal belu
     if(!CFG.commonReasons||!CFG.commonReasons.length) CFG.commonReasons=['JobChange','Roaster'];
     if(!CFG.partReasons||typeof CFG.partReasons!=='object') CFG.partReasons={};
     if(Object.keys(CFG.partReasons).length===0) analyzePartReasons(true);
+    // BATCH 1: gambar denah tidak ikut dikirim → pakai yang tersimpan di perangkat ini.
+    // Ambil dari cloud HANYA bila penanda versinya berbeda.
+    CFG.denah=CFG.denah||{img:'',racks:[]}; CFG.denah.img=_imgKeep;
+    var _oldFmtImg=(data.cfg&&data.cfg.denah&&typeof data.cfg.denah.img==='string')?data.cfg.denah.img:'';
+    if(!_imgKeep && _oldFmtImg) CFG.denah.img=_oldFmtImg;   // perangkat lain masih versi lama
+    var _wantRev=(data.cfg&&data.cfg.denah&&data.cfg.denah.imgRev)||'';
+    if(_wantRev && _wantRev!==denahImgRev(_imgKeep)) setTimeout(function(){ gsPullDenah(_wantRev); }, 800);
+    ensureRecIds();   // BATCH 2: pastikan record dari cloud juga punya id
+    migrateReasonGroups();
   }catch(e){}
   try{ saveLocal(); }catch(e){}
   clearDirty(); Cloud.pending=null; Cloud.suppress=false;
@@ -1837,13 +2090,8 @@ function cloudSaveConfig(){
 }
 
 /* ============ COMPUTE ENGINE ============ */
-function classifyCat(reason){
-  if(!reason||!reason.trim()) return 'Trouble';
-  const s=reason.trim().toLowerCase();
-  if(s==='jobchange'||s==='roaster') return 'Scheduled';
-  if(s.includes('emergency')) return 'Emergency';
-  return 'Trouble';
-}
+function classifyCat(reason){ return rgOf(reason).name; }   /* nama bab: Job Change / Roaster / Trouble */
+function isPlannedReason(reason){ return !!rgOf(reason).planned; }
 function lifetimeOf(part){ return CFG.lifetimes[part]||90; }
 function warnDaysFor(part){ var d=+CFG.warnDiv||2; return Math.max(1,Math.round(lifetimeOf(part)/d)); }
 function urgentDaysFor(part){ var d=+CFG.urgentDiv||4; return Math.max(1,Math.round(lifetimeOf(part)/d)); }
@@ -1854,7 +2102,7 @@ function fmtD(d){ if(!d)return'—'; const x=(d instanceof Date)?d:parseD(d); re
 
 // enrich records with category & sorted; compute actual lifetime
 function enriched(){
-  const list=DB.map((r,i)=>({...r,_i:i,cat:classifyCat(r.reason),lt:lifetimeOf(r.part),d:parseD(r.date)}));
+  const list=DB.map((r,i)=>{const g=rgOf(r.reason);return {...r,_i:i,cat:g.name,gid:g.id,planned:!!g.planned,lt:lifetimeOf(r.part),d:parseD(r.date)};});
   // actual lifetime = gap from previous same combo
   const groups={};
   [...list].sort((a,b)=>a.d-b.d).forEach(r=>{
@@ -1976,7 +2224,7 @@ function toggleBottom(id){CFG.bottomNav=(CFG.bottomNav&&CFG.bottomNav.length)?CF
 /* ---------- POPUP DETAIL PER MESIN ---------- */
 const _SB={OVERDUE:['var(--redbg)','var(--red)'],URGENT:['var(--orangebg)','var(--orange)'],WARNING:['var(--yellowbg)','var(--yellow)'],OK:['var(--greenbg)','var(--green)']};
 function machineSchedule(sel){var list=enriched().filter(function(r){return r.machine===sel;});var g={};
-  list.forEach(function(r){var k=r.section+'|'+r.part; if(!g[k])g[k]={section:r.section,part:r.part,sched:[],trbl:[]}; if(r.cat==='Scheduled')g[k].sched.push(r); else g[k].trbl.push(r);});
+  list.forEach(function(r){var k=r.section+'|'+r.part; if(!g[k])g[k]={section:r.section,part:r.part,sched:[],trbl:[]}; if(r.planned)g[k].sched.push(r); else g[k].trbl.push(r);});
   var map={}; Object.keys(g).forEach(function(k){var o=g[k]; var lt=lifetimeOf(o.part); o.sched.sort(function(a,b){return a.d-b.d;}); o.trbl.sort(function(a,b){return b.d-a.d;});
     var lastSched=o.sched.length?o.sched[o.sched.length-1].d:null; var nd=lastSched?new Date(lastSched.getTime()+lt*86400000):null; var rem=nd?daysBetween(TODAY,nd):null; var status=rem===null?'NO DATA':statusOf(rem,o.part);
     map[k]={section:o.section,part:o.part,lt:lt,lastSched:lastSched,nextDue:nd,rem:rem,status:status,count:o.sched.length+o.trbl.length,trouble:o.trbl.length,troubleList:o.trbl.map(function(r){return {date:r.date,reason:r.reason};}),schedList:o.sched.slice().reverse().map(function(r){return {date:r.date,reason:r.reason};})};});
@@ -2038,7 +2286,7 @@ function openComboHistory(machine,section,part){
   const avg=gaps.length?(gaps.reduce((a,b)=>a+b,0)/gaps.length):null;
   const last=recs.length?recs[recs.length-1].d:null;
   const predicted=last&&avg!=null?new Date(last.getTime()+avg*86400000):(last?new Date(last.getTime()+lt*86400000):null);
-  const troubleN=recs.filter(r=>r.cat!=='Scheduled').length;
+  const troubleN=recs.filter(r=>!r.planned).length;
   const rc=(d,c,r)=>`<div class="xrowc"><span class="mono" style="min-width:78px">${fmtD(d)}</span><span>${pill(c)}</span><span style="color:var(--txt2);flex:1;text-align:right">${r||'-'}</span></div>`;
   document.getElementById('hbox').innerHTML=`<div class="mh">
       <div style="font-size:17px;font-weight:800">📈 ${machine}${section&&section!=='*'?(' · '+section):''} · ${part}</div>
@@ -2058,7 +2306,7 @@ function openComboHistory(machine,section,part){
     const lite=document.body.classList.contains('light'); const tc=lite?'#475569':'#9fb3cf'; const gc=lite?'#e2e8f0':'#1e2d45';
     charts.hist=new Chart(document.getElementById('histCanvas'),{type:'line',
       data:{labels:ints.map(x=>fmtD(x.date)),datasets:[
-        {label:'Interval (hari)',data:gaps,borderColor:'#4f9dff',backgroundColor:'rgba(79,157,255,.15)',fill:true,tension:.3,pointRadius:4,pointBackgroundColor:ints.map(x=>x.cat==='Scheduled'?'#3fd77a':'#ff5a5a')},
+        {label:'Interval (hari)',data:gaps,borderColor:'#4f9dff',backgroundColor:'rgba(79,157,255,.15)',fill:true,tension:.3,pointRadius:4,pointBackgroundColor:ints.map(x=>x.planned?'#3fd77a':'#ff5a5a')},
         {label:'Target lifetime ('+lt+'h)',data:gaps.map(()=>lt),borderColor:'#ffd23f',borderDash:[6,5],pointRadius:0,fill:false}
       ]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:tc,font:{family:'Archivo'},boxWidth:12}}},scales:{x:{ticks:{color:tc,maxRotation:60,minRotation:30,font:{size:10}},grid:{color:gc}},y:{ticks:{color:tc},grid:{color:gc},beginAtZero:true}}}});
@@ -2117,7 +2365,7 @@ function schedMatrixGroupedHTML(sel,schedMap,secsList,groups,emptyMsg){
 /* ===== Status per (mesin, part) tanpa section (untuk Feeder / Ware Handling) ===== */
 function machinePartStatus(sel,part){
   var list=enriched().filter(function(r){return r.machine===sel&&r.part===part;});
-  var sched=[],trbl=[]; list.forEach(function(r){ if(r.cat==='Scheduled')sched.push(r); else trbl.push(r); });
+  var sched=[],trbl=[]; list.forEach(function(r){ if(r.planned)sched.push(r); else trbl.push(r); });
   sched.sort(function(a,b){return a.d-b.d;}); trbl.sort(function(a,b){return b.d-a.d;});
   var lt=lifetimeOf(part); var lastSched=sched.length?sched[sched.length-1].d:null;
   var nd=lastSched?new Date(lastSched.getTime()+lt*86400000):null; var rem=nd?daysBetween(TODAY,nd):null;
@@ -2229,8 +2477,8 @@ function renderMachineModal(){
   const sel=window._mSel; const schedMap=machineSchedule(sel); window._mSchedMap=schedMap;
   const sc={OVERDUE:0,URGENT:0,WARNING:0,OK:0}; monitoring().forEach(x=>{if(x.machine===sel&&sc[x.status]!==undefined)sc[x.status]++;});
   const en=enriched().filter(r=>r.machine===sel); const total=en.length;
-  const cat={Scheduled:0,Trouble:0,Emergency:0}; en.forEach(r=>{cat[r.cat]=(cat[r.cat]||0)+1;});
-  const troubleTot=cat.Trouble+cat.Emergency;
+  const cat=rgCount(en);
+  const troubleTot=cat.unplanned;
   const secs=sectionsOf(sel).filter(s=>window._mSecs.includes(s)); const parts=CFG.parts.filter(p=>window._mParts.includes(p));
   const kpi=(c,v,l,ic)=>`<div class="kpi" style="--c:${c};padding:10px 11px"><span class="ic">${ic}</span><div class="v" style="font-size:22px">${v}</div><div class="l">${l}</div></div>`;
   // Ringkasan "Schedule Roaster Part per Section": section = kolom, part = baris; part bisa dipilih lewat filter
@@ -2274,7 +2522,7 @@ function renderMachineModal(){
   if(charts.mm){try{charts.mm.destroy()}catch(e){}} if(charts.mmc){try{charts.mmc.destroy()}catch(e){}}
   const lt=document.body.classList.contains('light'); const tc=lt?'#475569':'#9fb3cf'; const gc=lt?'#e2e8f0':'#1e2d45';
   charts.mm=new Chart(document.getElementById('mmStat'),{type:'bar',data:{labels:['Overdue','Urgent','Warning','OK'],datasets:[{data:[sc.OVERDUE,sc.URGENT,sc.WARNING,sc.OK],backgroundColor:['#ff5a5a','#ff8c3b','#ffd23f','#3fd77a'],borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:tc},grid:{display:false}},y:{ticks:{color:tc},grid:{color:gc},beginAtZero:true}}}});
-  charts.mmc=new Chart(document.getElementById('mmCat'),{type:'doughnut',data:{labels:['Scheduled','Trouble','Emergency'],datasets:[{data:[cat.Scheduled,cat.Trouble,cat.Emergency],backgroundColor:['#3fd77a','#ff5a5a','#ff8c3b'],borderWidth:0}]},plugins:(typeof ChartDataLabels!=='undefined'?[ChartDataLabels]:[]),options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:tc,font:{family:'Archivo'}}},datalabels:{color:'#0d0d0f',font:{weight:'bold',size:12},formatter:(v,ctx)=>{const arr=ctx.chart.data.datasets[0].data;const t=arr.reduce((a,b)=>a+(+b||0),0);return (t&&v)?Math.round(v/t*100)+'%':'';}}},cutout:'58%'}});
+  charts.mmc=new Chart(document.getElementById('mmCat'),{type:'doughnut',data:{labels:rgList().map(g=>g.name),datasets:[{data:rgList().map(g=>cat.byId[g.id]||0),backgroundColor:rgList().map(g=>g.color||'#888'),borderWidth:0}]},plugins:(typeof ChartDataLabels!=='undefined'?[ChartDataLabels]:[]),options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:tc,font:{family:'Archivo'}}},datalabels:{color:'#0d0d0f',font:{weight:'bold',size:12},formatter:(v,ctx)=>{const arr=ctx.chart.data.datasets[0].data;const t=arr.reduce((a,b)=>a+(+b||0),0);return (t&&v)?Math.round(v/t*100)+'%':'';}}},cutout:'58%'}});
   if(document.getElementById('jccTrend')&&window._jccTrendKey){ jccTrendDraw(sel,window._jccTrendKey); }
 }
 function vMachine(){
@@ -2296,7 +2544,7 @@ function vMachine(){
   const kpi=(c,v,l,d,ic)=>`<div class="kpi" style="--c:${c}"><span class="ic">${ic}</span><div class="v">${v}</div><div class="l">${l}</div><div class="d">${d}</div></div>`;
   const chips=machs.map(m=>`<div class="mchip ${m===sel?'on':''}" onclick="window._selM='${m}';render()">${m}<span class="br">${brandOf(m)}</span></div>`).join('');
   const hdrStatus=sc.OVERDUE>0?'OVERDUE':sc.URGENT>0?'URGENT':sc.WARNING>0?'WARNING':'OK';
-  return `<h2 class="title">\U0001F3ED Dashboard per Machine</h2><div class="sub">Select a machine to view its part status, history, and trends.</div>
+  return `<h2 class="title">🏭 Dashboard per Machine</h2><div class="sub">Select a machine to view its part status, history, and trends.</div>
   <div class="mchips">${chips}</div>
   <div class="card" style="margin-bottom:16px;display:flex;align-items:center;gap:18px;flex-wrap:wrap">
     <div style="font-size:32px;font-weight:900;font-family:'Spline Sans Mono';color:var(--accent2)">${sel}</div>
@@ -2306,34 +2554,37 @@ function vMachine(){
     </div>
   </div>
   <div class="kpis">
-    ${kpi('#ff5a5a',sc.OVERDUE,'OVERDUE','Lewat jadwal','\U0001F534')}
-    ${kpi('#ff8c3b',sc.URGENT,'URGENT','Due \u2264 7 hari','\U0001F7E0')}
-    ${kpi('#ffd23f',sc.WARNING,'WARNING','Due \u2264 14 hari','\U0001F7E1')}
-    ${kpi('#3fd77a',sc.OK,'OK','Aman','\U0001F7E2')}
+    ${kpi('#ff5a5a',sc.OVERDUE,'OVERDUE','Lewat jadwal','🔴')}
+    ${kpi('#ff8c3b',sc.URGENT,'URGENT','Due \u2264 7 hari','🟠')}
+    ${kpi('#ffd23f',sc.WARNING,'WARNING','Due \u2264 14 hari','🟡')}
+    ${kpi('#3fd77a',sc.OK,'OK','Aman','🟢')}
   </div>
   <div class="kpis" style="margin-bottom:20px">
-    ${kpi('#4f9dff',total,'TOTAL REPLACEMENT','Machine '+sel,'\U0001F4CA')}
-    ${kpi('#ff5a5a',trouble,'TROUBLE','Tak terjadwal','\U0001F527')}
-    ${kpi('#7c5cff',thisMonth,'BULAN INI','Replacement','\U0001F4C5')}
+    ${kpi('#4f9dff',total,'TOTAL REPLACEMENT','Machine '+sel,'📊')}
+    ${kpi('#ff5a5a',trouble,'TROUBLE','Tak terjadwal','🔧')}
+    ${kpi('#7c5cff',thisMonth,'BULAN INI','Replacement','📅')}
     ${kpi('#22c1c3',perlu,'PERLU PERHATIAN','Overdue+Urgent+Warning','\u26A0\uFE0F')}
   </div>
   <div class="grid g3">
-    <div class="card"><h3>\U0001F4E6 Part Status ${sel}</h3><canvas id="cmS" height="170"></canvas></div>
-    <div class="card"><h3>\U0001F529 Replacement per Part</h3><canvas id="cmP" height="170"></canvas></div>
-    <div class="card"><h3>\U0001F4C8 6-Month Trend</h3><canvas id="cmT" height="170"></canvas></div>
+    <div class="card"><h3>📦 Part Status ${sel}</h3><canvas id="cmS" height="170"></canvas></div>
+    <div class="card"><h3>🔩 Replacement per Part</h3><canvas id="cmP" height="170"></canvas></div>
+    <div class="card"><h3>📈 6-Month Trend</h3><canvas id="cmT" height="170"></canvas></div>
   </div>
-  <div class="sectiontitle">\U0001F514 Part Status per Section \u2014 ${sel}</div>
+  <div class="sectiontitle">🔔 Part Status per Section \u2014 ${sel}</div>
   ${mons.length?`<div class="tblwrap"><table><thead><tr><th>Section</th><th>Part</th><th>Lifetime</th><th>Last Replace</th><th>Next Due</th><th>Days Left</th><th>Status</th><th>Total</th><th>Trouble</th></tr></thead><tbody>
   ${mons.slice().sort((a,b)=>a.section.localeCompare(b.section,undefined,{numeric:true})||a.part.localeCompare(b.part)).map(x=>`<tr>
     <td><b>${x.section}</b></td><td>${x.part}</td><td class="mono">${x.lt}h</td><td class="mono">${fmtD(x.last)}</td><td class="mono">${fmtD(x.nextDue)}</td>
     <td class="mono" style="color:${x.rem<0?'#ff5a5a':x.rem<=7?'#ff8c3b':x.rem<=14?'#ffd23f':'#3fd77a'};font-weight:700">${x.rem}</td>
     <td>${pill(x.status)}</td><td>${x.count}</td><td>${x.trouble>0?'<span style="color:#ff5a5a">'+x.trouble+'</span>':'0'}</td></tr>`).join('')}
-  </tbody></table></div>`:`<div class="empty"><div class="big">\U0001F4ED</div><b>No data yet for ${sel}</b><div style="margin-top:6px">Add a replacement in the Input Data tab.</div></div>`}`;
+  </tbody></table></div>`:`<div class="empty"><div class="big">📭</div><b>No data yet for ${sel}</b><div style="margin-top:6px">Add a replacement in the Input Data tab.</div></div>`}`;
 }
 function go(id){ if(id==='set'&&current!=='set')_setOpen={}; current=id; buildNav(); render(); if(!isDesktop())closeDrawer(); if(typeof closeJcHist==='function')closeJcHist(); if(typeof closeMmodal==='function')closeMmodal(); if(typeof closeHmodal==='function')closeHmodal(); if(typeof closeRack==='function')closeRack(); if(typeof closeBellPop==='function')closeBellPop(); if(typeof closeAmodal==='function')closeAmodal(); if(typeof closeAvgLifePop==='function')closeAvgLifePop(); if(typeof closeChartZoom==='function')closeChartZoom(); }
 
 /* ============ RENDER ============ */
 function render(){
+  /* ===== BATCH 4: pertahankan posisi gulir bila halaman yang dirender masih sama ===== */
+  const _sameView=(window._renderedView===current);
+  const _keepY=_sameView?(window.pageYOffset||document.documentElement.scrollTop||0):0;
   try{
     Object.values(charts).forEach(c=>{try{c.destroy()}catch(e){}}); charts={};
     const fn={dash:vDash,input:vInput,mon:vMon,action:vAction,plan:vPlan,jcm:vJCMaster,jccheck:vJCCheck,ana:vAna,report:vReport,fc:vFc,stock:vStock,set:vSet}[current]||vDash;
@@ -2363,6 +2614,13 @@ function render(){
     }
     if(after.length){ const q=after; after=[]; q.forEach(f=>{try{f()}catch(e){console.error('after-hook error:',e);}}); }
     try{ updateBell(); }catch(_){}
+    /* BATCH 4: kembalikan posisi gulir (halaman sama) atau ke atas (pindah halaman) */
+    window._renderedView=current;
+    try{ document.body.dataset.view=current; }catch(_){}
+    if(_sameView && _keepY>0){
+      try{ window.scrollTo(0,_keepY); }catch(e){}
+      try{ requestAnimationFrame(function(){ try{ window.scrollTo(0,_keepY); }catch(e){} }); }catch(e){}
+    } else if(!_sameView){ try{ window.scrollTo(0,0); }catch(e){} }
   }catch(e){
     console.error('Render fatal:',e);
     try{ const m=document.getElementById('main'); if(m) m.innerHTML='<div class="view on"><div class="card" style="margin-top:20px;border-color:var(--red)"><h3>⚠️ Terjadi error</h3><div class="note" style="white-space:pre-wrap">'+String(e&&e.message||e)+'</div><button class="btn" style="margin-top:10px" onclick="location.reload()">Muat ulang</button></div></div>'; }catch(_){}
@@ -2749,10 +3007,10 @@ function vDash(){
   const c={OVERDUE:0,URGENT:0,WARNING:0,OK:0}; m.forEach(x=>c[x.status]++);
   const en=dashScopeEn(enriched());
   const MACHS=dashScopeMachines(), PARTS=dashScopeParts();
-  const cat={Scheduled:0,Trouble:0,Emergency:0}; en.forEach(r=>cat[r.cat]++);
+  const cat=rgCount(en);
   // ===== Planned Maintenance achievement: scheduled (planned) vs trouble/emergency (unplanned) =====
   const PM_TARGET=CFG.pmTarget||70; // % target — dapat diatur di Settings
-  const planned=cat.Scheduled, unplanned=cat.Trouble+cat.Emergency, totAll=planned+unplanned;
+  const planned=cat.planned, unplanned=cat.unplanned, totAll=planned+unplanned;   // Planned = Job Change + Roaster
   const pmPct=totAll?Math.round(planned/totAll*100):0;
   const pmRC = pmPct>=PM_TARGET ? '#3fd77a' : (pmPct>=PM_TARGET*0.6 ? '#ffc14d' : '#ff8c3b');
   // last 6 months split: scheduled vs unplanned + monthly planned%
@@ -2760,7 +3018,7 @@ function vDash(){
   for(let i=5;i>=0;i--){ const dt=new Date(TODAY.getFullYear(),TODAY.getMonth()-i,1);
     pmMonths.push(dt.toLocaleDateString('en-GB',{month:'short',year:'2-digit'}));
     const inM=en.filter(r=>r.d.getMonth()===dt.getMonth()&&r.d.getFullYear()===dt.getFullYear());
-    const s=inM.filter(r=>r.cat==='Scheduled').length, u=inM.length-s;
+    const s=inM.filter(r=>r.planned).length, u=inM.length-s;
     pmSch.push(s); pmTrb.push(u); pmLine.push(inM.length?Math.round(s/inM.length*100):0);
   }
   const pmThis=pmLine[5], pmLast=pmLine[4], pmDelta=pmThis-pmLast;
@@ -3000,7 +3258,19 @@ function vInput(){
 }
 function toggleAll(cb){document.querySelectorAll('#histBody tr').forEach(tr=>{if(tr.style.display!=='none'){const c=tr.querySelector('.rowchk');if(c)c.checked=cb.checked;}});updSel();}
 function updSel(){const n=document.querySelectorAll('#histBody .rowchk:checked').length;const b=$('#delSelBtn');if(b){b.style.display=n?'':'none';const s=$('#selN');if(s)s.textContent=n;}}
-function delSelected(){const idx=[...document.querySelectorAll('#histBody .rowchk:checked')].map(c=>+c.value);if(!idx.length)return;if(!confirm('Delete '+idx.length+' record terpilih?'))return;idx.sort((a,b)=>b-a).forEach(i=>DB.splice(i,1));saveAll();toast(idx.length+' record dihapus');buildNav();render();}
+function delSelected(){
+  const boxes=[...document.querySelectorAll('#histBody .rowchk:checked')];
+  if(!boxes.length)return;
+  if(!confirm('Delete '+boxes.length+' record terpilih?'))return;
+  const ids=boxes.map(c=>c.value).filter(Boolean); let n=0;
+  if(ids.length===boxes.length){                       // jalur normal: hapus berdasarkan id
+    const kill={}; ids.forEach(x=>{kill[x]=1;});
+    for(let i=DB.length-1;i>=0;i--){ if(DB[i]&&kill[DB[i].id]){ DB.splice(i,1); n++; } }
+  } else {                                             // cadangan: data lama yang belum punya id
+    const idx=boxes.map(c=>+(c.dataset.i)).filter(v=>!isNaN(v)).sort((a,b)=>b-a);
+    idx.forEach(i=>{ DB.splice(i,1); n++; });
+  }
+  saveAll();toast(n+' record dihapus');buildNav();render();}
 function openAddModal(){
   const today=ymd(TODAY);
   window._addSecs=[]; window._addParts=[]; window._addPartsShowAll=false;
@@ -3034,7 +3304,13 @@ function openAddModal(){
 function renderReasonOptions(){ const sel=$('#i_reason_sel'); if(!sel)return; const prev=sel.value;
   const parts=window._addParts||[]; const list=reasonsForParts(parts);
   const hint=parts.length?('— reason utk '+(parts.length===1?parts[0]:parts.length+' part')+' —'):'— pilih reason —';
-  sel.innerHTML='<option value="">'+hint+'</option>'+list.map(r=>`<option>${esc(r)}</option>`).join('')+'<option value="__other">➕ Reason baru'+(parts.length?' untuk part ini':'')+'…</option>';
+  // dikelompokkan per BAB supaya jelas reason ini turunan dari mana
+  const byG={}; list.forEach(r=>{ const g=rgOf(r); (byG[g.id]=byG[g.id]||[]).push(r); });
+  let _h='<option value="">'+hint+'</option>';
+  rgList().forEach(g=>{ const arr=byG[g.id]||[]; if(!arr.length)return;
+    _h+='<optgroup label="'+esc(g.name)+'">'+arr.map(r=>`<option>${esc(r)}</option>`).join('')+'</optgroup>'; });
+  _h+='<option value="__other">➕ Reason baru'+(parts.length?' untuk part ini':'')+'…</option>';
+  sel.innerHTML=_h;
   if(prev && (prev==='__other'||list.some(r=>r===prev))) sel.value=prev; else sel.value='';
 }
 function addCurMachine(){const el=$('#i_machine');return el?el.value:(CFG.machines[0]||'');}
@@ -3064,11 +3340,11 @@ function addPartAll(v){window._addParts=v?CFG.parts.slice():[];renderAddChips();
 function onReasonSel(){const sel=$('#i_reason_sel'),inp=$('#i_reason');if(!sel||!inp)return;if(sel.value==='__other'){inp.style.display='';inp.focus();}else{inp.style.display='none';}previewLive();}
 function curReason(){const sel=$('#i_reason_sel');if(sel){return sel.value==='__other'?(($('#i_reason')&&$('#i_reason').value)||'').trim():sel.value;}const inp=$('#i_reason');return inp?inp.value.trim():'';}
 function rowHist(r){return `<tr data-s="${(r.machine+r.section+r.part+r.reason+(r.pic||'')).toLowerCase()}">
-  <td><input type="checkbox" class="rowchk" value="${r._i}" onchange="updSel()"></td>
+  <td><input type="checkbox" class="rowchk" value="${r.id||''}" data-i="${r._i}" onchange="updSel()"></td>
   <td class="mono">${fmtD(r.d)}</td><td><b>${r.machine}</b></td><td>${r.section}</td><td>${r.part}</td>
-  <td>${pill(r.cat)}</td><td style="color:var(--txt2)">${r.reason||'—'}</td>
+  <td>${pill(r.cat)}</td><td style="color:var(--txt2)">${r.reason||'—'}${r._jcv?' <span title="Otomatis dari perubahan variabel Plan JC" style="cursor:help">🔧</span>':''}${r._jc?' <span title="Otomatis dari roaster Plan JC" style="cursor:help">♻️</span>':''}</td>
   <td class="mono">${r.actual!=null?r.actual+'h':'<span style="color:var(--txt3)">new</span>'}</td>
-  <td>${r.pic||'—'}</td><td><button class="ico-btn" onclick="delRec(${r._i})" title="Delete">✕</button></td></tr>`;}
+  <td>${r.pic||'—'}</td><td><button class="ico-btn" onclick="delRec('${r.id||''}',${r._i})" title="Delete">✕</button></td></tr>`;}
 function filterRows(){const q=$('#srch').value.toLowerCase();document.querySelectorAll('#histBody tr').forEach(tr=>{tr.style.display=tr.dataset.s.includes(q)?'':'none';});}
 function previewLive(){
   const pv=$('#i_preview'); if(!pv)return;
@@ -3091,11 +3367,12 @@ function addRec(close){
   if(!pic){toast('Select a shift first',1);return;}
   if(!secs.length||!parts.length){toast('Select at least 1 section & 1 part',1);return;}
   if(reason && !CFG.reasons.some(x=>x.toLowerCase()===reason.toLowerCase())) CFG.reasons.push(reason);
-  if(reason && !isCommonReason(reason)){ CFG.partReasons=CFG.partReasons||{}; parts.forEach(p=>{ CFG.partReasons[p]=CFG.partReasons[p]||[]; if(!CFG.partReasons[p].some(x=>x.toLowerCase()===reason.toLowerCase())) CFG.partReasons[p].push(reason); }); }
+  if(reason && !isCommonReason(reason)){ CFG.partReasons=CFG.partReasons||{}; parts.forEach(p=>{ CFG.partReasons[p]=CFG.partReasons[p]||[]; if(!CFG.partReasons[p].some(x=>x.toLowerCase()===reason.toLowerCase())) CFG.partReasons[p].push(reason); });
+    CFG.reasonGroupOf=CFG.reasonGroupOf||{}; if(!CFG.reasonGroupOf[rgKey(reason)]) CFG.reasonGroupOf[rgKey(reason)]='trouble'; }   // reason baru default masuk bab Trouble
   let added=0, dup=0;
   secs.forEach(section=>parts.forEach(part=>{
     if(DB.some(x=>x.machine===machine&&x.section===section&&x.part===part&&x.date===date)){dup++;return;}
-    DB.push({date,machine,section,part,reason,pic}); added++;
+    DB.push({id:newRecId(),date,machine,section,part,reason,pic}); added++;
   }));
   if(!added){toast('⚠️ All combinations already exist (duplicates skipped)',1);return;}
   saveAll(); buildNav();
@@ -3111,7 +3388,13 @@ function addRec(close){
   const pill2=$('#addSessPill'); if(pill2){pill2.style.display='';pill2.textContent=window._addSessionCount+' disimpan sesi ini';}
   renderAddChips(); render(); previewLive();
 }
-function delRec(i){ if(!confirm('Delete this record?'))return; DB.splice(i,1); saveAll(); toast('Record deleted'); buildNav(); render(); }
+function delRec(id,fallbackIdx){
+  var i=(typeof id==='string'&&id)?recIndexById(id):-1;
+  if(i<0 && typeof id==='number') i=id;                                  // dukung pemanggilan lama
+  if(i<0 && typeof fallbackIdx==='number') i=fallbackIdx;                // data lama tanpa id
+  if(i<0||i>=DB.length){ toast('Record tidak ditemukan — mungkin sudah dihapus atau data baru masuk dari perangkat lain.',1); render(); return; }
+  if(!confirm('Delete this record?'))return;
+  DB.splice(i,1); saveAll(); toast('Record deleted'); buildNav(); render(); }
 
 /* ---- MONITORING ---- */
 function vMon(){
@@ -3166,7 +3449,7 @@ function setPIC(k,v){toast('Shift logged: '+(v||'—'));}
 /* ---- PLANNING ---- */
 function roasterCov(machine,part){
   const lt=lifetimeOf(part);
-  const en=enriched().filter(r=>r.machine===machine&&r.part===part&&r.cat==='Scheduled');
+  const en=enriched().filter(r=>r.machine===machine&&r.part===part&&r.planned);
   const bySec={}; en.forEach(r=>{const o=bySec[r.section]; if(!o||r.d>o)bySec[r.section]=r.d;});
   return sectionsOf(machine).map(s=>{const last=bySec[s]||null; const due=last?new Date(last.getTime()+lt*86400000):null; const rem=last?daysBetween(TODAY,due):null; const st=last?statusOf(rem,part):'NODATA'; return {section:s,last,due,rem,status:st};});
 }
@@ -3223,7 +3506,7 @@ function vPlan(){
       <td class="mono"><b>${p.typeJob||'—'}</b></td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.description||p.bottleSize||'—'}</td><td class="mono">${p.weight?p.weight+' gr':'—'}</td>
       <td class="mono">${filled}/${tot}</td>
       <td>${jccPlanBadge(p)}</td>
-      <td style="white-space:nowrap">${(p.roasterPlan&&p.roasterPlan.length)?(p.roasterApplied?'<span class="pill pRoaster" title="Roaster already logged">♻️ logged</span>':'<button class="btn sm" style="background:var(--teal);color:#03201f" onclick="applyRoasterPlan('+p.id+')" title="Catat roaster plan ini sebagai record nyata pada tgl JC">📌 Log Roaster</button>'):''} <button class="btn sec sm" onclick="openJCPlan(${p.id})">👁️ Edit</button> <button class="btn sec sm" onclick="dupJCPlan(${p.id})" title="Salin untuk job berikutnya">⧉</button> <button class="ico-btn" onclick="delJCPlan(${p.id})" title="Delete">✕</button></td></tr>`;};
+      <td style="white-space:nowrap">${(p.roasterPlan&&p.roasterPlan.length)?(p.roasterApplied?'<span class="pill pRoaster" title="Roaster already logged">♻️ logged</span>':'<button class="btn sm" style="background:var(--teal);color:#03201f" onclick="applyRoasterPlan('+p.id+')" title="Catat roaster plan ini sebagai record nyata pada tgl JC">📌 Log Roaster</button>'):''}${jcVarBadge(p)} <button class="btn sec sm" onclick="openJCPlan(${p.id})">👁️ Edit</button> <button class="btn sec sm" onclick="dupJCPlan(${p.id})" title="Salin untuk job berikutnya">⧉</button> <button class="ico-btn" onclick="delJCPlan(${p.id})" title="Delete">✕</button></td></tr>`;};
     const toolbar=`<div class="toolbar"><button class="btn" onclick="openJCPlan()">➕ Create JC Plan</button>
       <span style="color:var(--txt3);font-size:12px">${upcoming.length} akan datang${past.length?` · ${past.length} lewat`:''}</span>
       ${past.length?`<button class="btn sec sm" onclick="window._jcShowPast=${!showPast};render()">${showPast?'← Kembali ke yang akan datang':'🗂️ Lihat '+past.length+' yang lewat'}</button>`:''}</div>`;
@@ -3260,6 +3543,8 @@ function openJCPlan(id){
   if(!window._jcEdit.specs)window._jcEdit.specs={};
   if(!Array.isArray(window._jcEdit.roasterPlan))window._jcEdit.roasterPlan=[];
   if(window._jcEdit.roasterApplied==null)window._jcEdit.roasterApplied=false;
+  if(window._jcEdit.varApplied==null)window._jcEdit.varApplied=false;
+  if(!Array.isArray(window._jcEdit.varSkip))window._jcEdit.varSkip=[];
   if(window._jcEdit.trial==null)window._jcEdit.trial=false;
   window._jcRoSecs=[]; window._jcRoEdit=null; window._jcRoPart=(CFG.parts.find(p=>/eckring/i.test(p))||CFG.parts[0]||'');
   renderJCForm(); document.getElementById('jcmodal').classList.add('show');
@@ -3332,19 +3617,43 @@ function vJCMaster(){
   const pf=window._jcmProc||'';
   const procs=[...new Set(jcmList().map(m=>String(m.process||'').trim()).filter(Boolean))];
   return `<h2 class="title">🍾 Master JC</h2><div class="sub">Pustaka job type botol — kumpulan variabel spec per part, tanpa tanggal. Jadi acuan saat menyiapkan plan JC.</div>
-  <div class="card" style="margin-bottom:14px">
-    <div class="toolbar" style="gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:0">
-      <div class="fg" style="flex:1 1 240px;gap:5px;min-width:0"><label>🔎 Search</label>
-        <input id="jcmSearchInput" value="${esc(window._jcmSearch||'')}" oninput="jcmApplyFilter()" placeholder="cari type job / description / CD..."></div>
-      <button class="btn" onclick="openJCMaster()">➕ Add Job Type</button>
+  <div class="searchdock ${(window._jcmSearch||'').trim()?'has-q':''}" id="jcmSearchDock">
+    <div class="sd-inner">
+      <span class="sd-ic">🔎</span>
+      <input id="jcmSearchInput" type="text" inputmode="search" enterkeyhint="search" autocomplete="off"
+             value="${esc(window._jcmSearch||'')}" oninput="jcmApplyFilter()" placeholder="Cari type job / description / CD…">
+      <button class="sd-x" onclick="jcmClearSearch()" title="Hapus pencarian" aria-label="Hapus pencarian">✕</button>
+      <button class="sd-add" onclick="openJCMaster()" title="Tambah job type baru" aria-label="Tambah job type baru"><span class="sd-add-ic">+</span><span class="sd-add-tx">Add Job Type</span></button>
     </div>
-    <div class="fchips" style="margin-top:10px"><span class="fchip ${!pf?'on':''}" onclick="window._jcmProc='';render()">Semua proses</span>
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    <div class="fchips" style="margin-top:0"><span class="fchip ${!pf?'on':''}" onclick="window._jcmProc='';render()">Semua proses</span>
       ${procs.map(p=>`<span class="fchip ${pf===p?'on':''}" onclick="window._jcmProc='${esc(p)}';render()">${esc(p)}</span>`).join('')}</div>
   </div>
   <div id="jcmResults">${jcmResultsHTML()}</div>`;
 }
 function jcmApplyFilter(){ const inp=document.getElementById('jcmSearchInput'); if(inp)window._jcmSearch=inp.value;
+  const dock=document.getElementById('jcmSearchDock');
+  if(dock)dock.classList.toggle('has-q', !!String(window._jcmSearch||'').trim());
   const box=document.getElementById('jcmResults'); if(box)box.innerHTML=jcmResultsHTML(); }
+function jcmClearSearch(){ window._jcmSearch='';
+  const inp=document.getElementById('jcmSearchInput'); if(inp){ inp.value=''; inp.focus(); }
+  jcmApplyFilter(); }
+/* ===== Kolom cari mengambang ikut naik saat keyboard HP terbuka =====
+   Tanpa ini, di iPhone kolom cari yang menempel di bawah akan tertutup keyboard. */
+(function kbDock(){
+  var vv = window.visualViewport; if(!vv) return;
+  var t=null;
+  function upd(){
+    var kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+    document.documentElement.style.setProperty('--kb', kb + 'px');
+    document.body.classList.toggle('kbopen', kb > 120);
+  }
+  function soon(){ clearTimeout(t); t=setTimeout(upd, 40); }
+  vv.addEventListener('resize', soon); vv.addEventListener('scroll', soon);
+  window.addEventListener('orientationchange', function(){ setTimeout(upd, 300); });
+  upd();
+})();
 function openJCMaster(id){
   const m=(id!=null)?jcmList().find(x=>x.id===id):null;
   window._jcmEdit = m?JSON.parse(JSON.stringify(m)):{id:null,typeJob:'',description:'',weight:'',cd:'',process:(CFG.processes[0]||''),notes:'',specs:{}};
@@ -3411,7 +3720,10 @@ function renderJCForm(){
     const rows=CFG.jcAreas[area].map(part=>{
       const cur=(c.specs[part]||''); const pv=String(prevSpecs[part]||'').trim();
       const sameBtn = pv ? `<button class="jc-same ${String(cur).trim().toLowerCase()===pv.toLowerCase()?'match':''}" data-k="${esc(part)}" onclick="jcUseSame(this.getAttribute('data-k'))" title="Pakai sama seperti JC sebelumnya (${esc(pv)})">= ${esc(pv)}</button>` : '';
-      return `<div class="jcrow"><label title="${esc(part)}">${part}</label><input value="${esc(cur)}" oninput="jcSpec(this.getAttribute('data-k'),this.value)" data-k="${esc(part)}" placeholder="size / spec">${sameBtn}</div>`;
+      // centang “catat sebagai record” — hanya berguna bila ada JC sebelumnya untuk dibandingkan.
+      // Otomatis tersembunyi (lewat CSS) kalau nilainya sama dgn JC lalu atau kolomnya masih kosong.
+      const recChk = prevP ? `<label class="jc-rec" title="Catat pergantian ${esc(part)} sebagai record"><input type="checkbox" class="jcrecchk" data-k="${esc(part)}" ${jcVarSkipped(c,part)?'':'checked'} onchange="jcVarToggle(this.getAttribute('data-k'))"></label>` : '';
+      return `<div class="jcrow"><label title="${esc(part)}">${part}</label><input value="${esc(cur)}" oninput="jcSpec(this.getAttribute('data-k'),this.value)" data-k="${esc(part)}" placeholder="size / spec">${sameBtn}${recChk}</div>`;
     }).join('');
     return `<div class="card" style="padding:14px;margin-bottom:12px"><h3>${areaIcon(area)} ${area} <span class="tag">${CFG.jcAreas[area].length} item</span></h3><div class="jcgrid">${rows}</div></div>`;
   }).join('');
@@ -3443,8 +3755,9 @@ function renderJCForm(){
       ${prevP?`<button class="btn sec sm" onclick="jcUseAllSame()" title="Isi semua field dengan nilai JC sebelumnya">↩ Samakan semua dgn sebelumnya</button>`:''}
     </div>
     ${areaHTML}
+    <div id="jcVarRec"></div>
     <div class="toolbar" style="margin:4px 0 0"><button class="btn" onclick="saveJCPlan()">💾 Save Plan</button><button class="btn sec" onclick="jcSaveToMaster()" title="Simpan/registrasi spec job type ini ke Master JC">🍾 Simpan ke Master</button><button class="btn sec" onclick="closeJC()">Cancel</button></div></div>`;
-  renderJCRoaster();
+  renderJCRoaster(); renderJCVarRec();
 }
 function renderJCRoaster(){
   const c=window._jcEdit; const el=document.getElementById('jcRoaster'); if(!el)return;
@@ -3497,16 +3810,19 @@ function jcUseAllSame(){ const c=window._jcEdit; const p=jcPrevPlan(c); if(!p||!
   renderJCForm(); toast('✓ '+n+' field disamakan dengan JC '+(p.jcDate?fmtD(parseD(p.jcDate)):'sebelumnya')); }
 function jcSpec(k,v){ window._jcEdit.specs[k]=v;
   try{ const pp=window._jcPrevPlan; const pv=pp&&pp.specs?String(pp.specs[k]||'').trim():'';
-    if(pv){ const btn=document.querySelector('#jcbox .jc-same[data-k="'+CSS.escape(k)+'"]'); if(btn) btn.classList.toggle('match', String(v).trim().toLowerCase()===pv.toLowerCase()); } }catch(e){} }
+    if(pv){ const btn=document.querySelector('#jcbox .jc-same[data-k="'+CSS.escape(k)+'"]'); if(btn) btn.classList.toggle('match', String(v).trim().toLowerCase()===pv.toLowerCase()); } }catch(e){}
+  try{ renderJCVarRec(); }catch(e){} }
 function saveJCPlan(){const c=window._jcEdit; if(!c.machine||!c.jcDate){toast('Machine & JC date are required',1);return;}
   if(c.id==null){c.id=Date.now();JCPLANS.push(c);}else{const i=JCPLANS.findIndex(x=>x.id===c.id);if(i>=0)JCPLANS[i]=c;}
   let msg='✓ JC plan saved';
+  if(c.varApplied){ syncJCVarPlan(c); }
   if(c.roasterApplied){ const res=syncRoasterPlan(c); if(res.added||res.removed) msg='✓ Plan saved · roaster synced ('+(res.added?'+'+res.added:'')+(res.added&&res.removed?', ':'')+(res.removed?'-'+res.removed:'')+')'; }
   saveAll(); closeJC(); toast(msg); render();}
-function dupJCPlan(id){const p=JCPLANS.find(x=>x.id===id);if(!p)return;const c=JSON.parse(JSON.stringify(p));c.id=null;c.jcDate=ymd(TODAY);c.roasterApplied=false;(c.roasterPlan||[]).forEach(r=>delete r._jc);window._jcEdit=c;window._jcRoSecs=[];window._jcRoEdit=null;renderJCForm();document.getElementById('jcmodal').classList.add('show');toast('Copied — save as a new plan');}
+function dupJCPlan(id){const p=JCPLANS.find(x=>x.id===id);if(!p)return;const c=JSON.parse(JSON.stringify(p));c.id=null;c.jcDate=ymd(TODAY);c.roasterApplied=false;c.varApplied=false;(c.roasterPlan||[]).forEach(r=>delete r._jc);window._jcEdit=c;window._jcRoSecs=[];window._jcRoEdit=null;renderJCForm();document.getElementById('jcmodal').classList.add('show');toast('Copied — save as a new plan');}
 function closeJC(){const el=document.getElementById('jcmodal'); if(el)el.classList.remove('show');}
 function delJCPlan(id){const p=JCPLANS.find(x=>x.id===id);if(!confirm('Delete plan JC ini?'+((p&&p.roasterApplied)?'\nRoaster records already logged from this plan will also be deleted.':'')))return;
   if(p&&p.roasterApplied){ for(let i=DB.length-1;i>=0;i--){ if(DB[i]._jc===id) DB.splice(i,1); } }
+  if(p&&p.varApplied){ for(let i=DB.length-1;i>=0;i--){ if(DB[i]._jcv===id) DB.splice(i,1); } }
   JCPLANS=JCPLANS.filter(x=>x.id!==id); saveAll(); buildNav(); toast('Plan deleted'); render();}
 /* ---- roaster plan → real records integration ---- */
 // Reconcile DB roaster records to match an APPLIED plan (handles add / remove / machine&date change)
@@ -3525,8 +3841,132 @@ function syncRoasterPlan(plan){
   desired.forEach(k=>{ const idx=k.indexOf('\u0001'); const section=k.slice(0,idx), part=k.slice(idx+1);
     const ex=DB.find(x=>x.machine===machine&&x.section===section&&x.part===part&&x.date===date);
     if(ex){ if(ex.reason==='Roaster'&&ex._jc==null) ex._jc=plan.id; }   // adopt matching, leave manual records untouched
-    else { DB.push({date,machine,section,part,reason:'Roaster',pic:shift,_jc:plan.id}); added++; } });
+    else { DB.push({id:newRecId(),date,machine,section,part,reason:'Roaster',pic:shift,_jc:plan.id}); added++; } });
   return {added,removed};
+}
+/* ============ PERUBAHAN VARIABEL JC -> RECORD ============
+   Beda dengan roaster: roaster kita rencanakan sendiri, sedangkan job change
+   DITURUNKAN dari perbandingan spec dengan JC sebelumnya di mesin yang sama.
+   Jadi daftarnya muncul otomatis, tinggal dicentang / batal centang. */
+function jcVarChanges(plan){
+  if(!plan) return {prev:null,list:[]};
+  const machine=plan.machine||plan.line;
+  const tl=jcTimeline(machine);
+  let i=-1;
+  if(plan.id!=null) i=tl.findIndex(p=>p.id===plan.id);
+  if(i<0){ // plan belum tersimpan: bandingkan dgn JC terakhir sebelum tanggalnya
+    const before=tl.filter(p=>String(p.jcDate||'')<String(plan.jcDate||''));
+    const prev=before.length?before[before.length-1]:null;
+    return {prev, list: prev?transitionDiff(prev,plan).filter(d=>d.status==='change'||d.status==='add'):[]};
+  }
+  if(i===0) return {prev:null,list:[]};                 // JC pertama, tidak ada pembanding
+  const prev=tl[i-1];
+  return {prev, list: transitionDiff(prev,plan).filter(d=>d.status==='change'||d.status==='add')};
+}
+function jcVarSecs(plan){
+  const all=sectionsOf(plan.machine||plan.line);
+  const sel=Array.isArray(plan.varSecs)?plan.varSecs.filter(x=>all.includes(x)):null;
+  return (sel&&sel.length)?sel:all;
+}
+function jcVarSkipped(plan,part){ return (plan.varSkip||[]).indexOf(part)>=0; }
+function jcVarPicked(plan){ return jcVarChanges(plan).list.filter(d=>!jcVarSkipped(plan,d.part)); }
+/* reason = nama variabel yang berubah, otomatis terdaftar di bab Job Change */
+function rgRegisterJC(part){
+  CFG.reasonGroupOf=CFG.reasonGroupOf||{};
+  const k=rgKey(part); if(!CFG.reasonGroupOf[k]) CFG.reasonGroupOf[k]='jc';
+}
+/* Samakan record di DB dengan pilihan pada plan (tambah / hapus saat dicentang-ulang) */
+function syncJCVarPlan(plan){
+  if(!plan||!plan.varApplied) return {added:0,removed:0};
+  const machine=plan.machine||plan.line, date=plan.jcDate, shift=(plan.shift||'');
+  const secs=jcVarSecs(plan), picks=jcVarPicked(plan);
+  const desired=new Set();
+  picks.forEach(d=>secs.forEach(sc=>desired.add(sc+'\u0001'+d.part)));
+  let added=0,removed=0;
+  for(let i=DB.length-1;i>=0;i--){ const r=DB[i];
+    if(r._jcv===plan.id && !(r.machine===machine && r.date===date && desired.has(r.section+'\u0001'+r.part))){ DB.splice(i,1); removed++; } }
+  desired.forEach(k=>{ const ix=k.indexOf('\u0001'); const section=k.slice(0,ix), part=k.slice(ix+1);
+    const ex=DB.find(x=>x.machine===machine&&x.section===section&&x.part===part&&x.date===date);
+    if(ex){ if(ex._jcv==null&&ex._jc==null) ex._jcv=plan.id; }   // pakai yang sudah ada, jangan dobel
+    else { DB.push({id:newRecId(),date,machine,section,part,reason:part,pic:shift,_jcv:plan.id}); added++; }
+    rgRegisterJC(part); });
+  return {added,removed};
+}
+/* Tanda di tabel Plan JC — sejajar dengan tanda ♻️ roaster.
+   Belum dicatat -> tombol biru "Catat N". Sudah dicatat -> pil "N tercatat". */
+function jcVarBadge(p){
+  try{
+    const ch=jcVarChanges(p); if(!ch.prev||!ch.list.length) return '';
+    const n=jcVarPicked(p).length*jcVarSecs(p).length;
+    if(p.varApplied) return ' <span class="pill pJobChange" title="'+n+' record perubahan variabel sudah masuk ke Input Data pada '+fmtD(parseD(p.jcDate))+'">🔧 '+n+' tercatat</span>';
+    if(!n) return '';
+    return ' <button class="btn sm" style="background:#4f9dff;color:#08182c" onclick="applyJCVarById('+p.id+')" title="'+ch.list.length+' variabel berubah dibanding JC '+fmtD(parseD(ch.prev.jcDate))+' — catat sebagai record">🔧 Catat '+n+'</button>';
+  }catch(e){ return ''; }
+}
+function applyJCVarById(id){
+  const p=JCPLANS.find(x=>x.id===id); if(!p){ toast('Plan tidak ditemukan',1); return false; }
+  if(p.varApplied){ toast('Perubahan variabel plan ini sudah tercatat',1); return false; }
+  const picks=jcVarPicked(p), secs=jcVarSecs(p);
+  if(!picks.length){ toast('Tidak ada variabel yang dicentang',1); return false; }
+  if(!secs.length){ toast('Pilih minimal satu section',1); return false; }
+  const n=picks.length*secs.length;
+  if(!confirm('Catat '+n+' record ('+picks.length+' variabel × '+secs.length+' section) pada '+fmtD(parseD(p.jcDate))+'?\n\nReason = nama variabel, bab Job Change.\nRecord ini menggeser tanggal "terakhir diganti" di Monitoring.')) return false;
+  p.varApplied=true; const res=syncJCVarPlan(p);
+  saveAll(); buildNav(); toast('✓ '+res.added+' record job change dicatat'); render();
+  return true;
+}
+function jcVarToggle(part){
+  const c=window._jcEdit; if(!c)return;
+  c.varSkip=c.varSkip||[]; const i=c.varSkip.indexOf(part);
+  i<0?c.varSkip.push(part):c.varSkip.splice(i,1);
+  renderJCVarRec();                 // cukup perbarui bilah ringkas, form tidak dibangun ulang
+}
+function jcVarToggleSec(x){
+  const c=window._jcEdit; if(!c)return;
+  const all=sectionsOf(c.machine||c.line);
+  let cur=Array.isArray(c.varSecs)&&c.varSecs.length?c.varSecs.slice():all.slice();
+  const i=cur.indexOf(x); i<0?cur.push(x):cur.splice(i,1);
+  c.varSecs=cur; renderJCVarRec();
+}
+function jcVarAllSec(v){ const c=window._jcEdit; if(!c)return;
+  c.varSecs=v?sectionsOf(c.machine||c.line).slice():[]; renderJCVarRec(); }
+function applyJCVar(){
+  const c=window._jcEdit; if(!c)return;
+  if(c.id==null){ toast('Simpan plan dulu sebelum mencatat record',1); return; }
+  const live=JCPLANS.find(x=>x.id===c.id);
+  if(!live){ toast('Simpan plan dulu sebelum mencatat record',1); return; }
+  live.varSkip=(c.varSkip||[]).slice(); live.varSecs=(c.varSecs||[]).slice();
+  if(applyJCVarById(c.id)){ c.varApplied=true; renderJCVarRec(); }
+}
+function unapplyJCVar(){
+  const c=window._jcEdit; if(!c||c.id==null)return;
+  if(!confirm('Batalkan pencatatan? Semua record yang dibuat dari perubahan variabel plan ini akan dihapus.'))return;
+  let removed=0;
+  for(let i=DB.length-1;i>=0;i--){ if(DB[i]._jcv===c.id){ DB.splice(i,1); removed++; } }
+  c.varApplied=false; const live=JCPLANS.find(x=>x.id===c.id); if(live)live.varApplied=false;
+  saveAll(); buildNav(); toast(removed+' record dihapus'); render(); renderJCVarRec();
+}
+function jcVarSecUI(){ const e=document.getElementById('jcVarSecChips'); if(e) e.style.display = (e.style.display==='none'?'':'none'); }
+function renderJCVarRec(){
+  const c=window._jcEdit; const el=document.getElementById('jcVarRec'); if(!el)return;
+  const ch=jcVarChanges(c);
+  if(!ch.prev || !ch.list.length){ el.innerHTML=''; return; }        // tidak ada yang perlu ditampilkan
+  const allSec=sectionsOf(c.machine||c.line), secs=jcVarSecs(c);
+  const picks=jcVarPicked(c), n=picks.length*secs.length;
+  const secLbl = secs.length===allSec.length ? 'semua section' : secs.join(', ') || 'belum dipilih';
+  el.innerHTML=`
+    <div class="jcvarbar ${c.varApplied?'done':''}">
+      <span class="jvb-t">${c.varApplied?'\u2705 <b>Tercatat</b>':'📌'} <b>${picks.length}</b>/${ch.list.length} variabel \u00d7 <b>${secs.length}</b> section = <b style="color:var(--accent2)">${n}</b> record
+        <span style="color:var(--txt3)">\u00b7 vs JC ${fmtD(parseD(ch.prev.jcDate))}</span></span>
+      <a class="jvb-sec" onclick="jcVarSecUI()">${esc(secLbl)} \u25be</a>
+      ${c.varApplied
+        ? `<button class="btn sec sm" onclick="unapplyJCVar()">Batalkan</button>`
+        : `<button class="btn sm" onclick="applyJCVar()" ${c.id==null?'disabled title="Simpan plan dulu"':''}>Catat</button>`}
+    </div>
+    <div class="addchips" id="jcVarSecChips" style="display:none;margin:6px 0 0">
+      ${allSec.map(x=>`<span class="fchip ${secs.includes(x)?'on':''}" onclick="jcVarToggleSec('${x}')">${x}</span>`).join('')}
+      <span class="fchip" onclick="jcVarAllSec(true)">semua</span><span class="fchip" onclick="jcVarAllSec(false)">kosongkan</span>
+    </div>`;
 }
 function applyRoasterPlan(id){
   const p=JCPLANS.find(x=>x.id===id); if(!p){toast('Plan not found',1);return;}
@@ -4332,15 +4772,14 @@ function vAna(){
   const prStats=partReasonStats();
   const partStat={}; CFG.parts.forEach(p=>partStat[p]={vals:[],lt:lifetimeOf(p)});
   en.forEach(r=>{if(r.actual!=null&&partStat[r.part])partStat[r.part].vals.push(r.actual);});
-  const machStat={}; CFG.machines.forEach(mc=>machStat[mc]={Scheduled:0,Trouble:0,Emergency:0,tot:0});
-  en.forEach(r=>{if(machStat[r.machine]){machStat[r.machine][r.cat]++;machStat[r.machine].tot++;}});
+  const machStat={}; CFG.machines.forEach(mc=>machStat[mc]=rgCount(en.filter(r=>r.machine===mc)));
   const avg=a=>a.length?(a.reduce((x,y)=>x+y,0)/a.length):null;
   // MTBF (between trouble events) per machine
-  const mtbfRows=CFG.machines.map(mc=>{const recs=en.filter(r=>r.machine===mc&&(r.cat==='Trouble'||r.cat==='Emergency')).sort((a,b)=>a.d-b.d);
+  const mtbfRows=CFG.machines.map(mc=>{const recs=en.filter(r=>r.machine===mc&&!r.planned).sort((a,b)=>a.d-b.d);
     const mb=mtbfOf(recs); const last=recs.length?recs[recs.length-1].d:null; const pred=(last&&mb!=null)?new Date(last.getTime()+mb*86400000):null; const rem=pred?daysBetween(TODAY,pred):null;
     return {mc,n:recs.length,mb,last,pred,rem};}).sort((a,b)=>(a.mb==null)-(b.mb==null)||(a.mb||1e9)-(b.mb||1e9));
   // Pareto of trouble reasons (normalized)
-  const troubles=en.filter(r=>r.cat==='Trouble'||r.cat==='Emergency');
+  const troubles=en.filter(r=>!r.planned);
   const rcMap={}; troubles.forEach(r=>{const k=normReason(r.reason)||'(tidak diisi)'; rcMap[k]=(rcMap[k]||0)+1;});
   let par=Object.entries(rcMap).sort((a,b)=>b[1]-a[1]);
   let parTop=par.slice(0,12); const restSum=par.slice(12).reduce((a,b)=>a+b[1],0); if(restSum>0)parTop.push(['Lainnya',restSum]);
@@ -4382,15 +4821,15 @@ function vAna(){
   </div>
 
   <div class="card"><h3>⚠️ Trouble Frequency per Machine</h3>
-  <div class="tblwrap"><table><thead><tr><th>Machine</th><th>Total</th><th>Scheduled</th><th>Trouble</th><th>Emergency</th><th>Trouble Rate</th></tr></thead><tbody>
-  ${CFG.machines.map(mc=>{const s=machStat[mc];const rate=s.tot?s.Trouble/s.tot*100:0;
-    return `<tr><td><b>${mc}</b></td><td>${s.tot}</td><td>${s.Scheduled}</td><td style="color:#ff5a5a">${s.Trouble}</td><td>${s.Emergency}</td>
+  <div class="tblwrap"><table><thead><tr><th>Machine</th><th>Total</th><th>Job Change</th><th>Roaster</th><th>Trouble</th><th>Trouble Rate</th></tr></thead><tbody>
+  ${CFG.machines.map(mc=>{const s=machStat[mc];const rate=s.total?s.unplanned/s.total*100:0;
+    return `<tr><td><b>${mc}</b></td><td>${s.total}</td><td>${s.byId.jc||0}</td><td>${s.byId.roaster||0}</td><td style="color:#ff5a5a">${s.byId.trouble||0}</td>
     <td><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:${rate}%;background:${rate>30?'#ff5a5a':'#ff8c3b'}"></div></div><span class="mono" style="font-size:11px">${rate.toFixed(0)}%</span></div></td></tr>`}).join('')}
   </tbody></table></div></div>
   <div class="card" style="margin-top:18px"><h3>🧩 Reason per Part<span class="tag">from input data</span>${infoIcon('The reasons that **have been recorded** for each part, with their counts. During data entry, the reason options adjust automatically to the selected part, so you will not mismatch reasons. Add or remove per-part reason lists in **Settings → Reason per Part**.')}</h3>
   <div class="tblwrap"><table><thead><tr><th>Part</th><th>Total</th><th>Reason (occurrences)</th></tr></thead><tbody>
   ${CFG.parts.map(p=>{ const st=prStats[p]||{}; const ent=Object.entries(st).sort((a,b)=>b[1]-a[1]); const tot=ent.reduce((a,b)=>a+b[1],0);
-    return `<tr><td><b>${p}</b></td><td class="mono">${tot}</td><td>${ent.length?ent.map(([r,c])=>{const sched=isCommonReason(r);return `<span class="pill" style="background:${sched?'var(--greenbg)':'var(--panel2)'};color:${sched?'var(--green)':'var(--txt2)'};margin:2px;display:inline-block">${esc(r)} · ${c}</span>`}).join(' '):'<span style="color:var(--txt3)">— no data yet —</span>'}</td></tr>`; }).join('')}
+    return `<tr><td><b>${p}</b></td><td class="mono">${tot}</td><td>${ent.length?ent.map(([r,c])=>{const g=rgOf(r);return `<span class="pill" title="Bab: ${esc(g.name)}" style="background:${g.color}1f;color:${g.color};margin:2px;display:inline-block">${esc(r)} · ${c}</span>`}).join(' '):'<span style="color:var(--txt3)">— no data yet —</span>'}</td></tr>`; }).join('')}
   </tbody></table></div>
   <div class="note" style="margin-top:10px">Green pill = scheduled reason (Roaster/JobChange, applies to all parts). The others are part-specific trouble reasons.</div>
   </div>`;
@@ -4419,7 +4858,8 @@ function reportPeriod(){
 }
 function reportCompute(from,to){
   const recs=enriched().filter(r=>r.d>=from && r.d<=to);
-  const trouble=recs.filter(r=>r.cat==='Trouble').length, emergency=recs.filter(r=>r.cat==='Emergency').length, scheduled=recs.filter(r=>r.cat==='Scheduled').length;
+  const _rc=rgCount(recs);
+  const trouble=_rc.byId.trouble||0, emergency=0, scheduled=_rc.planned;   // scheduled = Job Change + Roaster
   const jc=JCPLANS.filter(p=>{const d=p.jcDate?parseD(p.jcDate):null; return d&&d>=from&&d<=to;}).length;
   const machines=new Set(recs.map(r=>r.machine)).size, partsUnique=new Set(recs.map(r=>r.part)).size;
   const pc={}; recs.forEach(r=>pc[r.part]=(pc[r.part]||0)+1);
@@ -4587,16 +5027,17 @@ async function exportExcelFull(byPeriod){
     const putD=(row,arr,bold)=>{ arr.forEach((v,i)=>{ const c=wsD.getCell(row,i+1); c.value=v; if(bold){c.fill=HEADFILL;c.font={bold:true,color:{argb:'FFFFFFFF'}};} }); };
     wsD.getColumn(1).width=26; wsD.getColumn(2).width=14; wsD.getColumn(3).width=12; wsD.getColumn(4).width=12; wsD.getColumn(5).width=12;
     wsD.getCell('A'+d).value='DASHBOARD — '+scopeLbl; wsD.getCell('A'+d).font={bold:true,size:14}; d+=2;
-    const _cat={Scheduled:0,Trouble:0,Emergency:0,Jobchange:0}; enUse.forEach(r=>{ if(r.cat==='Scheduled')_cat.Scheduled++; else if(r.cat==='Trouble')_cat.Trouble++; else if(r.cat==='Emergency')_cat.Emergency++; if(String(r.reason||'').toLowerCase().includes('jobchange'))_cat.Jobchange++; });
-    const _planned=_cat.Scheduled, _unplanned=_cat.Trouble+_cat.Emergency, _tot=enUse.length;
+    const _rcx=rgCount(enUse);
+    const _cat={Scheduled:_rcx.planned,Trouble:_rcx.byId.trouble||0,Emergency:0,Jobchange:0}; enUse.forEach(r=>{ if(String(r.reason||'').toLowerCase().includes('jobchange'))_cat.Jobchange++; });
+    const _planned=_rcx.planned, _unplanned=_rcx.unplanned, _tot=enUse.length;
     const _pmPct=(_planned+_unplanned)?Math.round(_planned/(_planned+_unplanned)*100):0;
     const _stc={OVERDUE:0,URGENT:0,WARNING:0,OK:0}; monAll.forEach(x=>_stc[x.status]++);
     putD(d,['Metrik','Nilai'],true); d++;
-    [['Total Replacements (semua)',_tot],['Scheduled',_cat.Scheduled],['Trouble',_cat.Trouble],['Emergency',_cat.Emergency],['Jobchange',_cat.Jobchange],
+    [['Total Replacements (semua)',_tot]].concat(rgList().map(g=>[g.name,_rcx.byId[g.id]||0])).concat([['Jobchange (kata kunci)',_cat.Jobchange],
      ['Planned Maintenance %',_pmPct+'%'],['Target PM %',(CFG.pmTarget||70)+'%'],
      ['Active Machines',new Set(enUse.map(r=>r.machine)).size],['Total Kombinasi (mon)',monAll.length],
      ['Total Stock Item',STOCK.length],['Total Plan JC',JCPLANS.length],['Master JC Type',(CFG.jcMaster||[]).length]
-    ].forEach(k=>{ putD(d,[k[0],k[1]]); d++; }); d++;
+    ]).forEach(k=>{ putD(d,[k[0],k[1]]); d++; }); d++;
     wsD.getCell('A'+d).value='STATUS MONITORING (saat ini)'; wsD.getCell('A'+d).font={bold:true,size:12}; d++;
     putD(d,['Status','Jumlah'],true); d++;
     [['🔴 OVERDUE',_stc.OVERDUE],['🟠 URGENT',_stc.URGENT],['🟡 WARNING',_stc.WARNING],['🟢 OK',_stc.OK]].forEach(k=>{ putD(d,[k[0],k[1]]); d++; }); d++;
@@ -4765,7 +5206,7 @@ function vSet(){
   <div class="card" style="margin-top:14px;border-color:${Cloud.connected?'var(--green)':(Cloud.status==='error'?'var(--red)':'var(--line2)')}"><h3>☁️ Cross-Device Sync (Google Sheets / Apps Script)<span class="tag">${cloudStatusLabel()}</span></h3>
     ${Cloud.connected?`
       <div class="roaster-note" style="border-left-color:${(Cloud.dirty||Cloud.pending)?'var(--accent)':'var(--green)'};background:${(Cloud.dirty||Cloud.pending)?'rgba(245,166,35,.10)':'var(--greenbg)'}">${(Cloud.dirty||Cloud.pending)?'🟡 Ada perubahan yang sedang disimpan ke cloud… (data sudah aman di perangkat ini)':'🟢 Tersinkron'} · room <b>${esc(Cloud.room)}</b> · cek tiap ${Cloud.poll} detik. Semua entri dibagikan otomatis ke perangkat lain dengan URL & Room yang sama.</div>
-      <div class="toolbar" style="margin:8px 0 0"><button class="btn sec" onclick="sendDataNow()">⬆️ Kirim data sekarang</button><button class="btn sec" onclick="cloudForcePull()">🔄 Tarik data terbaru</button><button class="btn sec" onclick="cloudDiag()">🔍 Tes tulis cloud</button><button class="btn danger sm" onclick="cloudDisconnect()">⏹️ Disconnect</button></div>`
+      <div class="toolbar" style="margin:8px 0 0"><button class="btn sec" onclick="sendDataNow()">⬆️ Kirim data sekarang</button><button class="btn sec" onclick="cloudForcePull()">🔄 Tarik data terbaru</button><button class="btn sec" onclick="cloudDiag()">🔍 Tes tulis cloud</button><button class="btn sec" onclick="snapshotRestore()" title="Kembalikan data ke kondisi sebelum sinkronisasi terakhir">↩️ Pulihkan cadangan</button><button class="btn danger sm" onclick="cloudDisconnect()">⏹️ Disconnect</button></div>${(function(){var s=snapshotInfo();return s?`<div class="note" style="margin:8px 0 0">🛡️ Cadangan otomatis terakhir: <b>${fmtModTime(s.t)}</b> (${s.n} record). Dibuat setiap kali data cloud masuk.</div>`:'';})()}`
     :`
       <div class="note" style="margin:0 0 12px">Data is stored in <b>your Google Sheet</b> via Apps Script. Follow the guide (I explain it in chat), paste the Web App URL <code>.../exec</code>, then Connect. This method is immune to CORS errors, so it works even when the app is opened as a local file.</div>
       <div class="grid g2">
@@ -4798,13 +5239,32 @@ function vSet(){
       ${custom?`<a onclick="resetMachineSec('${m}')" style="cursor:pointer;color:var(--blue);font-size:11px">reset</a>`:''}
     </div>`}).join('')}
   </div>
-  <div class="card" style="margin-top:14px"><h3>🧩 Reason per Part<span class="tag">filter saat input</span></h3>
+  <div class="card" style="margin-top:14px"><h3>🗂️ Bab Reason<span class="tag">tingkat 1</span></h3>
+    <div class="note" style="margin:0 0 12px">Setiap reason wajib punya <b>induk bab</b>. Bab <b>Job Change</b> dan <b>Roaster</b> dihitung sebagai pekerjaan <b>terencana</b>; bab <b>Trouble</b> dihitung <b>tidak terencana</b> pada KPI Planned vs Unplanned. Ubah induk sebuah reason lewat pilihan di kanannya.</div>
+    <button class="btn sec sm" style="margin-bottom:12px" onclick="if(confirm('Susun ulang induk semua reason secara otomatis? Pengaturan induk yang sudah Anda ubah manual akan hilang.'))rgRebuild()">🔄 Susun ulang otomatis</button>
+    ${rgList().map(g=>{const rs=rgReasonsOf(g.id);
+      return `<div style="margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="width:10px;height:10px;border-radius:3px;background:${g.color};flex:0 0 auto"></span>
+          <b style="color:${g.color}">${esc(g.name)}</b>
+          <span class="tag">${rs.length} reason</span>
+          <span style="color:var(--txt3);font-size:11px;margin-left:auto">${g.planned?'terencana':'tidak terencana'}</span>
+        </div>
+        ${rs.length?rs.map(r=>`<div class="bp-row" style="display:flex;align-items:center;gap:10px;padding:7px 10px">
+            <span style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r)}</span>
+            <select style="flex:0 0 auto;width:auto;min-width:132px" onchange="rgMove('${esc(r).replace(/'/g,"\\'")}',this.value)">
+              ${rgList().map(x=>`<option value="${x.id}" ${x.id===g.id?'selected':''}>${esc(x.name)}</option>`).join('')}
+            </select></div>`).join('')
+          :'<div style="color:var(--txt3);font-size:12px;padding:4px 2px">Belum ada reason di bab ini.</div>'}
+      </div>`}).join('')}
+  </div>
+  <div class="card" style="margin-top:14px"><h3>🧩 Reason per Part<span class="tag">tingkat 3 · filter saat input</span></h3>
     <div class="note" style="margin:0 0 12px">Set which reasons can be chosen for each part during Input Data (prevents mismatches). Common reasons <b>${(CFG.commonReasons||[]).join(', ')}</b> are always available for all parts. Click ✕ to remove, or add a new reason per part.</div>
     <button class="btn sec sm" style="margin-bottom:12px" onclick="if(confirm('Rebuild the per-part reason list from existing data? (manual additions are kept)')){analyzePartReasons(true);saveAll();toast('Updated from data');render();}">🔄 Rebuild / refresh from data</button>
     ${CFG.parts.map((p,i)=>{const list=(CFG.partReasons&&CFG.partReasons[p])||[];
       return `<div style="padding:10px 0;border-bottom:1px solid var(--line)">
         <div style="font-weight:700;color:var(--accent2);margin-bottom:6px">${esc(p)} <span style="color:var(--txt3);font-weight:600;font-size:11px">(${list.length} reason)</span></div>
-        <div class="fchips" style="margin-bottom:8px">${list.length?list.map(r=>`<span class="fchip on" style="cursor:default">${esc(r)} <b style="cursor:pointer;color:var(--red);margin-left:4px" onclick="removePartReason('${esc(p).replace(/'/g,"\\'")}','${esc(r).replace(/'/g,"\\'")}')">✕</b></span>`).join(''):'<span style="color:var(--txt3);font-size:12px">none yet — use common reasons only</span>'}</div>
+        <div class="fchips" style="margin-bottom:8px">${list.length?list.map(r=>`<span class="fchip on" title="Bab: ${esc(rgOf(r).name)}" style="cursor:default;border-color:${rgOf(r).color}66;color:${rgOf(r).color}">${esc(r)} <b style="cursor:pointer;color:var(--red);margin-left:4px" onclick="removePartReason('${esc(p).replace(/'/g,"\\'")}','${esc(r).replace(/'/g,"\\'")}')">✕</b></span>`).join(''):'<span style="color:var(--txt3);font-size:12px">none yet — use common reasons only</span>'}</div>
         <div style="display:flex;gap:8px"><input id="pr_in_${i}" placeholder="add reason for ${esc(p)}…" style="flex:1"><button class="btn sm" onclick="addPartReasonManual(${i})">➕ Add</button></div>
       </div>`}).join('')}
   </div>
@@ -5390,6 +5850,112 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
   #twPanel .tw-seg button:hover{color:var(--txt)}
   #twPanel .tw-seg button.on{background:var(--accent);color:#1a1206}
   #twPanel .tw-foot{font-size:10px;color:var(--txt3);padding:0 15px 13px;line-height:1.5}
+
+
+/* ============================================================
+   KOLOM CARI MENGAMBANG DI BAWAH (gaya aplikasi HP masa kini)
+   Di layar besar tetap di atas daftar — di situ posisi yang wajar untuk mouse.
+   ============================================================ */
+.searchdock{ margin:0 0 12px; }
+.searchdock .sd-inner{
+  display:flex; align-items:center; gap:8px;
+  background:var(--bg2); border:1px solid var(--line2);
+  border-radius:12px; padding:1px 8px 1px 12px;
+  transition:border-color .15s ease, box-shadow .15s ease;
+}
+.searchdock .sd-inner:focus-within{ border-color:var(--accent); box-shadow:0 0 0 3px rgba(245,166,35,.14); }
+.searchdock .sd-ic{ flex:0 0 auto; font-size:15px; opacity:.8; line-height:1; }
+.searchdock input{
+  flex:1 1 auto; min-width:0; width:auto;
+  border:none !important; background:transparent !important;
+  padding:11px 0; border-radius:0; box-shadow:none !important;
+}
+.searchdock input:focus{ outline:none; }
+.searchdock .sd-x{
+  flex:0 0 auto; width:30px; height:30px; border-radius:50%;
+  border:none; background:var(--panel2); color:var(--txt2);
+  font-size:12px; cursor:pointer; display:none; place-items:center; padding:0;
+}
+.searchdock.has-q .sd-x{ display:grid; }
+.searchdock .sd-x:active{ transform:scale(.9); }
+
+@media (max-width:1000px){
+  .searchdock{
+    position:fixed; left:10px; right:10px; margin:0; z-index:60;
+    bottom:calc(var(--kb, 0px) + max(12px, env(safe-area-inset-bottom,0px)) + 62px);
+    transition:bottom .18s cubic-bezier(.22,.61,.36,1);
+  }
+  .searchdock .sd-inner{
+    background:var(--glass-strong, rgba(18,18,22,.94));
+    border:1px solid var(--glass-brd, var(--line2));
+    border-radius:16px; padding:2px 6px 2px 14px;
+    box-shadow:0 12px 34px rgba(0,0,0,.5), 0 1px 0 var(--glass-hi, transparent) inset;
+    -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px);
+  }
+  .searchdock .sd-x{ width:34px; height:34px; font-size:13px; }
+  /* ruang supaya baris terakhir tidak tertutup kolom cari */
+  #jcmResults{ padding-bottom:92px; }
+
+  /* Saat keyboard terbuka: bar bawah & tombol + disembunyikan,
+     kolom cari menempel tepat di atas keyboard. */
+  body.kbopen nav{ transform:translateY(150%); }
+  body.kbopen .fab{ opacity:0; pointer-events:none; }
+  body.kbopen .searchdock{ bottom:calc(var(--kb, 0px) + 10px); left:8px; right:8px; }
+  nav{ transition:transform .2s cubic-bezier(.22,.61,.36,1); }
+}
+
+
+/* ----- Tombol "Add Job Type" ikut di bar cari ----- */
+.searchdock .sd-add{
+  flex:0 0 auto; display:inline-flex; align-items:center; gap:6px;
+  border:none; cursor:pointer; padding:9px 14px; border-radius:10px;
+  background:linear-gradient(135deg,var(--accent),#e07a00); color:#1a1206;
+  font-family:inherit; font-weight:800; font-size:12.5px; white-space:nowrap;
+  transition:transform .12s ease, filter .12s ease;
+}
+.searchdock .sd-add:active{ transform:scale(.94); filter:brightness(1.08); }
+
+@media (max-width:1000px){
+  /* di HP jadi bulat, menempel di ujung kanan bar cari */
+  .searchdock .sd-inner{ padding:2px 5px 2px 14px; }
+  .searchdock .sd-add{
+    width:40px; height:40px; padding:0; border-radius:50%;
+    justify-content:center; box-shadow:0 4px 14px rgba(245,166,35,.38);
+  }
+  .searchdock .sd-add-tx{ display:none; }
+  .searchdock .sd-add-ic{ font-size:23px; line-height:1; font-weight:400; margin-top:-2px; }
+
+  /* Di halaman Master JC tombol + global disembunyikan supaya tidak bertumpuk
+     dengan bar cari — fungsinya sudah digantikan tombol + di bar cari. */
+  body[data-view="jcm"] .fab,
+  body[data-view="jcm"] .fabmenu,
+  body[data-view="jcm"] .fabmenu-back{ display:none !important; }
+}
+
+
+/* ----- Centang "catat sebagai record" menyatu di baris variabel/spec ----- */
+.jc-rec{ flex:0 0 auto; display:grid; place-items:center; width:28px; height:28px; cursor:pointer; margin:0; }
+.jc-rec input{ width:17px; height:17px; accent-color:var(--accent); cursor:pointer; margin:0; }
+/* sembunyikan otomatis kalau ukurannya SAMA dgn JC sebelumnya, atau kolomnya masih kosong
+   — jadi centang hanya muncul pada variabel yang benar-benar berubah */
+.jc-same.match ~ .jc-rec,
+.jcrow input:placeholder-shown ~ .jc-rec{ visibility:hidden; pointer-events:none; }
+
+/* ----- Bilah ringkas satu baris (pengganti panel besar) ----- */
+.jcvarbar{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  background:var(--panel2); border:1px solid var(--line2); border-left:3px solid var(--accent);
+  border-radius:10px; padding:8px 11px; margin:10px 0 4px; font-size:12px;
+}
+.jcvarbar.done{ border-left-color:var(--teal); }
+.jcvarbar .jvb-t{ flex:1 1 200px; min-width:0; color:var(--txt2); }
+.jcvarbar .jvb-sec{ flex:0 0 auto; cursor:pointer; color:var(--blue); font-size:11.5px; white-space:nowrap; }
+@media (max-width:680px){
+  .jcvarbar{ font-size:11.5px; gap:8px; }
+  .jcvarbar .jvb-t{ flex:1 1 100%; }
+  .jc-rec{ width:34px; height:34px; }
+  .jc-rec input{ width:20px; height:20px; }
+}
 </style>
 <script>
 /* ============ TWEAKS — expressive controls that reshape the whole dashboard's feel ============ */
