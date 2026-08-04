@@ -3435,13 +3435,16 @@ function vJCMaster(){
 function jcmApplyFilter(){ const inp=document.getElementById('jcmSearchInput'); if(inp)window._jcmSearch=inp.value;
   const dock=document.getElementById('jcmSearchDock');
   if(dock)dock.classList.toggle('has-q', !!String(window._jcmSearch||'').trim());
-  const box=document.getElementById('jcmResults'); if(box)box.innerHTML=jcmResultsHTML(); }
+  const box=document.getElementById('jcmResults'); if(box)box.innerHTML=jcmResultsHTML();
+  /* QW-M1: tinggi dokumen bisa menyusut drastis saat hasil ditemukan -> segarkan --kb */
+  try{ if(window.__kbUpd){ window.__kbUpd(); setTimeout(window.__kbUpd,120); } }catch(e){} }
 /* Menandai bahwa KOLOM CARI sedang dipakai — dipakai CSS untuk menurunkan bar menu
    bawah & menyembunyikan tombol +, sehingga di layar hanya ada keyboard + kolom cari. */
 function sdFocus(on){
   try{
     document.body.classList.toggle('sdfocus', !!on);
     if(on && typeof window.__kbUpd==='function'){ setTimeout(window.__kbUpd,60); setTimeout(window.__kbUpd,260); }
+    if(on && window.__sdGlue) window.__sdGlue();   /* QW-M1: kawal posisi per-frame selama fokus */
   }catch(e){}
 }
 function jcmClearSearch(){ window._jcmSearch='';
@@ -3451,15 +3454,36 @@ function jcmClearSearch(){ window._jcmSearch='';
    Tanpa ini, di iPhone kolom cari yang menempel di bawah akan tertutup keyboard. */
 (function kbDock(){
   var vv = window.visualViewport; if(!vv) return;
-  var t=null;
+  var g=null;
   function upd(){
     var kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
     document.documentElement.style.setProperty('--kb', kb + 'px');
     document.body.classList.toggle('kbopen', kb > 120);
   }
-  function soon(){ clearTimeout(t); t=setTimeout(upd, 40); }
+  function soon(){ if(g)return; g=requestAnimationFrame(function(){ g=null; upd(); }); }   /* QW-M1: rAF, bukan timer 40ms */
+  /* ===== QW-M1: "glue loop" — selama kolom cari fokus, posisi dock DIUKUR lalu DIKOREKSI
+     setiap frame via translateY. Menyembuhkan bug iOS: saat hasil pencarian ditemukan,
+     dokumen memendek drastis -> scroll di-clamp -> elemen fixed & visualViewport tidak
+     sinkron dan TIDAK ADA event yang bisa diandalkan; --kb jadi basi dan dock melorot
+     ke belakang keyboard. Koreksi berbasis pengukuran (getBoundingClientRect vs posisi
+     keyboard nyata) kebal terhadap semua varian quirk tersebut. ===== */
+  var glueRaf=null;
+  function glue(){
+    glueRaf=null;
+    var dock=document.getElementById('jcmSearchDock');
+    if(!dock || !document.body.classList.contains('sdfocus')){ if(dock)dock.style.transform=''; return; }
+    var r=dock.getBoundingClientRect();
+    if(r.height>0){
+      var cur=parseFloat((String(dock.style.transform).match(/-?\d+\.?\d*/)||[0])[0])||0;
+      var delta=(vv.offsetTop + vv.height - 10) - r.bottom;   /* target: sisi bawah dock 10px di atas keyboard */
+      if(delta>0.5||delta<-0.5) dock.style.transform='translateY('+(Math.round((cur+delta)*10)/10)+'px)';
+    }
+    glueRaf=requestAnimationFrame(glue);
+  }
+  window.__sdGlue=function(){ if(!glueRaf) glueRaf=requestAnimationFrame(glue); };
   window.__kbUpd=upd;                      // dipakai sdFocus() agar posisi langsung disegarkan
   vv.addEventListener('resize', soon); vv.addEventListener('scroll', soon);
+  window.addEventListener('scroll', soon, {passive:true});   /* QW-M1: clamp scroll saat dokumen memendek juga tertangkap */
   window.addEventListener('orientationchange', function(){ setTimeout(upd, 300); });
   upd();
 })();
@@ -5784,7 +5808,7 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
      supaya bar bawah tidak ikut hilang saat mengisi kolom lain. */
   body.sdfocus nav{ transform:translateY(160%); }
   body.sdfocus .fab{ opacity:0; pointer-events:none; }
-  body.sdfocus .searchdock{ bottom:calc(var(--kb, 0px) + 10px); left:8px; right:8px; }
+  body.sdfocus .searchdock{ bottom:calc(var(--kb, 0px) + 10px); left:8px; right:8px; transition:none; }   /* QW-M1: tanpa transisi saat fokus — posisi dikawal per-frame oleh glue loop */
   nav{ transition:transform .2s cubic-bezier(.22,.61,.36,1); }
 }
 
