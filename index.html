@@ -3694,12 +3694,16 @@ async function importJCMasterXLSX(inp){ const f=inp&&inp.files&&inp.files[0]; if
               r.specs=sp; r.id=o.ex.id||(Date.now()+(seq++)); Object.assign(o.ex,r); }
     else { Object.keys(r.specs).forEach(k=>{ if(!r.specs[k])delete r.specs[k]; });
            r.id=Date.now()+(seq++); list.push(r); } });
+  /* SIMPAN DULU sebelum menyentuh UI — supaya kegagalan render tidak membuat hasil import
+     hanya ada di memori lalu hilang saat halaman dimuat ulang. */
+  await saveAll();
   /* filter/pencarian yang masih aktif bisa menyembunyikan hasil import — bersihkan dulu */
-  window._jcmSearch=''; window._jcmProc='';
-  saveAll(); render();
+  try{ window._jcmSearch=''; window._jcmProc='';
+       const si=document.getElementById('jcmSearchInput'); if(si)si.value='';
+       render(); }catch(e2){ console.error('importJCMasterXLSX(render):',e2); }
   toast('✓ Import Master JC: '+nAdd+' baru, '+nUpd+' diperbarui — total '+list.length+' job type');
  }catch(e){ console.error('importJCMasterXLSX:',e);
-   toast('Import gagal — pastikan file .xlsx dari Export Master JC',1); }
+   toast('Import gagal — '+(e&&e.message?e.message:'pastikan file .xlsx dari Export Master JC'),1); }
  finally{ if(inp)inp.value=''; } }
 function dupJCMaster(id){ const m=jcmList().find(x=>x.id===id); if(!m)return; const c=JSON.parse(JSON.stringify(m)); c.id=null; c.typeJob=(m.typeJob||'')+' (copy)'; window._jcmEdit=c; renderJCMasterForm(); document.getElementById('jcmmodal').classList.add('show'); toast('Duplikat — simpan sebagai master baru'); }
 function planFromMaster(id){ const m=jcmList().find(x=>x.id===id); if(!m)return; closeJCMaster();
