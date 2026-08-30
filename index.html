@@ -3554,12 +3554,9 @@ function jcmClearSearch(){ window._jcmSearch='';
     glueRaf=null;
     var dock=document.getElementById('jcmSearchDock');
     if(!dock || !document.body.classList.contains('sdfocus')){ if(dock)dock.style.transform=''; return; }
-    var r=dock.getBoundingClientRect();
-    if(r.height>0){
-      var cur=parseFloat((String(dock.style.transform).match(/-?\d+\.?\d*/)||[0])[0])||0;
-      var delta=(vv.offsetTop + vv.height - 10) - r.bottom;   /* target: sisi bawah dock 10px di atas keyboard */
-      if(delta>0.5||delta<-0.5) dock.style.transform='translateY('+(Math.round((cur+delta)*10)/10)+'px)';
-    }
+    /* QW-M2: search Master JC sekarang dikunci di atas, jadi jangan pernah
+       menggesernya ke posisi keyboard/bawah layar. */
+    dock.style.transform='';
     glueRaf=requestAnimationFrame(glue);
   }
   window.__sdGlue=function(){ if(!glueRaf) glueRaf=requestAnimationFrame(glue); };
@@ -3715,19 +3712,45 @@ async function importJCMasterXLSX(inp){ const f=inp&&inp.files&&inp.files[0]; if
   const ws=wb.getWorksheet('Master JC')||wb.worksheets[0];
   if(!ws){ toast('Sheet tidak ditemukan di file',1); return; }
 
+  /* Header dinormalisasi agar aman terhadap spasi/format Excel. */
   const hmap={}; ws.getRow(1).eachCell({includeEmpty:false},(c,i)=>{
-    const t=jcmCellText(ws.getRow(1),i).trim(); if(t)hmap[t.toLowerCase()]=i;
+    const t=jcmCellText(ws.getRow(1),i).replace(/\u00A0/g,' ').replace(/\s+/g,' ').trim();
+    if(t)hmap[t.toLowerCase()]=i;
   });
   const col=n=>hmap[String(n).toLowerCase()];
   const iId=col('ID'), iTj=col('Type Job'), iPr=col('Process'), iCd=col('CD'),
         iW=col('Weight (g)')||col('Weight'), iDs=col('Description'), iNt=col('Notes');
   if(!iTj){ toast('Kolom "Type Job" tidak ditemukan — gunakan file hasil Export',1); return; }
 
-  const parts=jcParts(), pIdx={}, noCol=[];
-  parts.forEach(pt=>{ const i=col(pt)||col('Spec: '+pt); if(i)pIdx[pt]=i; else noCol.push(pt); });
+  const currentParts=jcParts().slice();
+  const pIdx={}; const noCol=[]; const newParts=[];
+  currentParts.forEach(pt=>{
+    const i=col(pt)||col('Spec: '+pt);
+    if(i)pIdx[pt]=i; else noCol.push(pt);
+  });
 
-  const list=CFG.jcMaster=CFG.jcMaster||[]; const ops=[]; let skipped=0;
-  const seen={};
+  /*
+   * KOLUM PART BARU:
+   * - Jika header Excel belum dikenal sebagai part, otomatis dianggap sebagai part baru.
+   * - Format header biasa: "Nama Part"
+   * - Format opsional: "AREA::Nama Part" untuk menentukan area (mis. "FEEDER::Guide Baru").
+   * Part baru ditempatkan ke area IMPORTED bila area tidak disebutkan.
+   */
+  const baseHeaders=new Set(['id','type job','process','cd','weight (g)','weight','description','notes']);
+  ws.getRow(1).eachCell({includeEmpty:false},(c,i)=>{
+    const raw=jcmCellText(ws.getRow(1),i).replace(/\u00A0/g,' ').replace(/\s+/g,' ').trim();
+    if(!raw || baseHeaders.has(raw.toLowerCase())) return;
+    if(i===iId||i===iTj||i===iPr||i===iCd||i===iW||i===iDs||i===iNt) return;
+    const known=currentParts.some(pt=>jcmNorm(pt)===jcmNorm(raw) || jcmNorm('Spec: '+pt)===jcmNorm(raw));
+    if(!known){
+      let area='IMPORTED', part=raw;
+      const m=raw.match(/^([^:]+)::(.+)$/);
+      if(m){ area=m[1].trim()||'IMPORTED'; part=m[2].trim(); }
+      if(part && !newParts.some(x=>jcmNorm(x.part)===jcmNorm(part))) newParts.push({part,area,col:i});
+    }
+  });
+
+  const list=CFG.jcMaster=CFG.jcMaster||[]; const ops=[]; let skipped=0; const seen={};
   ws.eachRow({includeEmpty:false},(row,rn)=>{
     if(rn===1)return;
     const tj=jcmCellText(row,iTj).trim(); if(!tj){ skipped++; return; }
@@ -3735,10 +3758,10 @@ async function importJCMasterXLSX(inp){ const f=inp&&inp.files&&inp.files[0]; if
     const rec={typeJob:tj,process:jcmCellText(row,iPr).trim(),cd:jcmCellText(row,iCd).trim(),
                weight:jcmCellText(row,iW).trim(),description:jcmCellText(row,iDs).trim(),
                notes:jcmCellText(row,iNt).trim(),specs:{}};
-    parts.forEach(pt=>{ if(pIdx[pt]){
-      const raw=jcmCellText(row,pIdx[pt]).trim();
-      rec.specs[pt]=jcmFraction(raw);
-    }});
+
+    /* Semua kolom part yang memang ada di file disinkronkan, termasuk kosong = hapus nilai lama. */
+    currentParts.forEach(pt=>{ if(pIdx[pt]) rec.specs[pt]=jcmFraction(jcmCellText(row,pIdx[pt]).trim()); });
+    newParts.forEach(np=>{ rec.specs[np.part]=jcmFraction(jcmCellText(row,np.col).trim()); });
 
     const key=jcmNorm(tj)+'|'+jcmNorm(rec.cd);
     let ex=rid?list.find(m=>String(m.id||'')===rid):null;
@@ -3751,21 +3774,37 @@ async function importJCMasterXLSX(inp){ const f=inp&&inp.files&&inp.files[0]; if
   const nAdd=ops.filter(o=>!o.ex).length, nUpd=ops.filter(o=>o.ex).length;
   if(!ops.length){ toast('Tidak ada baris data valid di file',1); return; }
 
-  const warn=noCol.length?('\n\n⚠️ Kolom part ini tidak ada di file, nilainya DIPERTAHANKAN:\n   '
+  const warnMissing=noCol.length?('\n\n⚠️ Kolom part ini tidak ada di file → nilainya TETAP dipertahankan:\n   '
       +noCol.slice(0,6).join(', ')+(noCol.length>6?(' … +'+(noCol.length-6)+' lagi'):'')) : '';
+  const warnNew=newParts.length?('\n\n➕ Part/kolom baru akan dibuat:\n   '
+      +newParts.map(x=>x.area+' → '+x.part).slice(0,8).join('\n   ')+(newParts.length>8?(' … +'+(newParts.length-8)+' lagi'):'')) : '';
   const fracCount=ops.reduce((n,o)=>n+Object.values(o.rec.specs).filter(v=>/\d+\/\d+/.test(v)).length,0);
   const fracNote=fracCount?('\n• '+fracCount+' nilai spesifikasi dinormalisasi ke fraction bila cocok (contoh 1.375 → 1 3/8)'):'';
-  if(!confirm('Import "'+f.name+'"?\n\n• '+nAdd+' job type BARU akan ditambahkan\n• '+nUpd+' job type yang sudah ada akan DIPERBARUI'+(iId?' (cocok ID)':' (cocok Type Job + CD)')
-      +(skipped?'\n• '+skipped+' baris tanpa Type Job dilewati':'')+fracNote+warn)) return;
+  if(!confirm('Import "'+f.name+'"?\n\n• '+nAdd+' job type BARU akan ditambahkan\n• '+nUpd+' job type yang sudah ada akan DIPERBARUI'
+      +(iId?' (cocok ID)':' (cocok Type Job + CD)')
+      +(skipped?'\n• '+skipped+' baris tanpa Type Job dilewati':'')
+      +fracNote+warnNew+warnMissing+'\n\n✓ Cell yang dikosongkan di Excel akan mengosongkan nilai Master JC.')) return;
 
-  /* Terapkan sebagai upsert IN-PLACE ke array yang dipakai UI. */
+  /* Tambahkan struktur part baru terlebih dahulu supaya jcParts()/form/index mengenal kolom tersebut. */
+  if(newParts.length){
+    CFG.jcAreas=CFG.jcAreas||{};
+    const byArea={};
+    newParts.forEach(np=>{
+      const area=np.area||'IMPORTED';
+      if(!CFG.jcAreas[area]) CFG.jcAreas[area]=[];
+      if(!CFG.jcAreas[area].some(p=>jcmNorm(p)===jcmNorm(np.part))) CFG.jcAreas[area].push(np.part);
+    });
+    try{ if(typeof syncPartsFromAreas==='function') syncPartsFromAreas(); }catch(e){}
+  }
+
   let seq=0, changed=0;
   ops.forEach(o=>{
     const r=o.rec;
     if(o.ex){
       const target=o.ex;
       const sp=Object.assign({},target.specs||{});
-      Object.keys(r.specs).forEach(k=>{ const v=r.specs[k]; if(v!=='')sp[k]=v; });
+      /* Hanya kolom part yang ADA DI FILE yang disinkronkan. Kolom yang tidak ada tetap aman. */
+      Object.keys(r.specs).forEach(k=>{ sp[k]=r.specs[k]; });
       target.typeJob=r.typeJob; target.process=r.process; target.cd=r.cd; target.weight=r.weight;
       target.description=r.description; target.notes=r.notes; target.specs=sp;
       if(target.id==null||target.id==='')target.id=jcmId()+seq;
@@ -3778,13 +3817,11 @@ async function importJCMasterXLSX(inp){ const f=inp&&inp.files&&inp.files[0]; if
     seq++;
   });
 
-  /* SIMPAN sebelum render agar hasil import benar-benar masuk persistence/index. */
   await saveAll();
   window._jcmSearch=''; window._jcmProc='';
   const si=document.getElementById('jcmSearchInput'); if(si)si.value='';
-  buildNav();
-  render();
-  toast('✓ Import Master JC berhasil: '+nAdd+' baru, '+nUpd+' diperbarui · '+changed+' baris tersimpan');
+  buildNav(); render();
+  toast('✓ Import Master JC berhasil: '+nAdd+' baru, '+nUpd+' diperbarui'+(newParts.length?' · '+newParts.length+' part baru':'')+' · '+changed+' baris tersimpan');
  }catch(e){
    console.error('importJCMasterXLSX:',e);
    toast('Import gagal — '+(e&&e.message?e.message:'pastikan file .xlsx dari Export Master JC'),1);
@@ -6280,9 +6317,8 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
 
 @media (max-width:1000px){
   .searchdock{
-    position:fixed; left:10px; right:10px; margin:0; z-index:60;
-    bottom:calc(max(12px, env(safe-area-inset-bottom,0px)) + 62px);
-    transition:bottom .18s cubic-bezier(.22,.61,.36,1);
+    position:sticky; top:8px; left:auto; right:auto; margin:0 0 12px; z-index:60;
+    transition:none;
   }
   .searchdock .sd-inner{ min-height:52px; }
   .searchdock input{ height:46px; }
@@ -6297,13 +6333,9 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
   /* ruang supaya baris terakhir tidak tertutup kolom cari */
   #jcmResults{ padding-bottom:92px; }
 
-  /* Saat KOLOM CARI sedang dipakai: yang tampil hanya keyboard + kolom cari.
-     Bar menu bawah turun keluar layar, tombol + disembunyikan.
-     Dipicu oleh fokus kolom cari (bukan sembarang keyboard terbuka),
-     supaya bar bawah tidak ikut hilang saat mengisi kolom lain. */
-  body.sdfocus nav{ transform:translateY(160%); }
-  body.sdfocus .fab{ opacity:0; pointer-events:none; }
-  body.sdfocus .searchdock{ bottom:calc(var(--kb, 0px) + 10px); left:8px; right:8px; transition:none; }   /* QW-M1: tanpa transisi saat fokus — posisi dikawal per-frame oleh glue loop */
+  /* Saat KOLOM CARI dipakai, tetap di bagian atas Master JC.
+     Tidak lagi dipindahkan ke bawah/di atas keyboard. */
+  body.sdfocus .searchdock{ top:8px; left:auto; right:auto; transition:none; transform:none !important; }
   nav{ transition:transform .2s cubic-bezier(.22,.61,.36,1); }
 }
 
