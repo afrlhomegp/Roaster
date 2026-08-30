@@ -3613,98 +3613,183 @@ function saveJCMaster(){ const c=window._jcmEdit; const t=String(c.typeJob||'').
 function delJCMaster(id){ const m=jcmList().find(x=>x.id===id); if(!confirm('Hapus job type "'+((m&&m.typeJob)||'')+'" dari Master JC?'))return;
   CFG.jcMaster=jcmList().filter(x=>x.id!==id); saveAll(); toast('Master job type dihapus'); render(); }
 
-/* ===== Master JC ⇄ Excel — export .xlsx & import kembali (upsert by TypeJob+CD) ===== */
+/* ===== Master JC ⇄ Excel — export .xlsx & import kembali =====
+   QW-JC-XLSX-FIX:
+   - ID stabil dipakai sebagai kunci utama saat import.
+   - Nilai spesifikasi dari Excel selalu dinormalisasi sebelum disimpan ke CFG.jcMaster.
+   - Decimal ukuran umum diubah ke mixed fraction (1.375 -> 1 3/8; 1.125 -> 1 1/8).
+   - Kolom spesifikasi yang memang ada di file boleh diperbarui; kolom yang tidak ada dipertahankan.
+   - Setelah upsert, data disimpan dan render dibangun ulang dari CFG.jcMaster.
+*/
 function jcmExcelCols(){ const parts=jcParts();
   return [{header:'ID',key:'id',width:15},
           {header:'Type Job',key:'tj',width:14},{header:'Process',key:'pr',width:12},{header:'CD',key:'cd',width:9},
           {header:'Weight (g)',key:'w',width:10},{header:'Description',key:'ds',width:28},{header:'Notes',key:'nt',width:24}]
-         .concat(parts.map(pt=>({header:pt,key:'spec_'+pt,width:13}))); }
-/* normalisasi teks untuk pencocokan: rapikan smart-quote Excel, NBSP, spasi ganda, huruf besar/kecil */
+         .concat(parts.map(pt=>({header:pt,key:'spec_'+pt,width:13})));
+}
+/* normalisasi teks untuk pencocokan */
 function jcmNorm(s){ return String(s==null?'':s)
   .replace(/[\u2018\u2019\u201B\u2032]/g,"'").replace(/[\u201C\u201D\u201F\u2033]/g,'"')
   .replace(/\u00A0/g,' ').replace(/\s+/g,' ').trim().toLowerCase(); }
+
+/*
+ * Normalisasi ukuran inch:
+ *   1.375  -> 1 3/8
+ *   1.125  -> 1 1/8
+ *   0.375  -> 3/8
+ *   1 3/8  -> tetap 1 3/8
+ * Hanya pecahan dengan penyebut umum 2/4/8/16/32 yang diubah.
+ * Angka yang tidak pas dengan pecahan tersebut dibiarkan apa adanya.
+ */
+function jcmFraction(v){
+  if(v==null)return '';
+  let s=String(v).replace(/\u00A0/g,' ').trim();
+  if(!s)return '';
+  s=s.replace(/,/g,'.').replace(/\s+/g,' ');
+  if(/[\/]/.test(s)) return s;                 // sudah fraction/mixed fraction
+  const n=Number(s);
+  if(!Number.isFinite(n)) return s;
+  const whole=n<0?Math.ceil(n):Math.floor(n);
+  const frac=Math.abs(n-whole);
+  if(frac<1e-9)return String(whole);
+  const dens=[2,4,8,16,32];
+  let best=null;
+  dens.forEach(d=>{
+    const num=Math.round(frac*d), err=Math.abs(frac-num/d);
+    if(num>0 && num<d && (!best || err<best.err)) best={num:num,den:d,err:err};
+  });
+  if(!best || best.err>0.00001)return s;
+  /* sederhanakan */
+  let a=best.num,b=best.den;
+  while(b){ const t=a%b; a=b; b=t; }
+  const num=best.num/a, den=best.den/a;
+  const sign=n<0?'-':'';
+  if(Math.abs(whole)>0) return sign+Math.abs(whole)+' '+num+'/'+den;
+  return sign+num+'/'+den;
+}
+function jcmCellText(row,i){
+  if(!i)return '';
+  const v=row.getCell(i).value;
+  if(v==null)return '';
+  if(typeof v==='object'){
+    if(v.richText)return v.richText.map(r=>r.text).join('');
+    if(v.text!=null)return String(v.text);
+    if(v.result!=null)return String(v.result);
+    if(v instanceof Date)return v.toISOString().slice(0,10);
+    return String(v);
+  }
+  return String(v);
+}
+function jcmId(){ return Date.now()+Math.floor(Math.random()*1000); }
+
 async function exportJCMasterXLSX(){ try{
   await ensureLib('lib-exceljs','ExcelJS');
   const wb=new ExcelJS.Workbook(); const cols=jcmExcelCols(); const parts=jcParts();
   const ws=wb.addWorksheet('Master JC'); ws.columns=cols;
-  /* pastikan setiap master punya ID stabil supaya import bisa mencocokkan walau Type Job / CD diubah */
   let _sq=0, _fix=false;
-  (CFG.jcMaster||[]).forEach(m=>{ if(!m.id){ m.id=Date.now()+(_sq++); _fix=true; } });
-  if(_fix) saveAll();
+  (CFG.jcMaster||[]).forEach(m=>{ if(!m.id){ m.id=jcmId()+(_sq++); _fix=true; } });
+  if(_fix) await saveAll();
   (CFG.jcMaster||[]).slice().sort((a,b)=>String(a.typeJob||'').localeCompare(String(b.typeJob||''),undefined,{numeric:true}))
-    .forEach(m=>{ const row={id:String(m.id||''),tj:m.typeJob||'',pr:m.process||'',cd:m.cd||'',w:m.weight||'',ds:m.description||'',nt:m.notes||''};
-      parts.forEach(pt=>{ row['spec_'+pt]=(m.specs&&m.specs[pt])||''; }); ws.addRow(row); });
+    .forEach(m=>{
+      const row={id:String(m.id||''),tj:m.typeJob||'',pr:m.process||'',cd:m.cd||'',w:m.weight||'',ds:m.description||'',nt:m.notes||''};
+      parts.forEach(pt=>{ row['spec_'+pt]=jcmFraction((m.specs&&m.specs[pt])||''); });
+      ws.addRow(row);
+    });
   const h=ws.getRow(1); h.font={bold:true,color:{argb:'FFFFFFFF'}}; h.alignment={vertical:'middle'};
   h.eachCell(c=>{ c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1F1F23'}}; });
   ws.autoFilter={from:{row:1,column:1},to:{row:1,column:cols.length}}; ws.views=[{state:'frozen',ySplit:1}];
+  /* Paksa spesifikasi menjadi TEXT agar Excel tidak mengubah 1 3/8 menjadi decimal. */
+  parts.forEach((pt,pi)=>{ const col=8+pi; ws.getColumn(col).eachCell((cell,rn)=>{ if(rn>1) cell.numFmt='@'; }); });
   const buf=await wb.xlsx.writeBuffer();
   dl(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),
      'Master_JC_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  toast('✓ Export Master JC: '+((CFG.jcMaster||[]).length)+' job type');
  }catch(e){ console.error('exportJCMasterXLSX:',e); toast('Export Master JC gagal',1); } }
+
 function importJCMasterPick(){ const inp=document.getElementById('jcmImportFile'); if(inp){ inp.value=''; inp.click(); } }
+
 async function importJCMasterXLSX(inp){ const f=inp&&inp.files&&inp.files[0]; if(!f)return;
- try{ await ensureLib('lib-exceljs','ExcelJS');
+ try{
+  await ensureLib('lib-exceljs','ExcelJS');
   const buf=await f.arrayBuffer(); const wb=new ExcelJS.Workbook(); await wb.xlsx.load(buf);
   const ws=wb.getWorksheet('Master JC')||wb.worksheets[0];
   if(!ws){ toast('Sheet tidak ditemukan di file',1); return; }
-  /* peta kolom dari header (case-insensitive, toleran) */
+
   const hmap={}; ws.getRow(1).eachCell({includeEmpty:false},(c,i)=>{
-    const v=c.value; const t=String(v==null?'':(v.richText?v.richText.map(r=>r.text).join(''):v)).trim();
-    if(t)hmap[t.toLowerCase()]=i; });
+    const t=jcmCellText(ws.getRow(1),i).trim(); if(t)hmap[t.toLowerCase()]=i;
+  });
   const col=n=>hmap[String(n).toLowerCase()];
   const iId=col('ID'), iTj=col('Type Job'), iPr=col('Process'), iCd=col('CD'),
         iW=col('Weight (g)')||col('Weight'), iDs=col('Description'), iNt=col('Notes');
   if(!iTj){ toast('Kolom "Type Job" tidak ditemukan — gunakan file hasil Export',1); return; }
-  const parts=jcParts(); const pIdx={}; const noCol=[];
+
+  const parts=jcParts(), pIdx={}, noCol=[];
   parts.forEach(pt=>{ const i=col(pt)||col('Spec: '+pt); if(i)pIdx[pt]=i; else noCol.push(pt); });
-  const cellText=(row,i)=>{ if(!i)return ''; const v=row.getCell(i).value; if(v==null)return '';
-    if(typeof v==='object'){ if(v.richText)return v.richText.map(r=>r.text).join('');
-      if(v.text!=null)return String(v.text); if(v.result!=null)return String(v.result);
-      if(v instanceof Date)return v.toISOString().slice(0,10); return String(v); }
-    return String(v); };
-  /* parse dulu, lalu konfirmasi sebelum diterapkan */
+
   const list=CFG.jcMaster=CFG.jcMaster||[]; const ops=[]; let skipped=0;
-  const seen={};   /* cegah baris kembar di dalam satu file jadi dobel record */
-  ws.eachRow({includeEmpty:false},(row,rn)=>{ if(rn===1)return;
-    const tj=cellText(row,iTj).trim(); if(!tj){ skipped++; return; }
-    const rid=iId?cellText(row,iId).trim():'';
-    const rec={typeJob:tj,process:cellText(row,iPr).trim(),cd:cellText(row,iCd).trim(),
-               weight:cellText(row,iW).trim(),description:cellText(row,iDs).trim(),
-               notes:cellText(row,iNt).trim(),specs:{}};
-    /* hanya part yang KOLOMNYA ADA di file yang ikut ditimpa — part lain dipertahankan */
-    parts.forEach(pt=>{ if(pIdx[pt]) rec.specs[pt]=cellText(row,pIdx[pt]).trim(); });
+  const seen={};
+  ws.eachRow({includeEmpty:false},(row,rn)=>{
+    if(rn===1)return;
+    const tj=jcmCellText(row,iTj).trim(); if(!tj){ skipped++; return; }
+    const rid=iId?jcmCellText(row,iId).trim():'';
+    const rec={typeJob:tj,process:jcmCellText(row,iPr).trim(),cd:jcmCellText(row,iCd).trim(),
+               weight:jcmCellText(row,iW).trim(),description:jcmCellText(row,iDs).trim(),
+               notes:jcmCellText(row,iNt).trim(),specs:{}};
+    parts.forEach(pt=>{ if(pIdx[pt]){
+      const raw=jcmCellText(row,pIdx[pt]).trim();
+      rec.specs[pt]=jcmFraction(raw);
+    }});
+
     const key=jcmNorm(tj)+'|'+jcmNorm(rec.cd);
-    /* cocokkan: ID dulu (tahan walau Type Job / CD diubah di Excel), baru Type Job + CD */
     let ex=rid?list.find(m=>String(m.id||'')===rid):null;
     if(!ex) ex=list.find(m=>jcmNorm(m.typeJob)===jcmNorm(tj)&&jcmNorm(m.cd)===jcmNorm(rec.cd));
-    if(!ex&&seen[key]){ ex=seen[key]; }          /* baris kembar dalam file yang sama */
+    if(!ex&&seen[key]) ex=seen[key];
     ops.push({rec:rec,ex:ex,row:rn});
-    if(!ex) seen[key]=rec; });
+    if(!ex)seen[key]=rec;
+  });
+
   const nAdd=ops.filter(o=>!o.ex).length, nUpd=ops.filter(o=>o.ex).length;
   if(!ops.length){ toast('Tidak ada baris data valid di file',1); return; }
-  const warn=noCol.length?('\n\n⚠️ Kolom part ini tidak ada di file, nilainya DIPERTAHANKAN (tidak dihapus):\n   '
-      +noCol.slice(0,6).join(', ')+(noCol.length>6?(' … +'+(noCol.length-6)+' lagi'):'')):'';
-  if(!confirm('Import "'+f.name+'"?\n\n• '+nAdd+' job type BARU akan ditambahkan\n• '+nUpd
-      +' job type yang sudah ada akan DIPERBARUI'+(iId?' (cocok ID)':' (cocok Type Job + CD)')
-      +(skipped?('\n• '+skipped+' baris tanpa Type Job dilewati'):'')+warn)) return;
-  let seq=0;
-  ops.forEach(o=>{ const r=o.rec;
-    if(o.ex){ const sp=Object.assign({},o.ex.specs||{});
-              Object.keys(r.specs).forEach(k=>{ const v=r.specs[k]; if(v)sp[k]=v; else delete sp[k]; });
-              r.specs=sp; r.id=o.ex.id||(Date.now()+(seq++)); Object.assign(o.ex,r); }
-    else { Object.keys(r.specs).forEach(k=>{ if(!r.specs[k])delete r.specs[k]; });
-           r.id=Date.now()+(seq++); list.push(r); } });
-  /* SIMPAN DULU sebelum menyentuh UI — supaya kegagalan render tidak membuat hasil import
-     hanya ada di memori lalu hilang saat halaman dimuat ulang. */
+
+  const warn=noCol.length?('\n\n⚠️ Kolom part ini tidak ada di file, nilainya DIPERTAHANKAN:\n   '
+      +noCol.slice(0,6).join(', ')+(noCol.length>6?(' … +'+(noCol.length-6)+' lagi'):'')) : '';
+  const fracCount=ops.reduce((n,o)=>n+Object.values(o.rec.specs).filter(v=>/\d+\/\d+/.test(v)).length,0);
+  const fracNote=fracCount?('\n• '+fracCount+' nilai spesifikasi dinormalisasi ke fraction bila cocok (contoh 1.375 → 1 3/8)'):'';
+  if(!confirm('Import "'+f.name+'"?\n\n• '+nAdd+' job type BARU akan ditambahkan\n• '+nUpd+' job type yang sudah ada akan DIPERBARUI'+(iId?' (cocok ID)':' (cocok Type Job + CD)')
+      +(skipped?'\n• '+skipped+' baris tanpa Type Job dilewati':'')+fracNote+warn)) return;
+
+  /* Terapkan sebagai upsert IN-PLACE ke array yang dipakai UI. */
+  let seq=0, changed=0;
+  ops.forEach(o=>{
+    const r=o.rec;
+    if(o.ex){
+      const target=o.ex;
+      const sp=Object.assign({},target.specs||{});
+      Object.keys(r.specs).forEach(k=>{ const v=r.specs[k]; if(v!=='')sp[k]=v; });
+      target.typeJob=r.typeJob; target.process=r.process; target.cd=r.cd; target.weight=r.weight;
+      target.description=r.description; target.notes=r.notes; target.specs=sp;
+      if(target.id==null||target.id==='')target.id=jcmId()+seq;
+      changed++;
+    }else{
+      const r2={...r,id:jcmId()+seq};
+      Object.keys(r2.specs).forEach(k=>{ if(r2.specs[k]==='')delete r2.specs[k]; });
+      list.push(r2); changed++;
+    }
+    seq++;
+  });
+
+  /* SIMPAN sebelum render agar hasil import benar-benar masuk persistence/index. */
   await saveAll();
-  /* filter/pencarian yang masih aktif bisa menyembunyikan hasil import — bersihkan dulu */
-  try{ window._jcmSearch=''; window._jcmProc='';
-       const si=document.getElementById('jcmSearchInput'); if(si)si.value='';
-       render(); }catch(e2){ console.error('importJCMasterXLSX(render):',e2); }
-  toast('✓ Import Master JC: '+nAdd+' baru, '+nUpd+' diperbarui — total '+list.length+' job type');
- }catch(e){ console.error('importJCMasterXLSX:',e);
-   toast('Import gagal — '+(e&&e.message?e.message:'pastikan file .xlsx dari Export Master JC'),1); }
- finally{ if(inp)inp.value=''; } }
+  window._jcmSearch=''; window._jcmProc='';
+  const si=document.getElementById('jcmSearchInput'); if(si)si.value='';
+  buildNav();
+  render();
+  toast('✓ Import Master JC berhasil: '+nAdd+' baru, '+nUpd+' diperbarui · '+changed+' baris tersimpan');
+ }catch(e){
+   console.error('importJCMasterXLSX:',e);
+   toast('Import gagal — '+(e&&e.message?e.message:'pastikan file .xlsx dari Export Master JC'),1);
+ }finally{ if(inp)inp.value=''; }
+}
 function dupJCMaster(id){ const m=jcmList().find(x=>x.id===id); if(!m)return; const c=JSON.parse(JSON.stringify(m)); c.id=null; c.typeJob=(m.typeJob||'')+' (copy)'; window._jcmEdit=c; renderJCMasterForm(); document.getElementById('jcmmodal').classList.add('show'); toast('Duplikat — simpan sebagai master baru'); }
 function planFromMaster(id){ const m=jcmList().find(x=>x.id===id); if(!m)return; closeJCMaster();
   window._jcEdit={id:null,machine:CFG.machines[0]||'',jcDate:ymd(TODAY),shift:(CFG.shifts[0]||''),process:m.process||(CFG.processes[0]||''),cd:m.cd||'',typeJob:m.typeJob||'',description:m.description||'',weight:m.weight||'',notes:'',trial:false,specs:JSON.parse(JSON.stringify(m.specs||{})),roasterPlan:[],roasterApplied:false};
