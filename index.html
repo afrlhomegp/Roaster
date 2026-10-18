@@ -5,6 +5,8 @@
 <script>/* QW-C3c: iOS-only — matikan auto-zoom fokus input; pinch-zoom manual tetap aktif (Safari >=10 mengabaikan cap ini utk gestur pengguna) */
 (function(){var iOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 if(iOS){var v=document.querySelector('meta[name="viewport"]');if(v)v.setAttribute('content',v.getAttribute('content')+', maximum-scale=1');}})();</script>
+<script>/* Tema Mono: hitam-putih sejak frame pertama (sebelum data & tema dimuat) */
+(function(){try{var t=localStorage.getItem('pm_theme_hint');if(t==='mono'||t==='mono-light'){var d=document.documentElement;d.classList.add('thm-mono-boot');if(t==='mono-light')d.classList.add('thm-mono-boot-l');}}catch(e){}})();</script>
 <title>IS Machine — Preventive Maintenance Dashboard</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1287,6 +1289,7 @@ body.light{ --sb-thumb:rgba(30,50,80,.22); --sb-thumb-h:rgba(30,50,80,.38); }
      PMBoot.done() menyembunyikan; failsafe 12 dtk. ===== -->
 <style id="pmSplashCss">
 #pmSplash{position:fixed;inset:0;z-index:9998;display:flex;align-items:center;justify-content:center;background:#0b121e;transition:opacity .3s ease}
+html.thm-mono-boot{filter:grayscale(1)} html.thm-mono-boot #pmSplash{background:#000} html.thm-mono-boot-l #pmSplash{background:#f2f2f2}
 #pmSplash.pms-out{opacity:0;pointer-events:none}
 #pmSplashIcon{width:84px;height:84px;border-radius:21px;animation:pmsPulse 1.1s ease-in-out infinite}
 @keyframes pmsPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.88);opacity:.6}}
@@ -1361,6 +1364,229 @@ window.PMBoot=(function(){
 
 <script>/* QW-P3: logo header & apple-touch-icon memakai ikon yang sama dengan <link rel="icon"> — base64 tidak diduplikasi (hemat ~35 KB) */
 (function(){try{var l=document.querySelector('link[rel="icon"]');if(!l)return;var h=l.href;var ims=document.querySelectorAll('img[data-appicon]');for(var i=0;i<ims.length;i++)ims[i].src=h;if(!document.querySelector('link[rel="apple-touch-icon"]')){var a=document.createElement('link');a.rel='apple-touch-icon';a.href=h;document.head.appendChild(a);}}catch(e){}})();</script>
+<script id="thmMonoEngine">/* =====================================================================
+   TEMA MONOCHROME (Mono Gelap / Mono Terang)
+   Satu mesin yang mengubah SEMUA warna aplikasi menjadi hitam-putih-abu:
+   1) CSS   : semua aturan ber-warna di-generate ulang (warna → abu) saat tema aktif,
+              urutan cascade asli dipertahankan, jadi sheet/popup/tombol baru ikut otomatis.
+   2) Inline: style="color:#ff5a5a" / "--c:#3fd77a" hasil render JS di-remap (MutationObserver).
+   3) Canvas: Chart.js & sparkline — warna string di-remap di level CanvasRenderingContext2D.
+   4) Emoji / gambar: html{filter:grayscale(1)} sebagai jaring pengaman terakhir.
+   Status dibedakan lewat KONTRAS: Overdue paling terang (gelap) → Urgent → Warning → OK paling redup.
+   Tidak aktif = nol efek (sheet dilepas, observer diputus, inline style dipulihkan).
+   ===================================================================== */
+(function(){
+  var MODE=null, BYPASS=0;
+  /* tingkat abu per kelompok hue (0–255). ui = teks/permukaan, cv = grafik canvas */
+  var LAD={
+    dark:  {red:255,orange:212,amber:242,yellow:176,green:138,teal:189,blue:198,purple:160},
+    light: {red:0,  orange:43, amber:17, yellow:77, green:110,teal:64, blue:56, purple:87},
+    cdark: {red:245,orange:200,amber:185,yellow:150,green:105,teal:160,blue:128,purple:140},
+    clight:{red:20, orange:70, amber:95, yellow:120,green:175,teal:100,blue:140,purple:130}
+  };
+  var SIGVARS=/var\(\s*--(accent2?|red|orange|yellow|green|blue|teal|c|rc|pc|tc|sc)\s*[,)]/;
+  var COLRE=/#[0-9a-fA-F]{3,8}\b|rgba?\([^()]*\)|hsla?\([^()]*\)/g;
+  var cache={};
+
+  function bucket(h){ return (h>=340||h<14)?'red':h<33?'orange':h<46?'amber':h<70?'yellow':h<165?'green':h<195?'teal':h<255?'blue':'purple'; }
+  function hue(r,g,b){ var mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn,h; if(!d) return 0;
+    if(mx===r) h=((g-b)/d)%6; else if(mx===g) h=(b-r)/d+2; else h=(r-g)/d+4; h*=60; return h<0?h+360:h; }
+  function lin(c){ c/=255; return c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4); }
+  function srgb(y){ return y<=0.0031308?12.92*y:1.055*Math.pow(y,1/2.4)-0.055; }
+  function lum(r,g,b){ return 0.2126*lin(r)+0.7152*lin(g)+0.0722*lin(b); }
+  /* parse → [r,g,b,a] atau null */
+  function parse(s){ s=String(s).trim(); var m;
+    if(s.charAt(0)==='#'){ var x=s.slice(1);
+      if(x.length===3||x.length===4) x=x.split('').map(function(c){return c+c;}).join('');
+      if(x.length!==6&&x.length!==8) return null;
+      return [parseInt(x.substr(0,2),16),parseInt(x.substr(2,2),16),parseInt(x.substr(4,2),16),x.length===8?parseInt(x.substr(6,2),16)/255:1]; }
+    if((m=/^rgba?\(([^)]*)\)$/i.exec(s))){ var p=m[1].replace(/\s*\/\s*/,',').split(/[\s,]+/).filter(Boolean); if(p.length<3) return null;
+      var f=function(v,mx){ return /%$/.test(v)?parseFloat(v)*mx/100:parseFloat(v); };
+      return [f(p[0],255),f(p[1],255),f(p[2],255),p.length>3?f(p[3],1):1]; }
+    if((m=/^hsla?\(([^)]*)\)$/i.exec(s))){ var q=m[1].replace(/\s*\/\s*/,',').split(/[\s,]+/).filter(Boolean); if(q.length<3) return null;
+      var H=parseFloat(q[0])/360,S=parseFloat(q[1])/100,L=parseFloat(q[2])/100,A=q.length>3?(/%$/.test(q[3])?parseFloat(q[3])/100:parseFloat(q[3])):1;
+      var t=function(p0,q0,t0){ if(t0<0)t0+=1; if(t0>1)t0-=1; if(t0<1/6)return p0+(q0-p0)*6*t0; if(t0<1/2)return q0; if(t0<2/3)return p0+(q0-p0)*(2/3-t0)*6; return p0; };
+      var Q=L<.5?L*(1+S):L+S-L*S,P=2*L-Q; return [t(P,Q,H+1/3)*255,t(P,Q,H)*255,t(P,Q,H-1/3)*255,A]; }
+    return null; }
+  /* satu warna → abu; kembalikan string baru, atau null bila sudah netral */
+  function mapOne(s,lad){ var k=lad+'|'+s; if(k in cache) return cache[k];
+    var c=parse(s), out=null;
+    if(c){ var r=c[0],g=c[1],b=c[2],a=c[3],mx=Math.max(r,g,b),mn=Math.min(r,g,b),ch=mx-mn,v;
+      if(ch>=10){ var l=(mx+mn)/510;
+        if(ch>=70&&l>=0.22&&l<=0.86) v=LAD[lad][bucket(hue(r,g,b))];   /* warna sinyal → tingkat kontras semantik */
+        else v=Math.round(255*srgb(lum(r,g,b)));                         /* tint/latar → abu dgn luminans sama */
+        v=Math.max(0,Math.min(255,v));
+        if(a>=0.999){ var hx=('0'+v.toString(16)).slice(-2); out='#'+hx+hx+hx; }
+        else out='rgba('+v+','+v+','+v+','+(Math.round(a*1000)/1000)+')'; } }
+    cache[k]=out; return out; }
+  function mapStr(str,lad){ return String(str).replace(COLRE,function(t){ var o=mapOne(t,lad); return o===null?t:o; }); }
+  function isSignalBg(val){ if(SIGVARS.test(val)) return true;
+    var hit=false; String(val).replace(COLRE,function(t){ var c=parse(t); if(c&&c[3]>=0.6){ var mx=Math.max(c[0],c[1],c[2]),mn=Math.min(c[0],c[1],c[2]),l=(mx+mn)/510; if(mx-mn>=70&&l>=0.22&&l<=0.86) hit=true; } return t; }); return hit; }
+
+  /* ---- pecah deklarasi CSS (aman utk url(data:...;base64) & tanda kutip) ---- */
+  function splitDecl(txt){ var out=[],cur='',dep=0,q=null;
+    for(var i=0;i<txt.length;i++){ var ch=txt.charAt(i);
+      if(q){ cur+=ch; if(ch==='\\'){cur+=txt.charAt(++i);} else if(ch===q) q=null; continue; }
+      if(ch==='"'||ch==="'"){ q=ch; cur+=ch; continue; }
+      if(ch==='(') dep++; else if(ch===')') dep--;
+      if(ch===';'&&dep===0){ if(cur.trim()) out.push(cur.trim()); cur=''; continue; }
+      cur+=ch; }
+    if(cur.trim()) out.push(cur.trim()); return out; }
+  /* kelompok properti yang saling menimpa (agar cascade asli tetap utuh) */
+  function grp(p){ p=p.toLowerCase(); if(p.indexOf('--')===0) return p;
+    if(p==='color') return 'color'; if(p.indexOf('background')===0) return 'bg';
+    if(p.indexOf('border')===0&&!/radius|spacing|collapse|image/.test(p)) return 'border';
+    if(p.indexOf('outline')===0) return 'outline'; if(p==='box-shadow') return 'bshadow';
+    if(p==='text-shadow') return 'tshadow'; if(p==='fill'||p==='stroke'||p==='stop-color') return p;
+    if(p==='caret-color'||p==='accent-color') return p; if(p.indexOf('text-decoration')===0) return 'tdec';
+    if(p.indexOf('column-rule')===0) return 'crule'; if(p.indexOf('-webkit-text-')===0) return 'wtext';
+    return null; }
+  /* proses satu blok deklarasi → {decls:[[prop,val,imp,grp]], changed:bool} */
+  function procBlock(cssText,lad){ var list=[],changed=false,bgSig=false,colIdx=-1;
+    splitDecl(cssText).forEach(function(d){ var i=d.indexOf(':'); if(i<1) return;
+      var prop=d.slice(0,i).trim(), val=d.slice(i+1).trim(), imp='';
+      var mi=/\s*!\s*important\s*$/i.exec(val); if(mi){ imp=' !important'; val=val.slice(0,mi.index); }
+      var g=grp(prop); if(!g) return;
+      var nv=mapStr(val,lad), ch=(nv!==val); if(ch) changed=true;
+      if(g==='bg'&&isSignalBg(val)) bgSig=true;
+      if(prop.toLowerCase()==='color') colIdx=list.length;
+      list.push([prop,nv,imp,g,ch]); });
+    /* teks di atas blok warna sinyal: jaga kontras (gelap: teks hitam, terang: teks putih) */
+    if(bgSig&&colIdx>=0){ var cv=parse(list[colIdx][1].replace(/\s+/g,'')); if(cv){ var L=lum(cv[0],cv[1],cv[2]);
+      var isLight=(lad==='light'); if(!isLight&&L>0.45){ list[colIdx][1]='#0b0b0b'; list[colIdx][4]=changed=true; } if(isLight&&L<0.3){ list[colIdx][1]='#ffffff'; list[colIdx][4]=changed=true; } } }
+    return {decls:list,changed:changed}; }
+
+  /* ---- generator stylesheet override ---- */
+  function collect(rules,lad,out,groups,pass){ for(var i=0;i<rules.length;i++){ var r=rules[i];
+      try{
+        if(r.type===1){ var pb=procBlock(r.style.cssText,lad);
+          if(pass===1){ if(pb.changed) pb.decls.forEach(function(d){ if(d[4]) groups[d[3]]=1; }); }
+          else { var ds=pb.decls.filter(function(d){ return groups[d[3]]; });
+            if(ds.length) out.push(r.selectorText+'{'+ds.map(function(d){return d[0]+':'+d[1]+d[2];}).join(';')+'}'); }
+          if(r.cssRules&&r.cssRules.length){ var sub=[]; collect(r.cssRules,lad,sub,groups,pass); if(pass===2&&sub.length) out.push(r.selectorText+'{'+sub.join('')+'}'); } }
+        else if(r.type===4||r.type===12){ var sub2=[]; collect(r.cssRules,lad,sub2,groups,pass);
+          if(pass===2&&sub2.length) out.push((r.type===4?'@media '+r.media.mediaText:'@supports '+r.conditionText)+'{'+sub2.join('')+'}'); }
+        else if(r.type===7&&pass===2){ var kt=r.cssText, nk=mapStr(kt,lad); if(nk!==kt) out.push(nk); }
+      }catch(e){} } }
+  function buildCss(lad){ var sheets=[],groups={},out=[];
+    for(var i=0;i<document.styleSheets.length;i++){ var sh=document.styleSheets[i];
+      if(sh.ownerNode&&sh.ownerNode.id==='thmMonoCss') continue; try{ if(sh.cssRules) sheets.push(sh.cssRules); }catch(e){} }
+    sheets.forEach(function(rs){ collect(rs,lad,out,groups,1); });
+    sheets.forEach(function(rs){ collect(rs,lad,out,groups,2); });
+    return out.join('\n'); }
+
+  /* ---- desain dasar (palet abu terkurasi + bahasa visual status tanpa warna) ---- */
+  var BASE=[
+  'html{filter:grayscale(1)}',
+  'body.thm-mono{--bg:#000000;--bg2:#0a0a0a;--panel:#111111;--panel2:#1a1a1a;--line:#262626;--line2:#383838;',
+  ' --txt:#ededed;--txt2:#ababab;--txt3:#818181;--accent:#f2f2f2;--accent2:#ffffff;--blue:#c6c6c6;--teal:#bdbdbd;',
+  ' --red:#ffffff;--redbg:#333333;--orange:#d4d4d4;--orangebg:#262626;--yellow:#b0b0b0;--yellowbg:#1f1f1f;--green:#8a8a8a;--greenbg:#181818;',
+  ' --hbg:rgba(6,6,6,.92);--glass:rgba(17,17,17,.66);--glass-strong:rgba(10,10,10,.9);--glass-brd:rgba(255,255,255,.10);--glass-hi:rgba(255,255,255,.12);',
+  ' --shadow:0 10px 30px rgba(0,0,0,.6);background-image:none}',
+  'body.thm-mono.light{--bg:#f2f2f2;--bg2:#ebebeb;--panel:#ffffff;--panel2:#f4f4f4;--line:#dedede;--line2:#cbcbcb;',
+  ' --txt:#141414;--txt2:#474747;--txt3:#6b6b6b;--accent:#111111;--accent2:#000000;--blue:#383838;--teal:#404040;',
+  ' --red:#000000;--redbg:#e0e0e0;--orange:#2b2b2b;--orangebg:#ebebeb;--yellow:#4d4d4d;--yellowbg:#f2f2f2;--green:#6e6e6e;--greenbg:#f5f5f5;',
+  ' --hbg:rgba(255,255,255,.9);--glass:rgba(255,255,255,.86);--glass-strong:rgba(255,255,255,.97);--glass-brd:rgba(0,0,0,.12);--glass-hi:rgba(255,255,255,.9);',
+  ' --shadow:0 10px 30px rgba(0,0,0,.08);background-image:none}',
+  /* pil status: isi penuh → abu → garis → teks polos (tidak bergantung pada tingkat abu saja) */
+  'body.thm-mono .pOVERDUE{background:#ffffff;color:#000000}',
+  'body.thm-mono .pURGENT{background:#4a4a4a;color:#ffffff}',
+  'body.thm-mono .pWARNING{background:transparent;color:#c4c4c4;box-shadow:inset 0 0 0 1px #6b6b6b}',
+  'body.thm-mono .pOK{background:transparent;color:#8a8a8a}',
+  'body.thm-mono.light .pOVERDUE{background:#000000;color:#ffffff}',
+  'body.thm-mono.light .pURGENT{background:#d6d6d6;color:#000000}',
+  'body.thm-mono.light .pWARNING{background:transparent;color:#3d3d3d;box-shadow:inset 0 0 0 1px #8f8f8f}',
+  'body.thm-mono.light .pOK{background:transparent;color:#6e6e6e}',
+  /* angka KPI di tema terang tidak perlu digelapkan filter lagi */
+  'body.thm-mono.light .kpi .v,body.thm-mono.light .kpi-click .kpi-go{filter:none}',
+  /* titik status di badge ringkasan: emoji berwarna → titik solid sesuai tingkat kontras */
+  'body.thm-mono .sbadge .sb-ic{font-size:0;width:12px;height:12px;border-radius:50%;background:var(--c,var(--txt3));display:inline-block}'
+  ].join('\n');
+
+  /* ---- inline style ---- */
+  var INL=(typeof WeakMap!=='undefined')?new WeakMap():null, OBS=null, QUEUED=false;
+  var SEEN=(typeof WeakSet!=='undefined')?new WeakSet():null;
+  var CHK=[];   /* elemen yang perlu dicek kontras teks-vs-latar setelah semua remap ditulis */
+  function remapEl(el){ if(!INL||!el.getAttribute) return; var s=el.getAttribute('style'); if(!s) return;
+    var rec=INL.get(el); if(rec&&rec.m===s) return;
+    if(!/#[0-9a-fA-F]{3}|rgba?\(|hsla?\(/.test(s)) return;
+    var pb=procBlockInline(s); if(pb!==s){ INL.set(el,{o:s,m:pb}); el.setAttribute('style',pb); }
+    if(SEEN&&!SEEN.has(el)&&/(^|;)\s*(color|background)/i.test(pb)){ SEEN.add(el); CHK.push(el); } }
+  /* teks berwarna inline di atas tombol/chip ber-isi aksen (mis. merah di atas amber) bisa jadi
+     abu-di-atas-abu. Baca semua dulu (1x recalc), lalu tulis perbaikan: hitam / putih. */
+  function fixContrast(){ if(!CHK.length) return; var list=CHK; CHK=[]; var fix=[];
+    for(var i=0;i<list.length;i++){ var el=list[i]; if(!el.isConnected) continue; var cs=getComputedStyle(el);
+      var bg=parse(cs.backgroundColor), fg=parse(cs.color); if(!bg||!fg||bg[3]<0.6) continue;
+      var a=lum(fg[0],fg[1],fg[2]), b=lum(bg[0],bg[1],bg[2]), cr=(Math.max(a,b)+0.05)/(Math.min(a,b)+0.05);
+      if(cr<2.5) fix.push([el, b>0.18?'#000000':'#ffffff']); }
+    /* tulis dgn transition:none sementara → warna langsung jadi, tanpa animasi putih→hitam */
+    for(var j=0;j<fix.length;j++){ var e=fix[j][0], cur=e.getAttribute('style')||'', rec=INL.get(e)||{o:cur,m:cur};
+      var m=cur.replace(/;?\s*$/,'')+';color:'+fix[j][1]+' !important'; rec.m=m; INL.set(e,rec); fix[j][2]=m; e.setAttribute('style',m+';transition:none !important'); }
+    for(var k=0;k<fix.length;k++) void getComputedStyle(fix[k][0]).color;
+    for(var q=0;q<fix.length;q++) fix[q][0].setAttribute('style',fix[q][2]); }
+  function procBlockInline(s){ var lad=MODE; var res=procBlock(s,lad); if(!res.changed) return s;
+    /* susun ulang: deklarasi warna yang diubah, sisanya apa adanya */
+    var map={}; res.decls.forEach(function(d){ map[d[0].toLowerCase()]=d; });
+    return splitDecl(s).map(function(d){ var i=d.indexOf(':'); if(i<1) return d; var p=d.slice(0,i).trim().toLowerCase();
+      var x=map[p]; return x?(x[0]+':'+x[1]+x[2]):d; }).join(';'); }
+  /* HTML string (innerHTML / insertAdjacentHTML): style="..." di-remap SEBELUM di-parse,
+     jadi elemen lahir langsung abu — tanpa kilatan warna / transisi merah→abu tiap render. */
+  var HTMLRE=/(\sstyle\s*=\s*)(?:"([^"]*)"|'([^']*)')/gi;
+  function mapHtml(h){ if(h.indexOf('style')<0) return h;
+    return h.replace(HTMLRE,function(m,pre,d,q){ var v=(d!=null)?d:q; if(!/#[0-9a-fA-F]{3}|rgba?\(|hsla?\(/.test(v)) return m;
+      var n=procBlockInline(v); if(n===v) return m; return pre+(d!=null?'"'+n+'"':"'"+n+"'"); }); }
+  (function(){ try{
+    var EP=Element.prototype, own=Object.getOwnPropertyDescriptor(EP,'innerHTML')?EP:(window.HTMLElement&&HTMLElement.prototype);
+    var d=own&&Object.getOwnPropertyDescriptor(own,'innerHTML');
+    if(d&&d.set) Object.defineProperty(own,'innerHTML',{configurable:true,enumerable:d.enumerable,get:d.get,
+      set:function(v){ if(MODE&&typeof v==='string') v=mapHtml(v); d.set.call(this,v); }});
+    var ia=EP.insertAdjacentHTML; if(ia) EP.insertAdjacentHTML=function(pos,v){ if(MODE&&typeof v==='string') v=mapHtml(v); return ia.call(this,pos,v); };
+  }catch(e){} })();
+  function remapTree(root,deferFix){ if(!root||root.nodeType!==1) return; if(root.hasAttribute('style')) remapEl(root);
+    var ns=root.querySelectorAll('[style]'); for(var i=0;i<ns.length;i++) remapEl(ns[i]); if(!deferFix) fixContrast(); }
+  function restoreInline(){ if(!INL) return; var ns=document.querySelectorAll('[style]');
+    for(var i=0;i<ns.length;i++){ var rec=INL.get(ns[i]); if(rec&&ns[i].getAttribute('style')===rec.m) ns[i].setAttribute('style',rec.o); INL.delete(ns[i]); } }
+  function onMut(muts){ if(!MODE) return; var rebuild=false;
+    for(var i=0;i<muts.length;i++){ var m=muts[i];
+      if(m.type==='attributes') remapEl(m.target);
+      else for(var j=0;j<m.addedNodes.length;j++){ var n=m.addedNodes[j]; if(n.nodeType!==1) continue;
+        if((n.tagName==='STYLE'||n.tagName==='LINK')&&n.id!=='thmMonoCss') rebuild=true; else remapTree(n,true); } }
+    fixContrast();
+    if(rebuild&&!QUEUED){ QUEUED=true; Promise.resolve().then(function(){ QUEUED=false; if(MODE) inject(true); }); } }
+
+  /* ---- canvas (Chart.js, sparkline) ---- */
+  (function(){ try{
+    var P=window.CanvasRenderingContext2D&&CanvasRenderingContext2D.prototype; if(!P) return;
+    ['fillStyle','strokeStyle','shadowColor'].forEach(function(k){ var d=Object.getOwnPropertyDescriptor(P,k); if(!d||!d.set) return;
+      Object.defineProperty(P,k,{configurable:true,enumerable:d.enumerable,get:d.get,
+        set:function(v){ if(MODE&&!BYPASS&&typeof v==='string'){ var o=mapOne(v,MODE==='light'?'clight':'cdark'); if(o!==null) v=o; } d.set.call(this,v); }}); });
+    var G=window.CanvasGradient&&CanvasGradient.prototype;
+    if(G){ var ac=G.addColorStop; G.addColorStop=function(o,c){ if(MODE&&!BYPASS&&typeof c==='string'){ var x=mapOne(c,MODE==='light'?'clight':'cdark'); if(x!==null) c=x; } return ac.call(this,o,c); }; }
+  }catch(e){} })();
+
+  var SHEET_CACHE={};
+  function inject(force){ var lad=MODE; var key=lad+'|'+document.styleSheets.length;
+    var css=(!force&&SHEET_CACHE[key])||(SHEET_CACHE[key]=buildCss(lad)+'\n'+BASE);
+    var el=document.getElementById('thmMonoCss');
+    if(!el){ el=document.createElement('style'); el.id='thmMonoCss'; }
+    if(el.textContent!==css) el.textContent=css;
+    if(el.parentNode!==document.body||el!==document.body.lastElementChild) document.body.appendChild(el); }
+  function set(mode){ mode=(mode==='dark'||mode==='light')?mode:null;
+    if(!document.body) return;
+    try{ localStorage.setItem('pm_theme_hint', mode?('mono'+(mode==='light'?'-light':'')):''); }catch(e){}
+    document.documentElement.classList.remove('thm-mono-boot','thm-mono-boot-l');
+    var was=MODE; MODE=mode; if(was!==mode&&typeof WeakSet!=='undefined') SEEN=new WeakSet();
+    if(!mode){ document.body.classList.remove('thm-mono'); var el=document.getElementById('thmMonoCss'); if(el) el.parentNode.removeChild(el);
+      if(OBS){ OBS.disconnect(); OBS=null; } if(was) restoreInline(); return; }
+    document.body.classList.add('thm-mono');
+    if(was&&was!==mode) restoreInline();
+    inject(false); remapTree(document.body);
+    if(!OBS&&window.MutationObserver){ OBS=new MutationObserver(onMut);
+      OBS.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['style']}); } }
+  window.MONO={ set:set, mode:function(){ return MODE; },
+    bypass:function(fn){ BYPASS++; try{ return fn(); } finally{ BYPASS--; } },
+    map:function(s){ return MODE?mapStr(s,MODE):s; } };
+})();</script>
 <script>
 window._inlineLibs=window._inlineLibs||{};
 function loadInlineLib(id){return new Promise(function(resolve,reject){function go(){var el=document.getElementById(id);if(!el){reject(new Error('Blok library '+id+' tidak ditemukan'));return;}try{var blob=new Blob([el.textContent],{type:'text/javascript'});var url=URL.createObjectURL(blob);var sc=document.createElement('script');sc.onload=function(){URL.revokeObjectURL(url);resolve();};sc.onerror=function(){URL.revokeObjectURL(url);reject(new Error('Gagal memuat '+id));};sc.src=url;document.head.appendChild(sc);}catch(e){reject(e);}}
@@ -2056,11 +2282,13 @@ function machineSchedule(sel){var list=enriched().filter(function(r){return r.ma
     var lastSched=o.sched.length?o.sched[o.sched.length-1].d:null; var nd=lastSched?new Date(lastSched.getTime()+lt*86400000):null; var rem=nd?daysBetween(TODAY,nd):null; var status=rem===null?'NO DATA':statusOf(rem,o.part);
     map[k]={section:o.section,part:o.part,lt:lt,lastSched:lastSched,nextDue:nd,rem:rem,status:status,count:o.sched.length+o.trbl.length,trouble:o.trbl.length,troubleList:o.trbl.map(function(r){return {date:r.date,reason:r.reason};}),schedList:o.sched.slice().reverse().map(function(r){return {date:r.date,reason:r.reason};})};});
   return map; }
-const THEMES=[['dark','🌙 Gelap'],['light','☀️ Terang']];
+const THEMES=[['dark','🌙 Gelap'],['light','☀️ Terang'],['mono','◐ Mono Gelap'],['mono-light','◑ Mono Terang']];
 function applyTheme(){ let t=CFG.theme||'dark';
-  if(t!=='light' && t!=='dark'){ t='dark'; CFG.theme='dark'; }   // tema lama (laut/hutan/senja) → gelap
+  if(!THEMES.some(function(x){return x[0]===t;})){ t='dark'; CFG.theme='dark'; }   // tema lama (laut/hutan/senja) → gelap
   document.body.classList.remove('light','theme-ocean','theme-forest','theme-sunset');
-  if(t==='light') document.body.classList.add('light');
+  if(t==='light'||t==='mono-light') document.body.classList.add('light');
+  try{ if(window.MONO) MONO.set(t==='mono'?'dark':t==='mono-light'?'light':null); }catch(e){ console.error(e); }
+  try{ var tm=document.querySelector('meta[name="theme-color"]'); if(tm) tm.setAttribute('content', t==='mono'?'#000000':t==='mono-light'?'#ffffff':'#0b121e'); }catch(e){}
 }
 function setAuditUser(v){ CFG.auditUser=String(v||'').trim(); saveAll(); toast(CFG.auditUser?('Pencatat: '+CFG.auditUser):'Nama pencatat dikosongkan'); }
 function setJccCfg(k,v){ const n=parseFloat(v); if(!isFinite(n)||n<=0){ toast('Nilai tidak valid',1); return; } CFG[k]=n; saveAll(); render(); }
@@ -3342,7 +3570,7 @@ function vPlan(){
   const totalSec=cov.length; const pctCov=totalSec?Math.round(withinN/totalSec*100):0;
   return `<h2 class="title">📅 Jobchange Planning</h2><div class="sub">Roaster reminders across sections, JC spec preparation, & part needs.</div>
 
-  <div class="card" style="margin-bottom:16px"><div class="form" style="grid-template-columns:1fr 1fr 2fr">
+  <div class="card" style="margin-bottom:16px"><div class="form plan-top">
     <div class="fg"><label>Next Jobchange Date</label><input type="date" value="${CFG.nextJC||''}" onchange="setJC(this.value)"></div>
     <div class="fg"><label>Parts due ≤30 days</label><div class="note" style="margin:0">${m.length} parts to prepare</div></div>
     <div class="fg"><label>&nbsp;</label><div class="note" style="margin:0">${CFG.nextJC?'Next JC: <b>'+fmtD(parseD(CFG.nextJC))+'</b>':'Set the JC date for planning'}</div></div>
@@ -3361,7 +3589,7 @@ function vPlan(){
       <div class="m" style="--c:#ff5a5a"><div class="v">${neverN}</div><div class="l">🔴 Never roastered</div></div>
     </div>
     <div class="bar-cell" style="margin:2px 2px 14px"><div class="bar-track" style="height:9px"><div class="bar-fill" style="width:${pctCov}%;background:#3fd77a"></div></div><span class="mono" style="font-size:11px">${pctCov}% coverage</span></div>
-    <div class="tblwrap"><table><thead><tr><th>Section</th><th>Last Roaster</th><th>Window Berakhir</th><th>Days Left</th><th>Status</th></tr></thead><tbody>
+    <div class="tblwrap rcov-wrap"><table class="rcov-tbl"><thead><tr><th>Section</th><th>Last Roaster</th><th>Window Berakhir</th><th>Days Left</th><th>Status</th></tr></thead><tbody>
     ${cov.map(r=>`<tr><td><b>${r.section}</b></td><td class="mono">${r.last?fmtD(r.last):'<span style="color:var(--red)">never</span>'}</td>
       <td class="mono">${r.due?fmtD(r.due):'—'}</td>
       <td class="mono" style="color:${r.rem==null?'#ff5a5a':r.rem<0?'#ff5a5a':r.rem<=urgentDaysFor(pp)?'#ff8c3b':r.rem<=warnDaysFor(pp)?'#ffd23f':'#3fd77a'};font-weight:700">${r.rem==null?'—':r.rem}</td>
@@ -3474,20 +3702,22 @@ function jcmResultsHTML(){
   if(!list.length) return `<div class="empty" style="padding:30px"><div class="big">🍾</div><b>${jcmList().length?'Tidak ada yang cocok':'Master JC masih kosong'}</b><div style="margin-top:6px">${jcmList().length?'Ubah kata kunci atau filter proses.':'Tap "Add Job Type" untuk menambah — atau kirim file master untuk diimpor.'}</div></div>`;
   const rows=list.map(m=>{
     const filled=Object.values(m.specs||{}).filter(v=>v&&String(v).trim()).length;
+    /* kolom .jcm-hm (Process / Weight / Spec) disembunyikan di mode mobile — hanya tampilan;
+       data & Export/Import Excel tetap lengkap karena dibaca dari CFG.jcMaster, bukan dari tabel ini */
     return `<tr onclick="openJCMaster(${m.id})" style="cursor:pointer">
-      <td class="mono"><b>${esc(m.typeJob||'—')}</b></td>
-      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.description||'—')}</td>
-      <td>${esc(m.process||'—')}</td>
-      <td class="mono">${esc(m.cd||'—')}</td>
-      <td class="mono">${m.weight?esc(m.weight)+' gr':'—'}</td>
-      <td class="mono">${filled}/${tot}</td>
-      <td style="white-space:nowrap" onclick="event.stopPropagation()">
-        <button class="btn sm" onclick="planFromMaster(${m.id})" title="Pakai untuk plan JC baru">📅 Plan</button>
-        <button class="btn sec sm" onclick="openJCMaster(${m.id})">👁️ Edit</button>
-        <button class="btn sec sm" onclick="dupJCMaster(${m.id})" title="Duplikat">⧉</button>
-        <button class="ico-btn" onclick="delJCMaster(${m.id})" title="Hapus">✕</button></td></tr>`;
+      <td class="mono jcm-type"><b>${esc(m.typeJob||'—')}</b></td>
+      <td class="jcm-desc"><span class="jcm-dtx">${esc(m.description||'—')}</span></td>
+      <td class="jcm-hm">${esc(m.process||'—')}</td>
+      <td class="mono jcm-cd">${esc(m.cd||'—')}</td>
+      <td class="mono jcm-hm">${m.weight?esc(m.weight)+' gr':'—'}</td>
+      <td class="mono jcm-hm">${filled}/${tot}</td>
+      <td class="jcm-act" style="white-space:nowrap" onclick="event.stopPropagation()">
+        <button class="btn sm" onclick="planFromMaster(${m.id})" title="Pakai untuk plan JC baru" aria-label="Plan">📅<span class="jcm-bt"> Plan</span></button>
+        <button class="btn sec sm jcm-edit" onclick="openJCMaster(${m.id})" title="Lihat / edit spec" aria-label="Edit">👁️<span class="jcm-bt"> Edit</span></button>
+        <button class="btn sec sm" onclick="dupJCMaster(${m.id})" title="Duplikat" aria-label="Duplikat">⧉</button>
+        <button class="ico-btn" onclick="delJCMaster(${m.id})" title="Hapus" aria-label="Hapus">✕</button></td></tr>`;
   }).join('');
-  return `<div class="tblwrap"><table><thead><tr><th>Type Job</th><th>Description</th><th>Process</th><th>CD</th><th>Weight</th><th>Spec</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div>
+  return `<div class="tblwrap jcm-tw"><table class="jcm-tbl"><thead><tr><th class="jcm-type">Type Job</th><th class="jcm-desc">Description</th><th class="jcm-hm">Process</th><th class="jcm-cd">CD</th><th class="jcm-hm">Weight</th><th class="jcm-hm">Spec</th><th class="jcm-act">Action</th></tr></thead><tbody>${rows}</tbody></table></div>
     <div class="note" style="margin-top:10px">${list.length} job type${(q||pf)?` (dari ${jcmList().length} total)`:''}. Klik baris untuk lihat / edit spec.</div>`;
 }
 function vJCMaster(){
@@ -5163,7 +5393,9 @@ function _chartToImg(config,w,h){
   const host=document.createElement('div'); host.style.cssText='position:fixed;left:-99999px;top:0;width:'+w+'px;height:'+h+'px';
   const cv=document.createElement('canvas'); cv.width=w; cv.height=h; host.appendChild(cv); document.body.appendChild(host);
   config.options=config.options||{}; config.options.animation=false; config.options.responsive=false; config.options.maintainAspectRatio=false; config.options.devicePixelRatio=2;
-  let img=''; try{ const ch=mkChart(cv,config); img=ch.toBase64Image('image/png',1); ch.destroy(); }catch(e){}
+  /* gambar grafik utk laporan PDF selalu memakai warna asli, walau tema Mono aktif */
+  let img=''; const _mk=function(){ const ch=mkChart(cv,config); img=ch.toBase64Image('image/png',1); ch.destroy(); };
+  try{ if(window.MONO&&MONO.mode()) MONO.bypass(_mk); else _mk(); }catch(e){}
   host.remove(); return img;
 }
 function _paretoCfg(top,cum,barColor){ const TC='#1A2435', GC='#e2e8f0';
@@ -5397,7 +5629,7 @@ function vSet(){
     <div class="toolbar" style="margin:0;flex-wrap:wrap">
       ${THEMES.map(([id,nm])=>`<button class="themebtn ${(CFG.theme||'dark')===id?'on':''}" onclick="setTheme('${id}')">${nm}</button>`).join('')}
     </div>
-    <div class="note" style="margin-top:12px">Dark & Ocean/Forest/Sunset suit display monitors; Light for bright rooms. Theme choice is saved automatically.</div>
+    <div class="note" style="margin-top:12px">Dark suits display monitors; Light for bright rooms. <b>Mono Gelap / Mono Terang</b> menghapus semua warna (hitam · putih · abu) di semua sheet, popup, ikon &amp; grafik — status dibedakan lewat kontras: <b>Overdue</b> paling menonjol, OK paling redup, agar fokus hanya ke yang perlu ditindak. Theme choice is saved automatically.</div>
   </div>
   <div class="card" style="margin-top:14px"><h3>🔍 Display Scale (Zoom)<span class="tag">${CFG.uiScale||100}%</span></h3>
     <div class="note" style="margin:0 0 12px">Perkecil / perbesar <b>seluruh</b> tampilan (teks, kartu, grafik). Untuk layar besar, pakai <b>75–85%</b> agar lebih banyak data muat tanpa scroll.</div>
@@ -6408,6 +6640,99 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
   body[data-view="jcm"] .fab,
   body[data-view="jcm"] .fabmenu,
   body[data-view="jcm"] .fabmenu-back{ display:none !important; }
+}
+
+
+/* ============================================================
+   MASTER JC — tabel ringkas & kolom cari tidak menutupi top bar
+   ============================================================ */
+.jcm-tbl td.jcm-desc{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:1000px){
+  /* kolom cari menempel DI BAWAH top bar (bukan menimpanya) & selalu di belakang top bar */
+  .searchdock, body.sdfocus .searchdock{ top:calc(env(safe-area-inset-top,0px) + 71px); z-index:45; }
+}
+@media (max-width:680px){
+  .searchdock, body.sdfocus .searchdock{ top:calc(max(10px, env(safe-area-inset-top,0px)) + 62px); }
+
+  /* hanya Type Job · Description · CD · Action yang tampil */
+  .jcm-tbl .jcm-hm{ display:none; }
+  .jcm-tbl{ font-size:12px; }
+  .jcm-tbl th{ padding:7px 6px; font-size:10px; letter-spacing:.3px; }
+  .jcm-tbl td{ padding:5px 6px; vertical-align:middle; }
+  .jcm-tbl th:first-child, .jcm-tbl td:first-child{ padding-left:10px; }
+  .jcm-tbl th:last-child,  .jcm-tbl td:last-child{ padding-right:8px; }
+  .jcm-tbl .jcm-type, .jcm-tbl .jcm-cd, .jcm-tbl .jcm-act{ width:1%; white-space:nowrap; }
+  .jcm-tbl .jcm-cd{ color:var(--txt2); text-align:center; }
+  .jcm-tbl .jcm-act{ text-align:right; }
+  .jcm-tbl td.jcm-act{ font-size:0; }   /* font-size:0 = hilangkan celah spasi antar tombol */
+  .jcm-tbl th.jcm-type{ white-space:normal; line-height:1.15; }   /* "TYPE / JOB" 2 baris → kolom lebih sempit */
+  /* deskripsi panjang boleh 2 baris (bukan dipotong habis) — baris tetap rapat */
+  .jcm-tbl td.jcm-desc{ max-width:none; white-space:normal; overflow:visible; }
+  .jcm-tbl .jcm-dtx{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp:2;
+    overflow:hidden; line-height:1.25; overflow-wrap:anywhere; }
+  /* tombol aksi jadi ikon 32px dalam satu baris (label "Plan"/"Edit" tetap di tooltip) */
+  .jcm-tbl .jcm-bt{ display:none; }
+  .jcm-tbl .jcm-act .btn.sm, .jcm-tbl .jcm-act .ico-btn{
+    width:32px; height:32px; padding:0; margin:0 0 0 3px; border-radius:9px;
+    display:inline-grid; place-items:center; vertical-align:middle; font-size:14px; line-height:1; }
+  .jcm-tbl .jcm-act .btn.sm:first-child{ margin-left:0; }
+  /* tombol Edit disembunyikan di HP: ketuk baris = buka edit (aksi yang sama) → kolom Description lebih lega */
+  .jcm-tbl .jcm-act .btn.sm.jcm-edit{ display:none; }
+  /* garis antar type job lebih tegas + selang-seling tipis */
+  .jcm-tbl tbody td{ border-bottom:1px solid var(--line2);
+    border-bottom-color:color-mix(in srgb, var(--txt3) 45%, transparent); }
+  .jcm-tbl tbody tr:nth-child(even) td{ background:color-mix(in srgb, var(--txt) 4%, transparent); }
+  .jcm-tbl tbody tr:last-child td{ border-bottom:none; }
+  .jcm-tbl thead th{ border-bottom:1.5px solid var(--line2);
+    border-bottom-color:color-mix(in srgb, var(--txt3) 60%, transparent); }
+}
+
+
+/* ============================================================
+   MODE HP: popup / sheet MENGAMBANG di tengah antara top bar & bottom bar
+   (tidak lagi rata bawah). Juga: halaman tidak boleh lebih lebar dari layar.
+   ============================================================ */
+.form.plan-top{grid-template-columns:1fr 1fr 2fr}
+@media (max-width:680px){
+  :root{
+    --sheet-top:calc(max(10px, env(safe-area-inset-top,0px)) + 62px);      /* bawah top bar + 8px */
+    --sheet-bot:calc(max(12px, env(safe-area-inset-bottom,0px)) + 61px);   /* atas bottom bar + 8px */
+  }
+  .mmodal, .cmodal, .rackpanel, #jccWheel{
+    align-items:center; padding:var(--sheet-top) 10px var(--sheet-bot);
+  }
+  .mbox, .cbox, .rackbox, #jccWheel .jw-sheet{
+    max-height:calc(100vh - var(--sheet-top) - var(--sheet-bot));
+    max-height:calc(100dvh - var(--sheet-top) - var(--sheet-bot));
+  }
+  .mbox>.mh{ padding-top:20px; }          /* sheet tak lagi menyentuh tepi atas layar */
+  /* popup grafik diperbesar: beri jarak tepi & boleh digulir bila layar pendek */
+  .czbox{ overflow-y:auto; }
+  .czbox .czsub{ padding:10px 16px 0; margin-bottom:8px; }
+  .czbox .czwrap{ margin:0 10px 12px; }
+  /* form di popup kecil (Add Record dll.): kolom boleh menyusut, tidak meluber ke kanan */
+  .cbox .form>.fg{ min-width:0; }
+  .cbox .form select, .cbox .form input{ width:100%; min-width:0; }
+  .rackbox{ border-radius:18px; box-shadow:0 18px 50px rgba(0,0,0,.5); animation:fade .22s ease; }
+  #jccWheel .jw-sheet{ border-radius:24px; padding-bottom:18px; overflow:auto; animation:fade .22s ease; }
+
+  /* Planning JC: tabel Roaster Coverage muat selebar layar (judul kolom boleh 2 baris) */
+  .rcov-wrap{ margin-left:-8px; margin-right:-8px; }   /* tabel sedikit melebar ke tepi kartu */
+  .rcov-tbl{ font-size:11.5px; }
+  .rcov-tbl th{ white-space:normal; line-height:1.15; padding:7px 5px; font-size:9px; letter-spacing:.2px; vertical-align:bottom; }
+  .rcov-tbl td{ padding:7px 5px; }
+  .rcov-tbl td.mono{ font-size:10.5px; }
+  .rcov-tbl th:first-child, .rcov-tbl td:first-child{ padding-left:8px; }
+  .rcov-tbl th:last-child,  .rcov-tbl td:last-child{ padding-right:5px; }
+  .rcov-tbl .pill{ padding:2px 5px; font-size:9px; letter-spacing:.1px; }
+  /* Planning JC: form atas tidak lagi memaksa 3 kolom di layar sempit */
+  .form.plan-top{ grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+  .form.plan-top .fg:first-child{ grid-column:1 / -1; }
+  .form.plan-top input{ width:100%; min-width:0; }
+
+  /* pengaman: konten yang kelebihan lebar tidak boleh membuat halaman bisa digeser ke samping
+     (itu yang membuat top bar "hilang" & bottom bar melebar keluar layar) */
+  html{ overflow-x:hidden; overflow-x:clip; }
 }
 
 
