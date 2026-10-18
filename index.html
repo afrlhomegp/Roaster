@@ -6730,9 +6730,17 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
   .form.plan-top .fg:first-child{ grid-column:1 / -1; }
   .form.plan-top input{ width:100%; min-width:0; }
 
+  /* dropdown dengan opsi panjang (mis. From/To di Compare Jobchange Transitions:
+     "tgl · #type · description") dulu selebar teks opsinya → halaman melebar.
+     Sekarang dropdown & field maksimal selebar layar; teks panjang terpotong di dalam kotak. */
+  select{ max-width:100%; text-overflow:ellipsis; }
+  .fg{ min-width:0; max-width:100%; }
+  .toolbar > .fg{ flex:1 1 auto; }
+  .toolbar > .fg > select{ width:100%; }
   /* pengaman: konten yang kelebihan lebar tidak boleh membuat halaman bisa digeser ke samping
      (itu yang membuat top bar "hilang" & bottom bar melebar keluar layar) */
   html{ overflow-x:hidden; overflow-x:clip; }
+  #main{ overflow-x:clip; }   /* Chrome Android tetap memperlebar layar bila ada isi yang meluber — potong di sini */
 }
 
 
