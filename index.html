@@ -5063,9 +5063,11 @@ function specValPage(b,tl,ci,AREAS){
   const slots={lama:prev,sekarang:cur,baru:nxt};
   let selKey=window._mSpecSel; if(!selKey||!slots[selKey]) selKey=cur?'sekarang':(nxt?'baru':'lama');
   const dLbl=p=>(p&&p.jcDate)?fmtD(parseD(p.jcDate)):'—';
+  /* tanggal versi pendek (dd/mm/yy) untuk layar HP supaya tidak terpotong */
+  const dBoth=p=>{const f=dLbl(p); const sh=f.replace(/\/(\d{2})(\d{2})$/,'/$2'); return `<span class="dl">${f}</span><span class="ds">${sh}</span>`;};
   const LBL=HIST?{lama:'Sebelum',sekarang:'JC Ini',baru:'Sesudah'}:{lama:'Lama',sekarang:'Sekarang',baru:'Baru'};
   const th=k=>{const p=slots[k];const hc=(HIST&&k==='sekarang')?' thhist':'';
-    return `<th class="${selKey===k?'thsel':''} thcol-${k} thdated${hc}" ${p?`onclick="selSpec('${k}')" style="cursor:pointer"`:''}><span class="thlab">${LBL[k]}</span><span class="thdate">${dLbl(p)}</span></th>`;};
+    return `<th class="${selKey===k?'thsel':''} thcol-${k} thdated${hc}" ${p?`onclick="selSpec('${k}')" style="cursor:pointer"`:''}><span class="thlab">${LBL[k]}</span><span class="thdate">${dBoth(p)}</span></th>`;};
   const cls=k=>'tdcol-'+k+(selKey===k?' tdsel':'')+((HIST&&k==='sekarang')?' tdhist':'');
   const rows=AREAS.map(A=>`<tr class="cmp-area"><td colspan="${HIST?3:4}"></td></tr>`+A.parts.map(part=>{
       const lv=String((prev&&prev.specs&&prev.specs[part])||'').trim();
@@ -5082,7 +5084,7 @@ function specValPage(b,tl,ci,AREAS){
         <td class="mono ${cls('baru')}" title="${stitle}"><span class="cw"><b style="color:${scol}">${nv||'—'}</b></span></td>
         ${HIST?'':`<td style="text-align:right"><span class="cw">${stk}</span></td>`}</tr>`;
     }).join('')).join('');
-  const thStock=HIST?'':`<th class="thdated"><span class="thlab">Stock</span><span class="thdate">&nbsp;</span></th>`;
+  const thStock=HIST?'':`<th class="thdated thstock"><span class="thlab">Stock</span><span class="thdate">&nbsp;</span></th>`;
   return `<div class="swipepage mspecpage"><table class="spectbl spec-val ${HIST?'hist3':''}"><thead><tr>${th('lama')}${th('sekarang')}${th('baru')}${thStock}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 /* strip header + info chips + tombol apply per halaman (di-update saat geser, tidak ikut bergerak) */
@@ -5132,7 +5134,7 @@ function machineSpecHTML(machine){
     <div class="jch-pglbl" id="mspeclbl" style="margin:5px 0 8px">${window._mSpecLbls[idx]}</div>`:'';
   setTimeout(()=>mspecDeckInit(maxBack),0);
   const body=AREAS.length
-    ? `<div class="specgrid">${fixTbl}<div class="swipedeck mspecdeck" id="mspecdeck">${pages}</div></div>`
+    ? `<div class="specgrid">${fixTbl}<div class="swipedeck mspecdeck" id="mspecdeck"><div class="mspectrack" id="mspectrack">${pages}</div></div></div>`
     : '<div class="note">Belum ada ukuran variable yang diisi.</div>';
   return `<div class="card noswipe" style="padding:14px;margin-top:14px"><h3>🧰 Spec &amp; Transisi JC ${maxBack>0?`<span class="tag">${maxBack} JC lampau</span>`:''} <span class="spechint" style="font-size:11px;color:var(--txt3);font-weight:600">— klik header kolom untuk pilih</span></h3>
     ${nav}
@@ -5142,13 +5144,43 @@ function machineSpecHTML(machine){
     <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><span id="mspecapply">${metas[idx].apply}</span><button class="btn sec sm" onclick="openJcHist('${machine}','count')">🔢 Hitung ganti part</button><button class="btn sec sm" onclick="closeMmodal();go('plan')">✏️ JC Planning</button><button class="btn sec sm" onclick="closeMmodal();go('stock')">📦 Stock</button></div>
   </div>`;
 }
+/* Geser tabel Spec & Transisi = pager buatan sendiri (bukan scroll-snap browser):
+   satu sapuan = pindah TEPAT satu tabel, animasi halus, tidak pernah berhenti di tengah.
+   (scroll-snap bawaan di Android + skala tampilan sering melompat 2–3 tabel / berhenti setengah.) */
+function mspecSetPos(i,anim){
+  const tr=document.getElementById('mspectrack'); if(!tr)return;
+  tr.classList.toggle('dragging',!anim);
+  tr.style.transform='translateX('+(-i*100)+'%)';
+}
 function mspecDeckInit(maxBack){
-  const dk=document.getElementById('mspecdeck'); if(!dk)return;
-  const idx=maxBack-(+window._mSpecBack||0);
-  dk.scrollLeft=idx*dk.clientWidth;
-  dk.onscroll=function(){ clearTimeout(window._msT); window._msT=setTimeout(function(){
-    const i=Math.round(dk.scrollLeft/Math.max(1,dk.clientWidth)), nb=maxBack-i;
-    if(nb!==window._mSpecBack){ window._mSpecBack=nb; mspecSync(); } },70); };
+  const dk=document.getElementById('mspecdeck'), tr=document.getElementById('mspectrack'); if(!dk||!tr)return;
+  mspecSetPos(maxBack-(+window._mSpecBack||0),false);
+  if(maxBack<1) return;
+  let sx=0,sy=0,t0=0,down=false,lock=null,W=1,pid=null,moved=false;
+  dk.onpointerdown=function(e){ if(e.pointerType==='mouse'&&e.button!==0)return;
+    sx=e.clientX; sy=e.clientY; t0=performance.now(); down=true; lock=null; moved=false; pid=e.pointerId;
+    W=dk.getBoundingClientRect().width||1; };
+  dk.onpointermove=function(e){ if(!down||e.pointerId!==pid)return;
+    const dx=e.clientX-sx, dy=e.clientY-sy;
+    if(lock===null){ if(Math.abs(dx)<7&&Math.abs(dy)<7)return;
+      lock=Math.abs(dx)>Math.abs(dy)*1.1?'x':'y';
+      if(lock==='x'){ try{dk.setPointerCapture(pid);}catch(_){} } }
+    if(lock!=='x')return;
+    moved=true;
+    const mx=+window._mSpecMax||0, cur=mx-(+window._mSpecBack||0);
+    let r=dx/W; if((cur===0&&r>0)||(cur===mx&&r<0)) r*=0.25;      // ujung: terasa "mentok"
+    if(r>1)r=1; if(r<-1)r=-1;                                     // maks. satu tabel per sapuan
+    tr.classList.add('dragging'); tr.style.transform='translateX('+((-cur+r)*100)+'%)'; };
+  function finish(e,cancel){ if(!down)return; down=false;
+    if(lock!=='x'){ return; }
+    let d=0;
+    if(!cancel){ const dx=e.clientX-sx, dt=Math.max(1,performance.now()-t0), r=dx/W, v=dx/dt;
+      if(r<-0.18||(v<-0.3&&r<-0.04)) d=1; else if(r>0.18||(v>0.3&&r>0.04)) d=-1; }
+    mspecGo(d); }
+  dk.onpointerup=function(e){ finish(e,false); };
+  dk.onpointercancel=function(e){ finish(e,true); };
+  /* setelah menggeser, jangan anggap sebagai klik header kolom */
+  dk.addEventListener('click',function(e){ if(moved){ e.stopPropagation(); e.preventDefault(); moved=false; } },true);
 }
 function mspecSync(){
   const mx=+window._mSpecMax||0, i=mx-(+window._mSpecBack||0);
@@ -5159,10 +5191,10 @@ function mspecSync(){
   if(h)h.innerHTML=M.head; if(f)f.innerHTML=M.info; if(a)a.innerHTML=M.apply;
 }
 function mspecGo(d){
-  const dk=document.getElementById('mspecdeck'); if(!dk)return;
   const mx=+window._mSpecMax||0;
   let i=mx-(+window._mSpecBack||0)+d; i=Math.max(0,Math.min(mx,i));
-  window._mSpecBack=mx-i; dk.scrollTo({left:i*dk.clientWidth,behavior:'smooth'}); mspecSync();
+  const changed=(mx-i)!==(+window._mSpecBack||0);
+  window._mSpecBack=mx-i; mspecSetPos(i,true); if(changed||d===0) mspecSync();
 }
 function applyTransitionStock(fromId,toId){
   const fromP=JCPLANS.find(p=>p.id===fromId), toP=JCPLANS.find(p=>p.id===toId);
@@ -6741,6 +6773,31 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
      (itu yang membuat top bar "hilang" & bottom bar melebar keluar layar) */
   html{ overflow-x:hidden; overflow-x:clip; }
   #main{ overflow-x:clip; }   /* Chrome Android tetap memperlebar layar bila ada isi yang meluber — potong di sini */
+}
+
+
+/* ============================================================
+   Popup mesin · Spec & Transisi JC: pager satu-per-satu + kolom nilai terbaca di HP
+   ============================================================ */
+.mspecdeck{ overflow:hidden !important; scroll-snap-type:none !important; touch-action:pan-y;
+  -webkit-user-select:none; user-select:none; }
+.mspectrack{ display:flex; width:100%; transition:transform .34s cubic-bezier(.22,.61,.36,1); will-change:transform; }
+.mspectrack.dragging{ transition:none; }
+.mspectrack > .swipepage{ flex:0 0 100%; min-width:100%; scroll-snap-align:none; }
+.thdate .ds{ display:none; }
+@media (max-width:680px){
+  .specgrid .spec-fix{ width:clamp(84px, 38%, 112px); }   /* layar/zoom sempit: kolom Part ikut mengecil */
+  table.spectbl.spec-fix tbody td{ font-size:11px; padding-left:8px; padding-right:5px; }
+  table.spectbl.spec-fix tbody td .cw{ word-break:normal; overflow-wrap:anywhere; }
+  table.spectbl.spec-val th, table.spectbl.spec-val td{ padding-left:3px; padding-right:3px; }
+  table.spectbl.spec-val td{ font-size:11.5px; letter-spacing:-.3px; }
+  /* nilai seperti "2 - 3" / "1 1/8" hanya boleh pindah baris di spasi, tidak dipotong per huruf */
+  table.spectbl.spec-val td .cw{ word-break:normal; overflow-wrap:normal; }
+  table.spectbl.spec-val th.thstock{ width:34px; }
+  table.spectbl.spec-val:not(.hist3) td:last-child, table.spectbl.spec-val th.thstock{ padding-right:6px; }
+  th.thdated .thlab{ font-size:8.5px; letter-spacing:0; }
+  th.thdated .thdate{ font-size:9px; letter-spacing:-.2px; }
+  .thdate .dl{ display:none; } .thdate .ds{ display:inline; }
 }
 
 
