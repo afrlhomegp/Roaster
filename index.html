@@ -1281,6 +1281,7 @@ body.light{ --sb-thumb:rgba(30,50,80,.22); --sb-thumb-h:rgba(30,50,80,.38); }
   body{background:#fff !important;color:#000 !important}
   .card{border:1px solid #ccc !important;box-shadow:none !important;break-inside:avoid}
 }
+.jcmx-ro{display:block;font-size:9.5px;font-weight:800;opacity:.85;margin-top:1px;white-space:nowrap}
 /* ===== Dashboard HP: Summary ⇄ JC Summary lewat geser ===== */
 .dvt-mob,.dv-dots{display:none}
 @keyframes dvInR{from{transform:translateX(30%);opacity:0}to{transform:none;opacity:1}}
@@ -3280,7 +3281,9 @@ function jcSummaryHTML(){
     const diff=(typeof transitionDiff==='function')?transitionDiff(base,p):[];
     const dmap={}; diff.forEach(d=>{ dmap[d.part]=d; });
     const roSet=new Set((Array.isArray(p.roasterPlan)?p.roasterPlan:[]).map(r=>String((r&&r.part)||'').toLowerCase()).filter(Boolean));
-    return {p,rem,machine,dmap,roSet};
+    /* roaster → baris matriks pakai pencocokan nama yang sama dgn Form Prepare JC (Blow Head → Blow Head Arm, T/O Head → Take Out Head, Neckring → Neck Ring) */
+    const ro=(typeof jcfRoaster==='function')?jcfRoaster(p):{map:{},restList:[]};
+    return {p,rem,machine,dmap,roSet,roMap:ro.map,roRest:ro.restList||[]};
   });
 
   // klasifikasi tiap sel: roaster > ganti > tetap > kosong
@@ -3288,8 +3291,9 @@ function jcSummaryHTML(){
   const cellInfo=(col,part)=>{
     const d=col.dmap[part];
     const v=(d&&d.newV)?d.newV:'';
+    const ro=col.roMap&&col.roMap[part];
+    if(ro) return {v:v||'♻️',cls:'c-roaster',ro:ro};
     if(!v) return {v:'',cls:'c-empty'};
-    if(col.roSet.has(part.toLowerCase())) return {v,cls:'c-roaster'};
     if(d.status==='change'||d.status==='add') return {v,cls:'c-ganti'};
     return {v,cls:'c-tetap'};
   };
@@ -3298,7 +3302,7 @@ function jcSummaryHTML(){
   const areas=Object.keys(CFG.jcAreas||{});
   let bodyRows='';
   areas.forEach(area=>{
-    const parts=(CFG.jcAreas[area]||[]).filter(part=>cols.some(c=>{const d=c.dmap[part];return d&&d.newV;}));
+    const parts=(CFG.jcAreas[area]||[]).filter(part=>cols.some(c=>{const d=c.dmap[part];return (d&&d.newV)||(c.roMap&&c.roMap[part]);}));
     if(!parts.length) return;
     bodyRows+=`<tr class="jcmx-arearow"><td class="jcmx-part jcmx-areacell">${areaIcon(area)} ${esc(area)}</td><td class="jcmx-areafill" colspan="${cols.length}"></td></tr>`;
     parts.forEach(part=>{
@@ -3306,11 +3310,19 @@ function jcSummaryHTML(){
       cols.forEach(c=>{
         const ci=cellInfo(c,part);
         if(ci.cls==='c-ganti')nGanti++; else if(ci.cls==='c-roaster')nRoaster++;
-        tds+=`<td class="jcmx-cell ${ci.cls}" title="${esc(c.machine)} · ${esc(part)}${ci.v?' → '+esc(ci.v):''}">${ci.v?esc(ci.v):'·'}</td>`;
+        tds+=`<td class="jcmx-cell ${ci.cls}" title="${esc(c.machine)} · ${esc(part)}${ci.v?' → '+esc(ci.v):''}${ci.ro?' · '+esc(ci.ro):''}">${ci.v?esc(ci.v):'·'}${ci.ro&&ci.ro!=='Roaster'?'<small class="jcmx-ro">♻️'+esc(ci.ro.replace(/^Roaster\s*/,''))+'</small>':''}</td>`;
       });
       bodyRows+=`<tr><td class="jcmx-part" title="${esc(part)}">${esc(part)}</td>${tds}</tr>`;
     });
   });
+  /* roaster untuk part yang tidak ada barisnya di daftar JC (mis. Catridge) */
+  const roExtra=[]; cols.forEach(c=>(c.roRest||[]).forEach(r=>{ if(roExtra.indexOf(r.part)<0) roExtra.push(r.part); }));
+  if(roExtra.length){
+    bodyRows+=`<tr class="jcmx-arearow"><td class="jcmx-part jcmx-areacell">♻️ ROASTER LAIN</td><td class="jcmx-areafill" colspan="${cols.length}"></td></tr>`;
+    roExtra.forEach(part=>{ let tds='';
+      cols.forEach(c=>{ const r=(c.roRest||[]).find(x=>x.part===part); if(r) nRoaster++;
+        tds+=r?`<td class="jcmx-cell c-roaster" title="${esc(c.machine)} · ${esc(part)} · roaster ${esc(r.rg||'')}">${r.st?esc(r.st):'♻️'}</td>`:'<td class="jcmx-cell c-empty">·</td>'; });
+      bodyRows+=`<tr><td class="jcmx-part" title="${esc(part)}">${esc(part)}</td>${tds}</tr>`; }); }
 
   const headCells=cols.map(c=>{
     const remC=jcRemColor(c.rem), remT=jcRemTxt(c.rem);
@@ -4915,8 +4927,9 @@ function jcpDelSelected(){
    sehingga hasil cetak = hasil Excel. Kolom QTY / KONDISI / CHANGE sengaja kosong (diisi saat cek fisik). */
 /* 16 kolom A..P = 190 mm (lebar isi A4). C..H = 6 kolom sempit: kotak/angka PLG Positioner (│□│70│□│83│□│90│)
    sekaligus kotak PROCESS/CD; SIZE/TYPE = I:J (I = kotak slot ke-3 PROCESS/CD). */
-const JCF_COLS=[6,23.6,6.4,6.4,6.4,6.4,6.4,6.4,6.4,15.6,12,12,12,16,22,26];
-const JCF_X={NO:0,NM:1,BOX:2,SZ:8,QTY:10,OK:11,NG:12,CHG:13,KET:14,MP:15};
+/* KETERANGAN = O:P → O (3 mm) khusus kurung kurawal "}", P (19 mm) teks; baris biasa digabung O:P */
+const JCF_COLS=[6,23.6,6.4,6.4,6.4,6.4,6.4,6.4,6.4,15.6,12,12,12,16,3,19,26];
+const JCF_X={NO:0,NM:1,BOX:2,SZ:8,QTY:10,OK:11,NG:12,CHG:13,KB:14,KET:15,MP:16};
 const JCF_PAPER={A4:{w:210,h:297,xl:9,label:'A4'},F4:{w:215,h:330,xl:14,label:'F4 / Folio'}};
 const JCF_MARGIN={x:10,y:8};
 const JCF_DEF={company:'PT. MULIA GLASS',division:'CONTAINER DIVISION',
@@ -4931,7 +4944,7 @@ const JCF_ST={
   tag:{fs:8,b:1,al:'right'}, pl:{fs:8,b:1}, pc:{fs:8,b:1}, il:{fs:8,b:1}, iv:{fs:9},
   th:{fs:7.5,b:1,al:'center',bx:1,wrap:1}, ths:{fs:6.5,b:1,al:'center',bx:1}, no:{fs:7,al:'center',bx:1}, noa:{fs:7.5,b:1,al:'center',bx:1},
   area:{fs:7.5,b:1,bx:1}, nm:{fs:7,bx:1}, v:{fs:7.5,al:'center',bx:1}, sb:{fs:7,al:'center',bx:1},
-  ck:{fs:9,b:1,al:'center',bx:1}, chg:{fs:7,al:'center',bx:1}, mp:{fs:8,al:'center',bx:1,wrap:1}, notes:{fs:8,va:'top',bx:1,wrap:1},
+  ck:{fs:9,b:1,al:'center',bx:1}, chg:{fs:7,al:'center',bx:1}, kb:{bx:1,nb:'r'}, kt:{fs:7.5,al:'center',bx:1,nb:'l'}, mp:{fs:8,al:'center',bx:1,wrap:1}, notes:{fs:8,va:'top',bx:1,wrap:1},
   fn:{fs:7.5,i:1}, fl:{fs:8}, pb:{fs:7.5,al:'center',bx:1}, pr:{fs:6.5,al:'center',bx:1}, sig:{bx:1}, pt:{fs:7,al:'center',bx:1}, e:{}
 };
 /* tinggi baris tetap (mm): kop 44.5 · header tabel 8.8 · kaki 30.8 — sisanya dibagi ke baris part + kotak catatan */
@@ -4984,6 +4997,9 @@ function jcfDate(s){ if(!s) return ''; const d=parseD(s); if(isNaN(d)) return St
 function jcfWeight(w){ return String(w==null?'':w).replace(/\s*(gram|gr|g)\.?\s*$/i,'').trim(); }
 function jcfIsPlg(part){ return /pl(un)?g(er)?\.?\s*positioner/i.test(String(part||'')); }
 function jcfHasNum(val,n){ return new RegExp('(^|[^0-9])'+n+'([^0-9]|$)').test(String(val||'')); }
+function jcfNeckNum(p){ const sp=(p&&p.specs)||{}; let v='';
+  Object.keys(CFG.jcAreas||{}).some(a=>(CFG.jcAreas[a]||[]).some(pt=>{ if(/neck\s*ring/i.test(pt)&&String(sp[pt]||'').trim()){ v=String(sp[pt]).trim(); return true; } return false; }));
+  const m=v.match(/^\D*?(\d+)/); return m?+m[1]:null; }
 function jcfPrev(p){ try{ return (p&&(p.machine||p.line))?jcPrevPlan(p):null; }catch(e){ return null; } }
 function jcfKet(p,prev,part){ if(!prev||!prev.specs) return '';
   const a=String((p.specs||{})[part]||'').trim(), b=String(prev.specs[part]||'').trim();
@@ -5005,14 +5021,19 @@ function jcfRoRow(part,rows){ const n=jcRoNorm(part); if(!n) return null;
   c=rows.filter(x=>{ const k=jcRoNorm(x); return k.length>=4&&n.startsWith(k); }).sort((a,b)=>jcRoNorm(b).length-jcRoNorm(a).length);
   return c[0]||null; }
 function jcfRoaster(p){ const rows=[]; Object.keys(CFG.jcAreas||{}).forEach(a=>(CFG.jcAreas[a]||[]).forEach(x=>{ if(rows.indexOf(x)<0) rows.push(x); }));
-  const map={}, rest=[];
+  const map={}, rest=[], restList=[];
   ((p&&p.roasterPlan)||[]).forEach(r=>{ if(!r||!r.part) return; const secs=r.sections||[]; const rg=secs.length?jcfSecRange(secs):'';
     const row=jcfRoRow(r.part,rows);
     if(row) map[row]=map[row]?(rg?map[row]+', '+rg:map[row]):(rg?'Roaster '+rg:'Roaster');
-    else rest.push(r.part+(rg?' ('+rg+')':'')); });   /* part tanpa baris di form (mis. Catridge) → kotak catatan */
-  return {map:map,rest:rest}; }
+    else { const st=secs.length?jaSecTxt(secs):''; rest.push(r.part+(st?' ('+st+')':'')); restList.push({part:r.part,rg:rg,st:st}); } });   /* part tanpa baris di form (mis. Catridge) → kotak catatan */
+  return {map:map,rest:rest,restList:restList}; }
 function jcfFitFs(t,wmm,base){ const need=String(t).length*0.53*0.3528; return Math.max(5,Math.min(base,+((wmm-1.6)/need).toFixed(1))); }
 
+/* kurung kurawal "}" (viewBox 10×100) — dipakai pratinjau/print & gambar di Excel */
+/* ujung (tip) ditaruh di tengah baris yang berisi teks: f = posisi relatif 0..1 dari atas grup */
+function jcfBraceTip(f){ return Math.max(14,Math.min(86,(+f||0.5)*100)); }
+function jcfBracePath(f){ const t=jcfBraceTip(f);
+  return 'M1,1 C5,1 5,3 5,8 L5,'+(t-6)+' C5,'+(t-2)+' 6.5,'+t+' 9.5,'+t+' C6.5,'+t+' 5,'+(t+2)+' 5,'+(t+6)+' L5,92 C5,97 5,99 1,99'; }
 /* ---- MODEL GRID ---- */
 function jcfModel(p,opt){
   p=p||{}; opt=opt||jcfOpt(); const kop=jcfKop(); const logo=jcfLogo(); const X=JCF_X, NC=JCF_COLS.length;
@@ -5043,7 +5064,7 @@ function jcfModel(p,opt){
   const info=[['TANGGAL',jcfDate(p.jcDate)],['LINE',p.machine||p.line||''],['TYPE JOB',p.typeJob||''],
               ['DESCRIPTION',p.description||p.bottleSize||''],['Ø BOTTLE/JAR',p.diameter||''],['WEIGHT',jcfWeight(p.weight)]];
   info.forEach((it,i)=>{ const cells=[{c:X.OK,cs:2,s:'il',v:it[0]}];   /* label sejajar kolom KONDISI */
-    if(i===5) cells.push({c:X.CHG,s:'iv',v:': '+it[1]},{c:X.KET,s:'iv',v:'GRAM'}); else cells.push({c:X.CHG,cs:NC-X.CHG,s:'iv',v:': '+it[1]});
+    if(i===5) cells.push({c:X.CHG,s:'iv',v:': '+it[1]},{c:X.KB,cs:2,s:'iv',v:'GRAM'}); else cells.push({c:X.CHG,cs:NC-X.CHG,s:'iv',v:': '+it[1]});
     if(i===1) cells.push.apply(cells,slots('PROCESS',pS));
     if(i===2) cells.push.apply(cells,slots('CD',cS));
     add(4.2,cells); });
@@ -5051,14 +5072,25 @@ function jcfModel(p,opt){
   /* header tabel */
   const th=(c,cs,rs,v)=>({c:c,cs:cs,rs:rs,s:'th',v:v});
   add(4.4,[th(X.NO,1,2,'NO'),th(X.NM,X.SZ-X.NM,2,'NAME PART'),th(X.SZ,2,2,'SIZE/TYPE'),th(X.QTY,1,2,'QTY'),th(X.OK,2,1,'KONDISI'),
-           th(X.CHG,1,2,'CHANGE'),th(X.KET,1,2,'KETERANGAN'),th(X.MP,1,2,'MAN POWER')]);
+           th(X.CHG,1,2,'CHANGE'),th(X.KB,2,2,'KETERANGAN'),th(X.MP,1,2,'MAN POWER')]);
   add(4.4,[{c:X.OK,s:'ths',v:'OK'},{c:X.NG,s:'ths',v:'TDK OK'}]);
   /* isi */
   const prev=opt.auto?jcfPrev(p):null; const groups=jcfMpGroups(); const mp=(p.manpower&&typeof p.manpower==='object')?p.manpower:{};
   const gOf={}; groups.forEach((g,gi)=>g.areas.forEach(a=>{ gOf[a]=gi; }));
   const roM=jcfRoaster(p), chgW=JCF_COLS[X.CHG]*cw/190;
-  const vals=(size,ket,chg)=>[{c:X.SZ,cs:2,s:'v',v:size||''},{c:X.QTY,s:'v'},{c:X.OK,s:'v'},{c:X.NG,s:'v'},
-    chg?{c:X.CHG,s:'chg',v:chg,fs:jcfFitFs(chg,chgW,7)}:{c:X.CHG,s:'v'},{c:X.KET,s:'v',v:ket||''}];
+  const vals=(size,ket,chg,bi)=>{ const o=[{c:X.SZ,cs:2,s:'v',v:size||''},{c:X.QTY,s:'v'},{c:X.OK,s:'v'},{c:X.NG,s:'v'},
+    chg?{c:X.CHG,s:'chg',v:chg,fs:jcfFitFs(chg,chgW,7)}:{c:X.CHG,s:'v'}];
+    if(bi!=null&&kIn[bi]!=null){ const st0=kIn[bi], n=kGrp[st0], li=st0+Math.floor((n-1)/2);   /* baris teks: tengah; genap → baris tengah atas */
+      o.push(bi===st0?{c:X.KB,s:'kb',v:[{brace:{n:n,f:+((li-st0+0.5)/n).toFixed(4),h:+(n*rowH).toFixed(2)}}]}:{c:X.KB,s:'kb'},
+             {c:X.KET,s:'kt',v:bi===li?ket:''}); }
+    else o.push({c:X.KB,s:'kb'},{c:X.KET,s:'kt',v:ket||''});   /* teks selalu di kolom teks yang sama → Sama/Ganti/Pasang/Lepas sejajar */
+    return o; };
+  /* keterangan per baris, lalu kelompokkan baris part berurutan (dalam 1 area) yang statusnya sama → satu sel bergabung + kurung kurawal */
+  const ketA=body.map(b=>b.k==='part'?jcfKet(p,prev,b.pt):'');
+  const kGrp={}, kIn={};
+  for(let i=0;i<body.length;i++){ if(body[i].k!=='part'||!ketA[i]) continue; let j=i;
+    while(j+1<body.length&&body[j+1].k==='part'&&body[j+1].a===body[i].a&&ketA[j+1]===ketA[i]) j++;
+    if(j>i){ kGrp[i]=j-i+1; for(let x=i;x<=j;x++) kIn[x]=i; } i=j; }
   let lastG=-1;
   body.forEach((b,bi)=>{ const cells=[]; const gi=gOf[b.a];
     if(gi!==lastG){ let n=0; for(let j=bi;j<body.length&&gOf[body[j].a]===gi;j++) n++;
@@ -5069,9 +5101,10 @@ function jcfModel(p,opt){
       cells.push({c:X.NO,s:'no',v:'-'});
       if(jcfIsPlg(b.pt)){ /* │PLG POSITIONER│□│70│□│83│□│90│ — kotak = sel kosong ber-border */
         cells.push({c:X.NM,s:'nm',v:nm});
-        JCF_DEF.plg.forEach((n,k)=>cells.push({c:X.BOX+2*k,s:'ck',v:tick(jcfHasNum(val,n))},{c:X.BOX+2*k+1,s:'sb',v:n})); }
+        const nk=jcfNeckNum(p);   /* angka awal Neck Ring Arm (mis. "70 offset" → 70); bila tidak ada → dari isi PLG Positioner */
+        JCF_DEF.plg.forEach((n,k)=>cells.push({c:X.BOX+2*k,s:'ck',v:tick(nk!=null?String(nk)===n:jcfHasNum(val,n))},{c:X.BOX+2*k+1,s:'sb',v:n})); }
       else cells.push({c:X.NM,cs:X.SZ-X.NM,s:'nm',v:nm});
-      cells.push.apply(cells,vals(val,jcfKet(p,prev,b.pt),roM.map[b.pt])); }
+      cells.push.apply(cells,vals(val,ketA[bi],roM.map[b.pt],bi)); }
     add(rowH,cells); });
   /* kotak catatan: notes plan + roaster plan */
   const nt=[]; if(String(p.notes||'').trim()) nt.push(String(p.notes).trim());
@@ -5081,10 +5114,10 @@ function jcfModel(p,opt){
   add(2,[]);
   add(4.2,[{c:0,cs:NC,s:'fn',v:[{t:'Note : ',b:1},{t:JCF_DEF.note}]}]);
   add(4.2,[{c:X.QTY,cs:X.MP-X.QTY,s:'pb',v:'Prepared by;'}]);
-  add(4.2,[{c:X.NM,s:'fl',v:'Checked by;'},{c:X.QTY,cs:2,s:'pr',v:'Forming'},{c:X.NG,cs:2,s:'pr',v:'IS Maint'},{c:X.KET,s:'pr',v:'Mould Repair'}]);
-  add(6,[{c:X.QTY,cs:2,rs:2,s:'sig'},{c:X.NG,cs:2,rs:2,s:'sig'},{c:X.KET,rs:2,s:'sig'}]);
+  add(4.2,[{c:X.NM,s:'fl',v:'Checked by;'},{c:X.QTY,cs:2,s:'pr',v:'Forming'},{c:X.NG,cs:2,s:'pr',v:'IS Maint'},{c:X.KB,cs:2,s:'pr',v:'Mould Repair'}]);
+  add(6,[{c:X.QTY,cs:2,rs:2,s:'sig'},{c:X.NG,cs:2,rs:2,s:'sig'},{c:X.KB,cs:2,rs:2,s:'sig'}]);
   add(6,[]);
-  add(4.2,[{c:X.NM,s:'fl',v:'Technician'},{c:X.QTY,cs:2,s:'pt',v:'SI/HoD'},{c:X.NG,cs:2,s:'pt',v:'SI/HoD'},{c:X.KET,s:'pt',v:'Spv'}]);
+  add(4.2,[{c:X.NM,s:'fl',v:'Technician'},{c:X.QTY,cs:2,s:'pt',v:'SI/HoD'},{c:X.NG,cs:2,s:'pt',v:'SI/HoD'},{c:X.KB,cs:2,s:'pt',v:'Spv'}]);
   const k=cw/190;
   return {P:P,cw:cw,cols:JCF_COLS.map(w=>+(w*k).toFixed(2)),rows:rows,notesH:notesH,plan:p}; }
 
@@ -5101,6 +5134,7 @@ function jcfCSS(){
   css+='td.notes{padding:1.2mm 1.6mm}td.title{letter-spacing:.1mm}td.fn b{font-style:normal}'
    +'.cb{display:inline-block;position:relative;width:3mm;height:3mm;border:.25mm solid #000;vertical-align:-.6mm;margin-right:1.2mm}'
    +'.cb.on::after{content:"";position:absolute;left:.75mm;top:-.9mm;width:1.1mm;height:2.5mm;border:solid #000;border-width:0 .55mm .55mm 0;transform:rotate(45deg)}'
+   +'td.kb{padding:0;border-right:0!important;position:relative;overflow:visible;background:transparent}td.kt{border-left:0!important}.kg{position:absolute;left:.5mm;top:.4mm;width:2.2mm;z-index:1}.kg svg{display:block;width:100%;height:100%;overflow:visible}.kg path{fill:none;stroke:#000;stroke-width:1.1;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round}'
    +'td.ck{padding:0}.tk{display:inline-block;width:1.15mm;height:2.3mm;border:solid #000;border-width:0 .5mm .5mm 0;transform:rotate(45deg);margin-top:-.7mm}'
    +'.lg{display:block;max-width:100%;max-height:14mm;margin:0 auto;object-fit:contain}'
    +'.nt{white-space:pre-wrap;overflow:hidden;max-height:calc(var(--nh) - 2.6mm)}';
@@ -5108,6 +5142,7 @@ function jcfCSS(){
 function jcfSegHTML(v){ if(v==null||v==='') return ''; if(!Array.isArray(v)) return esc(v);
   return v.map(s=>{ if(s.br) return '<br>'; if(s.cb!=null) return '<span class="cb'+(s.cb?' on':'')+'"></span>';
     if(s.tick) return '<span class="tk"></span>';
+    if(s.brace) return '<div class="kg" style="height:'+Math.max(2,s.brace.h-0.8)+'mm"><svg viewBox="0 0 10 100" preserveAspectRatio="none"><path d="'+jcfBracePath(s.brace.f)+'"/></svg></div>';
     if(s.img) return '<img class="lg" src="'+esc(s.img.d)+'" alt="">'; if(s.pre!=null) return '<div class="nt">'+esc(s.pre)+'</div>';
     const t=s.b?'<b>'+esc(s.t)+'</b>':esc(s.t); return s.fs?'<span style="font-size:'+s.fs+'pt">'+t+'</span>':t; }).join(''); }
 function jcfSheetHTML(m){ const C=m.cols.length, R=m.rows.length;
@@ -5194,6 +5229,7 @@ function jcfXlVal(v,st){ if(v==null||v==='') return null;
   if(v.some(s=>s.img)) return null;
   if(v.length===1&&v[0].pre!=null) return String(v[0].pre);
   if(v.length===1&&v[0].tick) return '√';
+  if(v.length===1&&v[0].brace) return null;
   const base=jcfXlFont(st); const rt=[];
   v.forEach(s=>{ if(s.br) rt.push({text:'\n',font:base});
     else if(s.cb!=null) rt.push({text:(s.cb?'☒':'☐')+' ',font:Object.assign({},base,{name:'Segoe UI Symbol',size:(base.size||8)+2,bold:false})});
@@ -5214,13 +5250,27 @@ function jcfFillSheet(ws,m,logoId){
     x.font=cell.fs?Object.assign(jcfXlFont(st),{size:cell.fs}):jcfXlFont(st);
     x.alignment={horizontal:st.al||'left',vertical:st.va==='top'?'top':'middle',wrapText:!!st.wrap||(Array.isArray(cell.v)&&cell.v.some(s=>s.br||s.pre!=null))};
     if(cell.s==='chg') x.alignment.shrinkToFit=true;
-    if(st.bx){ for(let r=r1;r<=r2;r++) for(let c=c1;c<=c2;c++) ws.getCell(r,c).border={top:T,left:T,bottom:T,right:T}; }
+    if(st.bx){ for(let r=r1;r<=r2;r++) for(let c=c1;c<=c2;c++){ const b={top:T,left:T,bottom:T,right:T}; if(st.nb==='r') delete b.right; if(st.nb==='l') delete b.left; ws.getCell(r,c).border=b; } }
+    if(Array.isArray(cell.v)&&cell.v[0]&&cell.v[0].brace&&ws._jcfWb){ try{
+      const B=cell.v[0].brace, hmm=B.h, wmm=m.cols[c1-1]; const img=jcfBracePng(wmm,hmm,B.f);
+      const id=ws._jcfWb.addImage({base64:img,extension:'png'});
+      ws.addImage(id,{tl:{col:c1-1,row:r1-1},br:{col:c1,row:r1-1+(B.n||1)},editAs:'twoCell'});   /* dari tepi atas baris pertama s/d tepi bawah baris terakhir grup — sel tetap terpisah, garis tetap ada */
+      }catch(e){ console.warn('brace img',e); } }
     if(isImg&&logoId!=null){ const lg=cell.v.find(s=>s.img).img;
       let wmm=0; for(let c=c1;c<=c2;c++) wmm+=m.cols[c-1]; let hmm=0; for(let r=r1;r<=r2;r++) hmm+=m.rows[r-1].h;
       const bw=wmm*3.7795*0.92, bh=hmm*3.7795*0.92, k=Math.min(bw/lg.w,bh/lg.h);
       ws.addImage(logoId,{tl:{col:c1-1+0.08,row:r1-1+0.08},ext:{width:Math.round(lg.w*k),height:Math.round(lg.h*k)},editAs:'oneCell'}); }
   }));
   ws.pageSetup.printArea='A1:'+String.fromCharCode(64+m.cols.length)+m.rows.length; }
+/* gambar kurung kurawal untuk Excel (PNG transparan, ukuran pas → tidak gepeng) */
+function jcfBracePng(wmm,hmm,f){ const k=8, W=Math.max(8,Math.round(wmm*k)), H=Math.max(16,Math.round(hmm*k)); const t=jcfBraceTip(f);
+  const cv=document.createElement('canvas'); cv.width=W; cv.height=H; const g=cv.getContext('2d');
+  g.strokeStyle='#000'; g.lineWidth=Math.max(2,k*0.36); g.lineCap='round'; g.lineJoin='round';
+  const px=W*0.18, py=Math.min(H*0.08,k*1.2); const X=x=>px+x/10*(W-px-2), Y=y=>py+y/100*(H-2*py); g.beginPath();
+  g.moveTo(X(1),Y(1)); g.bezierCurveTo(X(5),Y(1),X(5),Y(3),X(5),Y(8)); g.lineTo(X(5),Y(t-6));
+  g.bezierCurveTo(X(5),Y(t-2),X(6.5),Y(t),X(9.5),Y(t)); g.bezierCurveTo(X(6.5),Y(t),X(5),Y(t+2),X(5),Y(t+6));
+  g.lineTo(X(5),Y(92)); g.bezierCurveTo(X(5),Y(97),X(5),Y(99),X(1),Y(99)); g.stroke();
+  return cv.toDataURL('image/png'); }
 function jcfSheetName(p,i,used){ let b=(p.machine||p.line||'')+(p.typeJob?' '+p.typeJob:'')+(p.jcDate?' '+jcfDate(p.jcDate).slice(0,5):'');
   b=String(b||'Form JC').replace(/[\\\/\?\*\[\]:]/g,'-').trim().slice(0,28)||('Form '+(i+1)); let n=b, k=2; while(used[n.toLowerCase()]) n=b.slice(0,26)+' '+(k++); used[n.toLowerCase()]=1; return n; }
 function jcfFileName(plans,src){ const s=x=>String(x||'').replace(/[^\w.\-]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
@@ -5236,7 +5286,7 @@ async function jcfExportXLSX(){ const st=window._jcf; if(!st||!st.plans.length) 
       const ws=wb.addWorksheet(jcfSheetName(p,i,used),{views:[{showGridLines:false}],
         pageSetup:{paperSize:m.P.xl,orientation:'portrait',fitToPage:true,fitToWidth:1,fitToHeight:1,horizontalCentered:true,
                    margins:{left:0.39,right:0.39,top:0.31,bottom:0.31,header:0,footer:0}}});
-      jcfFillSheet(ws,m,logoId); });
+      ws._jcfWb=wb; jcfFillSheet(ws,m,logoId); });
     const buf=await wb.xlsx.writeBuffer();
     dl(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),jcfFileName(st.plans,st.src));
     if(st.src!=='blank') jaMarkPrinted(st.plans);
@@ -7525,8 +7575,8 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
 })();
 
 /* ===== SheetCtl — popup HP sebagai BOTTOM SHEET 2 posisi =====
-   • Muncul dari bawah setinggi ±60% layar (posisi "setengah").
-   • Usap ke atas (di mana saja pada sheet) → melebar jadi 95% layar; isi baru bisa digulir setelah melebar.
+   • Dibuka langsung PENUH ±95% layar (isi langsung bisa digulir).
+   • Dari posisi setengah (±60%), usap ke atas → kembali penuh 95%.
    • Saat penuh & isi di paling atas, tarik ke bawah → kembali setengah; tarik lebih jauh → tutup.
    • Semua gerak = transform translateY (GPU), jadi ringan. Desktop tidak terpengaruh. */
 (function(){
@@ -7549,7 +7599,7 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
   function settle(s,anim){ setY(s, s.exp?0:s.off, anim); s.ov.classList.toggle('sheet-col', !s.exp && s.off>0); }
   function open(ov){ var s=st(ov); if(!s.box) return;
     if(!mobile()){ s.box.style.transform=''; s.box.style.transition=''; ov.classList.remove('sheet-col'); return; }
-    s.exp=false; measure(s); ov.classList.toggle('sheet-col', s.off>0);
+    s.exp=true; measure(s); ov.classList.remove('sheet-col');            // langsung terbuka PENUH (±95% layar)
     setY(s, s.H+30, false); void s.box.offsetHeight;                       // mulai dari bawah layar
     requestAnimationFrame(function(){ settle(s,true); });
     var sc=scrollerOf(s.box); if(sc) sc.scrollTop=0; }
@@ -7594,6 +7644,7 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
   }
   /* deteksi popup dibuka / ditutup */
   function watch(ov){ if(ov.__sheetw) return; ov.__sheetw=1; var was=ov.classList.contains('show');
+    if(was) requestAnimationFrame(function(){ if(ov.classList.contains('show')) open(ov); });   /* popup yg dibuat & langsung dibuka (mis. Form Prepare JC) */
     new MutationObserver(function(){ var now=ov.classList.contains('show'); if(now&&!was) open(ov);
       if(!now&&was){ var s=ST.get(ov); if(s){ s.exp=false; if(s.box){ s.box.style.transition='none'; s.box.style.transform=''; } } if(ov.classList.contains('sheet-col')) ov.classList.remove('sheet-col'); }
       was=now; }).observe(ov,{attributes:true,attributeFilter:['class']}); }
@@ -7844,7 +7895,7 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
     --sheet-top:calc(max(10px, env(safe-area-inset-top,0px)) + 62px);      /* bawah top bar + 8px */
     --sheet-bot:calc(max(12px, env(safe-area-inset-bottom,0px)) + 61px);   /* atas bottom bar + 8px */
   }
-  /* ===== BOTTOM SHEET (HP): muncul dari bawah ±60% tinggi layar, usap ke atas = melebar penuh.
+  /* ===== BOTTOM SHEET (HP): muncul dari bawah langsung penuh ±95% tinggi layar; tarik turun = setengah / tutup.
      Gerak memakai transform (GPU) — tidak menghitung ulang tata letak tiap frame. Diatur JS "SheetCtl". */
   :root{ --sheet-xtop:max(8px, calc(env(safe-area-inset-top,0px) + 6px));
          --sheet-gap:max(6px, env(safe-area-inset-bottom,0px)); }
@@ -7852,7 +7903,7 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
     align-items:flex-end; padding:0 6px var(--sheet-gap); transition:none;
     -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
   .mbox, .cbox, .rackbox, #jccWheel .jw-sheet{
-    /* tinggi penuh (setelah diusap ke atas) = 95% layar; posisi awal = 60% (diatur SheetCtl) */
+    /* tinggi penuh = 95% layar (posisi awal saat dibuka); posisi setengah 60% (diatur SheetCtl) */
     /* dibagi --uizoom: skala tampilan (Settings → Display Scale) ikut membesarkan satuan vh,
        jadi tanpa ini popup kebesaran di 110–125% dan kekecilan di 70–90% */
     max-height:calc(95vh / var(--uizoom,1) - var(--sheet-gap));
