@@ -2873,117 +2873,79 @@ function reasonsForParts(parts){ const out=[]; const push=v=>{ if(v&&!out.some(x
   if(!parts||!parts.length) CFG.reasons.forEach(push);   // belum pilih part → tampilkan semua sbg fallback
   return out; }
 
-/* ============ CLOUD SYNC — Google Sheets via Apps Script (JSONP read + no-cors write) ============ */
-/* >>> FILL ONCE so every device auto-connects just by opening the page link (no URL input needed). <<<
-   Paste your Web App /exec URL between the quotes for 'url'. Leave empty to enter it manually in Settings. */
+/* ============ CLOUD SYNC v3 — per record + PIN Admin/Operator (Apps Script diperkuat) ============
+   • Yang dikirim hanya record yang berubah: data saat ini dibandingkan dengan "shadow" (versi server
+     terakhir yang diketahui perangkat ini, disimpan di IndexedDB). Server menggabung per ID; hapus
+     dicatat sebagai tombstone.
+   • Server memakai LockService + cek revisi per record → kiriman berbasis versi usang ditolak, lalu
+     aplikasi mengambil versi server, menggabung per field (3-way merge) dan mengirim ulang otomatis.
+   • Dua PIN: Admin (Settings, Master, impor, reset) & Operator (hanya input data).
+   • Build aplikasi ikut di setiap permintaan; server menolak build lama → wajib muat ulang.
+   Pasangan server: Code.gs v3 (backup harian otomatis ke Google Drive). */
+const APP_BUILD = 20261028;
+const SYNC_PROTO = 3;
+/* >>> URL Web App /exec — semua perangkat otomatis memakai URL ini (cukup buka link aplikasinya). <<< */
 const CLOUD_DEFAULT = { url:'https://script.google.com/macros/s/AKfycbyjNeD7skO6OUUGjLczQZk25lruj9fapAlA5-VFehZCLnVlQpvU5W-kC9lykQbXQWRv/exec', room:'pmdata', secret:'' };
 const CLIENT_ID = 'c'+Math.random().toString(36).slice(2,9);
-const Cloud = { enabled:false, connected:false, url:'', room:'pmdata', secret:'', poll:12, lastRev:null, lastToken:null, suppress:false, status:'off', err:'', _pollTimer:null,
+const Cloud = { enabled:false, connected:false, url:'', room:'pmdata', secret:'', poll:12, lastRev:null, suppress:false, status:'off', err:'', _pollTimer:null,
   dirty:false, pending:null, pendingSince:0, confirmedToken:null };
-function markDirty(){ Cloud.dirty=true; try{localStorage.setItem('pm_dirty','1');}catch(e){} }
-function clearDirty(){ Cloud.dirty=false; try{localStorage.setItem('pm_dirty','0');}catch(e){} }
+const SYNC_ARR = { db:()=>DB, jc:()=>JCPLANS, stock:()=>STOCK, jccheck:()=>JCCHECKS };
+const SYNC_ADMIN_COLS = { cfg:1, img:1 };                                  // hanya Admin yang boleh mengirim
+const CFG_LOCAL_KEYS = { theme:1, uiScale:1, bottomNav:1, lastMod:1 };     // preferensi per perangkat — tidak disinkron
+const Sync = { tok:'', role:null, adminTok:'', adminTimer:null, sid:'', lastRev:0, map:null, dt:{}, loadedRoom:'', attached:false,
+  running:false, again:false, needDiff:true, userEdit:false, conflicts:[], forbidden:{}, mode:'', blocked:'', init:true, deferred:false,
+  cycleErr:false, nOut:0, nCfgLocal:0, cfgDirtyPrev:'', lastOk:0, lastPing:0, skew:0, legacy:false, timer:null, saveT:null,
+  promptShown:false, lastLabel:'', devId:'', _pin:null, _ls:false };
 let _cloudTimer=null, _jsonpN=0;
+
+/* ---------- kompatibilitas dengan pemanggil lama ---------- */
+function markDirty(){ Sync.needDiff=true; }
+function clearDirty(){ try{ localStorage.setItem('pm_dirty','0'); }catch(e){} }
+function persistRev(r){}
+function storedRevGet(){ return +Sync.lastRev||-1; }
+function gsPush(immediate){ Sync.needDiff=true; syncSchedule(immediate?0:800); }
+function cloudPush(immediate){ if(!Cloud.enabled) return; Sync.needDiff=true; Sync.userEdit=true; syncSchedule(immediate?0:800); }
+function gsPoll(){ syncPoll(true); }
+function gsFullPull(){ cloudForcePull(true); }
+function cloudTest(){ if(!Cloud.url){ toast('Sambungkan dulu',1); return; } toast('Menguji koneksi…'); syncPoll(true); }
+
 function cloudCfgGet(){ try{ return JSON.parse(localStorage.getItem('pm_cloud')||'null'); }catch(e){ return null; } }
 function cloudCfgSet(o){ try{ localStorage.setItem('pm_cloud', JSON.stringify(o)); }catch(e){} }
-// Simpan nomor revisi cloud terakhir yang sudah kita serap, supaya BERTAHAN setelah reload / tutup-buka aplikasi.
-function persistRev(r){ try{ if(r!=null) localStorage.setItem('pm_lastrev', String(r)); }catch(e){} }
-function storedRevGet(){ var v=parseInt(localStorage.getItem('pm_lastrev'),10); return isNaN(v)?-1:v; }
-/* REKONSILIASI SAAT BUKA — dijalankan sekali tiap aplikasi dibuka, SEBELUM polling biasa.
-   Tujuannya menyembuhkan kasus: perangkat ini punya flag "dirty" sisa sesi lama (mis. di HP aplikasi
-   ditutup sebelum sinkron selesai), sehingga polling biasa menolak menarik data & malah menimpa cloud
-   dengan data lama. Karena data tidak diedit di dua perangkat secara bersamaan, bila revisi cloud LEBIH
-   BARU dari yang terakhir kita serap, versi cloud-lah yang sah dan kita tarik. */
-function gsStartupSync(){ if(!Cloud.enabled||!Cloud.url) return;
-  gsJsonp({action:'rev', room:Cloud.room, secret:Cloud.secret||''}, (err,j)=>{
-    if(err||!j||!j.ok){ return; }   // biarkan polling normal yang mencoba lagi
-    Cloud.connected=true; Cloud.err=''; if(Cloud.status!=='error') Cloud.status='connected';
-    var sRev=storedRevGet();
-    var cloudAhead = (j.exists && (+j.rev)>0 && (+j.rev) > sRev);
-    if(cloudAhead){
-      // Cloud lebih baru → tarik & timpa data lokal lama. Buang flag dirty sisa (sudah usang vs cloud).
-      clearDirty(); Cloud.pending=null; Cloud.pendingSince=0; Cloud.lastRev=null;
-      gsFullPull();
-    } else if(Cloud.dirty){
-      // Tidak ada versi cloud lebih baru, tapi ada input lokal belum terkirim → kirim sekarang.
-      gsPush(true);
-    } else {
-      Cloud.lastRev=(+j.rev); persistRev(+j.rev);
-    }
-    if(!cloudBusy()) render&&render();
-  });
+function syncSleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function syncNow(){ return Date.now()+(Sync.skew||0); }
+function syncRoomName(r){ return String(r||'pmdata').replace(/[^\w\-]/g,'').slice(0,40)||'pmdata'; }
+function syncDevId(){
+  if(Sync.devId) return Sync.devId;
+  let d=''; try{ d=localStorage.getItem('pm_devid')||''; }catch(e){}
+  if(!/^d[a-z0-9]{6,}$/.test(d)){ d='d'+Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4); try{ localStorage.setItem('pm_devid',d); }catch(e){} }
+  return (Sync.devId=d);
 }
-function cloudStatusLabel(){ if(!Cloud.enabled) return '⚪ nonaktif'; if(Cloud.status==='error') return '🔴 gagal: '+(Cloud.err||'cek config'); if(Cloud.dirty||Cloud.pending) return '🟡 menyimpan ke cloud…'; if(Cloud.status==='connected') return '🟢 tersinkron — data dibagikan'; if(Cloud.status==='connecting') return '🟡 menyambung…'; return '⚪ nonaktif'; }
-// Cloud-check icon, colored by sync status: green=updated, red=error, white/neutral=other
-function cloudIcon(extra){
-  let st = (Cloud && Cloud.enabled) ? (Cloud.status||'off') : 'off';
-  if(Cloud.enabled && (Cloud.dirty||Cloud.pending) && st!=='error') st='connecting';   // belum terkonfirmasi → jangan hijau
-  let lbl;
-  if(st==='connected') lbl='🟢 Tersinkron — data sudah ter-update di cloud';
-  else if(st==='error') lbl='🔴 Sinkronisasi gagal — '+(Cloud.err||'cek koneksi / Settings');
-  else if(st==='connecting') lbl=(Cloud.dirty||Cloud.pending)?'🟡 Menyimpan ke cloud… (data sudah aman di perangkat)':'⚪ Menyambung ke cloud…';
-  else lbl='⚪ Lokal — cloud sync nonaktif (data tersimpan di perangkat)';
-  const title = lbl + (extra?(' · '+extra):'');
-  return `<span class="synced cl-${st}" title="${esc(title)}">${ICON_CLOUDCHECK}</span>`;
-}
-function gsJsonp(params, cb){
-  if(!Cloud.url){ cb(new Error('URL empty')); return; }
-  const id='__pmcb'+(++_jsonpN);
+function syncTok(){ return Sync.adminTok||Sync.tok||''; }
+function syncRoleEff(){ return Sync.adminTok?'admin':(Sync.tok?(Sync.role||null):null); }
+/* Admin UI terbuka bila: sinkron cloud nonaktif (mode lokal murni) atau peran efektif = admin */
+function isAdminUI(){ return !Cloud.enabled || syncRoleEff()==='admin'; }
+function syncSaveCreds(){ const cf=cloudCfgGet()||{}; cf.tok=Sync.tok||''; cf.role=Sync.tok?(Sync.role||''):''; cloudCfgSet(cf); }
+function syncSplit(k){ const i=k.indexOf(':'); return [k.slice(0,i), k.slice(i+1)]; }
+function syncIsObj(x){ return !!x && typeof x==='object' && !Array.isArray(x); }
+
+/* ---------- transport: JSONP (baca) & POST (tulis) ---------- */
+function gsJsonp(params, cb, timeoutMs){
+  if(!Cloud.url){ cb(new Error('URL kosong')); return; }
+  const id='__pmcb'+(++_jsonpN)+'_'+Date.now().toString(36);
   const s=document.createElement('script');
-  let done=false; const finish=(err,data)=>{ if(done)return; done=true; try{delete window[id];}catch(_){ window[id]=undefined; } try{s.remove();}catch(_){ } cb(err,data); };
+  let done=false, tm=null;
+  const finish=(err,data)=>{ if(done)return; done=true; clearTimeout(tm); window[id]=function(){}; try{s.remove();}catch(_){ } cb(err,data); };
   window[id]=function(data){ finish(null,data); };
-  s.onerror=function(){ finish(new Error('tidak bisa memuat URL (cek URL benar & deploy = Anyone)')); };
-  setTimeout(()=>finish(new Error('timeout — server tidak menjawab')), 15000);
-  const q=Object.keys(params).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(params[k])).join('&');
-  s.src=Cloud.url+'?'+q+'&callback='+id+'&_t='+Date.now();
+  s.onerror=function(){ finish(new Error('tidak bisa menghubungi server (cek internet / URL / deploy "Anyone")')); };
+  tm=setTimeout(()=>finish(new Error('timeout — server tidak menjawab')), timeoutMs||20000);
+  const q=Object.keys(params).filter(k=>params[k]!==undefined&&params[k]!==null).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(params[k])).join('&');
+  s.src=Cloud.url+(Cloud.url.indexOf('?')<0?'?':'&')+q+'&callback='+id+'&_t='+Date.now();
   document.body.appendChild(s);
 }
-function gsConnect(cfg){
-  if(!cfg||!cfg.url){ Cloud.status='error'; Cloud.err='Web App URL is empty'; render&&render(); return; }
-  Cloud.url=cfg.url; Cloud.room=(cfg.room||'pmdata'); Cloud.secret=cfg.secret||''; Cloud.poll=Math.max(5,(+cfg.poll||12)); Cloud.enabled=true; Cloud.status='connecting'; render&&render();
-  gsStartupSync(); clearInterval(Cloud._pollTimer); Cloud._pollTimer=setInterval(gsPoll, Cloud.poll*1000);
-}
-function cloudBusy(){
-  const ids=['cmodal','jcmodal','mmodal']; for(let i=0;i<ids.length;i++){ const el=document.getElementById(ids[i]); if(el&&el.classList&&el.classList.contains('show')) return true; }
-  const a=document.activeElement; if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName||'')) return true;
-  return false;
-}
-function gsPoll(){ if(!Cloud.enabled||!Cloud.url) return;
-  // CEK RINGAN: hanya nomor revisi + token (~80 byte), TIDAK mengunduh seluruh data
-  gsJsonp({action:'rev', room:Cloud.room, secret:Cloud.secret||''}, (err,j)=>{
-    if(err){ Cloud.status='error'; Cloud.connected=false; Cloud.err=err.message; if(!cloudBusy())render&&render(); return; }
-    if(!j||!j.ok){ Cloud.status='error'; Cloud.connected=false; Cloud.err=(j&&j.error)||'akses ditolak'; if(!cloudBusy())render&&render(); return; }
-    const wasError=(Cloud.status==='error'||Cloud.status==='connecting');
-    Cloud.connected=true; Cloud.err=''; if(wasError){ Cloud.status='connected'; if(!cloudBusy())render&&render(); }
-    // (1) KONFIRMASI: token kita sudah mendarat di server? (tanpa unduh data)
-    if(Cloud.pending && j.w===Cloud.pending){
-      Cloud.confirmedToken=Cloud.pending; Cloud.pending=null; Cloud.pendingSince=0; Cloud.lastRev=j.rev; persistRev(j.rev);
-      clearDirty(); Cloud.status='connected'; if(!cloudBusy())render&&render(); return;
-    }
-    // (2) server kosong → kirim data kita
-    if(!j.exists || j.rev===0){
-      if(!Cloud.pending || Date.now()-Cloud.pendingSince>15000) gsPush();
-      return;
-    }
-    // (3) ada perubahan lokal belum terkonfirmasi → lindungi, kirim ulang bila stale
-    if(Cloud.dirty){
-      const stale = !Cloud.pending || (Date.now()-Cloud.pendingSince > Math.max(12000, Cloud.poll*1500));
-      if(stale) gsPush();
-      return;
-    }
-    // (4) revisi berubah & bukan tulisan kita → BARU unduh data penuh
-    if(j.rev!==Cloud.lastRev && j.w!==Cloud.confirmedToken){
-      if(cloudBusy()) return;
-      gsFullPull();
-    } else { Cloud.lastRev=j.rev; persistRev(j.rev); }
-  });
-}
-// Unduh data PENUH (hanya dipanggil saat rev berubah / tarik manual)
-function gsFullPull(){ if(!Cloud.enabled||!Cloud.url) return;
-  gsJsonp({action:'get', room:Cloud.room, secret:Cloud.secret||''}, (err,j)=>{
-    if(err||!j||!j.ok||!j.data) return;
-    if(Cloud.dirty) return;            // jangan timpa perubahan lokal belum tersinkron
-    if(cloudBusy()) return;
-    Cloud.lastRev=j.rev; persistRev(j.rev); cloudApply(j.data);
+function syncGet(params, timeoutMs){
+  return new Promise((resolve,reject)=>{
+    const p=Object.assign({ app:APP_BUILD, proto:SYNC_PROTO, room:Cloud.room, dev:syncDevId(), tok:syncTok() }, params||{});
+    gsJsonp(p,(err,j)=>err?reject(err):resolve(j), timeoutMs);
   });
 }
 /* Buat hidden iframe + form sekali pakai untuk POST yang bebas CORS dari origin manapun */
@@ -3001,64 +2963,650 @@ function _ensureSyncForm(){
     document.body.appendChild(frm);
   }
 }
-/* ---- BATCH 1: gambar denah dikirim ke "ruang" cloud terpisah, HANYA saat gambarnya berubah ---- */
-function denahRoom(){ return (Cloud.room||'pmdata')+'__img'; }
-function denahRevSent(){ try{ return localStorage.getItem('pm_denahrev_'+denahRoom())||''; }catch(e){ return ''; } }
-function denahRevMark(r){ try{ localStorage.setItem('pm_denahrev_'+denahRoom(), r||''); }catch(e){} }
-function _ensureImgForm(){
-  if(!document.getElementById('__imgIfr')){
-    const ifr=document.createElement('iframe'); ifr.id='__imgIfr'; ifr.name='__imgIfr';
-    ifr.style.cssText='display:none!important;width:0;height:0;position:absolute;top:-9999px;left:-9999px;border:0';
-    document.body.appendChild(ifr); }
-  if(!document.getElementById('__imgFrm')){
-    const frm=document.createElement('form'); frm.id='__imgFrm'; frm.method='POST'; frm.target='__imgIfr';
-    frm.enctype='text/plain'; frm.setAttribute('enctype','text/plain'); frm.acceptCharset='utf-8'; frm.style.display='none';
-    const inp=document.createElement('input'); inp.type='hidden'; inp.name='body'; frm.appendChild(inp);
-    document.body.appendChild(frm); } }
-function gsPushDenah(img,rev){ if(!Cloud.enabled||!Cloud.url) return;
+/* Tulis: fetch POST (jawaban langsung dibaca). Bila diblokir CORS / dibuka sebagai file lokal →
+   form tersembunyi + baca hasilnya lewat JSONP "result" (server menyimpan hasil per tx). */
+async function syncPost(body){
+  const text=JSON.stringify(body);
+  const unreachable='tidak bisa menghubungi server — data aman di perangkat, dicoba ulang otomatis';
+  if(Sync.mode!=='form'){
+    try{
+      const ctl=(typeof AbortController!=='undefined')?new AbortController():null;
+      const t=setTimeout(()=>{ try{ ctl&&ctl.abort(); }catch(e){} }, 60000);
+      const r=await fetch(Cloud.url,{ method:'POST', body:text, redirect:'follow', signal:ctl?ctl.signal:undefined });
+      clearTimeout(t);
+      const j=await r.json(); Sync.mode='fetch'; return j;
+    }catch(e){
+      if(typeof navigator!=='undefined' && navigator.onLine===false) throw new Error('perangkat sedang offline — data aman di perangkat');
+      // fetch gagal: jawaban diblokir CORS (server tetap memproses) atau jaringan putus → tanyakan hasil tx lewat JSONP
+      let j=null; try{ j=await syncGet({action:'result', tx:body.tx}, 15000); }catch(e2){ throw new Error(unreachable); }
+      if(j && j.code!=='PENDING'){ if(j.ok) Sync.mode='form'; return j; }
+    }
+  }
+  _ensureSyncForm();
+  const frm=document.getElementById('__syncFrm'); frm.action=Cloud.url;
+  frm.querySelector('input[name=body]').value=text; frm.submit();
+  let fails=0;
+  for(let i=0;i<14;i++){
+    await syncSleep(i<2?1500:2200);
+    let j=null;
+    try{ j=await syncGet({action:'result', tx:body.tx}, 15000); fails=0; }
+    catch(e){ if(++fails>=2) throw new Error(unreachable); continue; }
+    if(j && j.code==='PENDING') continue;
+    if(j){ if(j.ok) Sync.mode='form'; return j; }
+  }
+  throw new Error('server belum mengonfirmasi kiriman — dicoba ulang otomatis');
+}
+
+/* ---------- status & tampilan ---------- */
+function cloudState(){
+  if(!Cloud.enabled) return {cls:'off', lbl:'⚪ Lokal — sinkron cloud nonaktif (data tersimpan di perangkat)'};
+  if(Sync.blocked==='old') return {cls:'error', lbl:'🔴 Versi aplikasi lama — muat ulang untuk melanjutkan sinkron (data aman di perangkat)'};
+  if(!syncTok()) return {cls:'connecting', lbl:'🔑 Belum masuk — masukkan PIN di Settings (data tetap tersimpan di perangkat)'};
+  if(Cloud.status==='error') return {cls:'error', lbl:'🔴 Sinkronisasi gagal — '+(Cloud.err||'cek koneksi')};
+  if(!Sync.attached && !Sync.init && syncRoleEff()!=='admin') return {cls:'connecting', lbl:'🟡 Menunggu Admin mengisi server pertama kali'};
+  if(Cloud.dirty||Cloud.pending||Sync.conflicts.length) return {cls:'connecting', lbl:'🟡 Menyimpan ke cloud… (data sudah aman di perangkat)'};
+  if(Cloud.status==='connected'&&Sync.attached) return {cls:'connected', lbl:'🟢 Tersinkron — data sudah ter-update di cloud'};
+  return {cls:'connecting', lbl:'⚪ Menyambung ke cloud…'};
+}
+function cloudStatusLabel(){
+  if(!Cloud.enabled) return '⚪ nonaktif';
+  if(Sync.blocked==='old') return '🔴 versi lama — muat ulang';
+  if(!syncTok()) return '🔑 belum masuk';
+  if(Cloud.status==='error') return '🔴 gagal';
+  if(!Sync.attached && !Sync.init && syncRoleEff()!=='admin') return '🟡 menunggu Admin';
+  if(Cloud.dirty||Cloud.pending||Sync.conflicts.length) return '🟡 menyimpan…';
+  if(Cloud.status==='connected'&&Sync.attached) return '🟢 tersinkron';
+  return '🟡 menyambung…';
+}
+// Cloud-check icon, colored by sync status: green=updated, red=error, white/neutral=other
+function cloudIcon(extra){
+  const st=cloudState();
+  return `<span class="synced cl-${st.cls}" data-x="${esc(extra||'')}" title="${esc(st.lbl+(extra?(' · '+extra):''))}">${ICON_CLOUDCHECK}</span>`;
+}
+function syncPaint(){
   try{
-    _ensureImgForm();
-    const frm=document.getElementById('__imgFrm'); frm.action=Cloud.url;
-    frm.querySelector('input[name=body]').value=JSON.stringify({action:'set',room:denahRoom(),secret:Cloud.secret||'',w:'img:'+rev,data:{img:img,rev:rev}});
-    frm.submit(); denahRevMark(rev);
+    const st=cloudState();
+    document.querySelectorAll('.synced').forEach(el=>{ el.className='synced cl-'+st.cls; const x=el.getAttribute('data-x')||''; el.title=st.lbl+(x?' · '+x:''); });
+    const lab=cloudStatusLabel()+'|'+(syncRoleEff()||'')+'|'+(Sync.nOut||0);
+    if(lab!==Sync.lastLabel){ Sync.lastLabel=lab; if(typeof current!=='undefined' && current==='set' && !cloudBusy()){ try{ render(); }catch(e){} } }
   }catch(e){}
 }
-function gsPullDenah(rev){ if(!Cloud.enabled||!Cloud.url) return;
-  gsJsonp({action:'get',room:denahRoom(),secret:Cloud.secret||''},(err,j)=>{
-    if(err||!j||!j.ok||!j.data||typeof j.data.img!=='string') return;
-    CFG.denah=CFG.denah||{img:'',racks:[]}; CFG.denah.img=j.data.img;
-    denahRevMark(j.data.rev||rev||'');
-    try{ Store.set('pm_denah',j.data.img); }catch(e){}
-    try{ toast&&toast('\ud83d\uddfa\ufe0f Denah terbaru diterima'); }catch(e){}
-    try{ if(!cloudBusy()) render&&render(); }catch(e){}
-  }); }
-function gsPush(immediate){ if(!Cloud.enabled||!Cloud.url||Cloud.suppress) return; clearTimeout(_cloudTimer);
-  const doWrite=()=>{
-    const token=CLIENT_ID+':'+Date.now(); Cloud.pending=token; Cloud.pendingSince=Date.now(); Cloud.lastToken=token; markDirty();
-    if(Cloud.status!=='error') Cloud.status='connected'; if(!cloudBusy()) render&&render();
-    // BATCH 1: gambar denah TIDAK ikut di sini — yang dikirim hanya penanda versinya (beberapa byte).
-    const _img=denahImgGet(), _rev=denahImgRev(_img);
-    const _cfgOut=cfgLite(); if(_cfgOut.denah) _cfgOut.denah.imgRev=_rev;
-    const payload=JSON.stringify({ action:'set', room:Cloud.room, secret:Cloud.secret||'', w:token,
-      data:{ db:DB, cfg:_cfgOut, actions:actionStatus, jc:JCPLANS, stock:STOCK, jccheck:JCCHECKS } });
-    if(_rev && _rev!==denahRevSent()) setTimeout(function(){ gsPushDenah(_img,_rev); }, 1500);   // kirim gambar hanya bila berubah
-    // ── Metode 1: Hidden form POST — bebas CORS, bekerja dari file:// maupun http/https, aman untuk data besar
-    try{
-      _ensureSyncForm();
-      const frm=document.getElementById('__syncFrm');
-      frm.action=Cloud.url; frm.querySelector('input[name=body]').value=payload;
-      frm.submit();
-      setTimeout(gsPoll, 2000);   // tunggu server proses sebelum konfirmasi
-    } catch(fe){
-      // ── Fallback: fetch no-cors bila form gagal (edge case)
-      fetch(Cloud.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:payload})
-        .then(()=>{ setTimeout(gsPoll,1200); })
-        .catch(e=>{ Cloud.status='error'; Cloud.err='gagal kirim: '+e.message; if(!cloudBusy())render&&render(); });
-    }
-  };
-  if(immediate) doWrite(); else _cloudTimer=setTimeout(doWrite, 800);
+function syncInjectCss(){
+  if(document.getElementById('syncCss')) return;
+  const s=document.createElement('style'); s.id='syncCss';
+  s.textContent=`.pin-ov{position:fixed;inset:0;z-index:400;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(4,8,16,.62)}
+.pin-ov.show{display:flex}
+.pin-card{width:100%;max-width:380px;background:var(--bg2);border:1px solid var(--line2);border-radius:20px;box-shadow:0 24px 70px rgba(0,0,0,.45);padding:20px 20px 18px;color:var(--txt)}
+body.soft .pin-card{background:var(--panel);border:0}
+.pin-h{display:flex;align-items:flex-start;gap:12px}
+.pin-h h3{margin:2px 0 0;font-size:17px;line-height:1.3}
+.pin-x{margin-left:auto;flex:0 0 auto;width:36px;height:36px;border-radius:50%;border:1px solid var(--line2);background:var(--panel2);color:var(--txt2);font-size:15px;cursor:pointer;font-family:inherit}
+.pin-sub{color:var(--txt2);font-size:13px;line-height:1.45;margin:8px 0 14px}
+.pin-foot{color:var(--txt3);font-size:12px;line-height:1.45;margin-top:14px}
+.pin-act{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+.pin-in{width:100%;font-size:26px;letter-spacing:.35em;text-align:center;padding:12px 14px;border-radius:12px;font-family:'Spline Sans Mono',monospace}
+.pin-err{min-height:18px;color:var(--red);font-size:12.5px;margin-top:8px;font-weight:700}
+.sync-stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px 14px;margin:4px 0 6px}
+.sync-kv{display:flex;flex-direction:column;gap:2px;font-size:12.5px;min-width:0}
+.sync-kv span{color:var(--txt3);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+.sync-kv b{font-weight:700;overflow-wrap:anywhere}
+.sync-role{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;font-weight:800;font-size:12px;border:1px solid var(--line2);background:var(--panel2)}
+.sync-role.admin{color:var(--accent2);border-color:var(--accent)}.sync-role.operator{color:var(--blue);border-color:var(--blue)}.sync-role.none{color:var(--txt3)}
+.sync-upd{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 10px);z-index:500;display:flex;gap:12px;align-items:center;width:max-content;max-width:calc(100vw - 24px);background:var(--redbg,#3a1620);color:var(--txt);border:1px solid var(--red);border-radius:14px;padding:10px 12px 10px 16px;box-shadow:var(--shadow);font-size:13px;line-height:1.35}
+.sync-upd button{flex:0 0 auto;background:var(--red);color:#fff;border:0;border-radius:10px;padding:9px 13px;font-weight:800;cursor:pointer;font-family:inherit}
+.sync-lockcard .btn{margin-top:4px}`;
+  document.head.appendChild(s);
 }
+function syncShowUpdate(){
+  syncInjectCss();
+  if(document.getElementById('syncUpd')) return;
+  const d=document.createElement('div'); d.id='syncUpd'; d.className='sync-upd'; d.setAttribute('role','alert');
+  d.innerHTML='<span>⚠️ <b>Versi aplikasi ini sudah lama.</b> Sinkron dihentikan sampai dimuat ulang — data Anda tetap aman di perangkat.</span><button type="button" onclick="syncReloadApp()">↻ Muat ulang</button>';
+  document.body.appendChild(d);
+}
+function syncReloadApp(){
+  try{ syncSaveShadowNow(); }catch(e){}
+  setTimeout(()=>{ try{ const q=new URLSearchParams(location.search); q.set('v',String(Date.now())); location.replace(location.pathname+'?'+q.toString()+location.hash); }catch(e){ location.reload(); } }, 250);
+}
+
+/* ---------- kesalahan dari server / jaringan ---------- */
+function syncServerErr(j){
+  Sync.cycleErr=true;
+  const code=(j&&j.code)||((j&&j.proto==null)?'OLDSERVER':'');
+  if(code==='OLD_APP'){ Sync.blocked='old'; Cloud.status='error'; Cloud.err='Versi aplikasi lama — muat ulang'; syncShowUpdate(); }
+  else if(code==='AUTH'){
+    if(Sync.adminTok){ syncAdminLock(true); toast('🔒 Sesi Admin berakhir',1); }
+    else { Sync.tok=''; Sync.role=null; syncSaveCreds(); Cloud.status='error'; Cloud.err='Sesi berakhir / PIN diganti — masukkan PIN lagi'; Sync.promptShown=false; pinLoginPrompt(); }
+  }
+  else if(code==='SETUP'){ Cloud.status='error'; Cloud.err='Server belum di-setup — jalankan setup() di Apps Script'; }
+  else if(code==='NOT_INIT'){ Sync.init=false; Sync.cycleErr=false; }
+  else if(code==='BUSY'){ /* dicoba ulang pada siklus berikutnya */ }
+  else if(code==='MASS_DELETE'){ Cloud.status='error'; Cloud.err=(j.error||'Penghapusan massal ditolak server'); toast('⛔ '+Cloud.err,1); }
+  else if(code==='OLDSERVER'){ Sync.blocked='server'; Cloud.status='error'; Cloud.err='Code.gs di server masih versi lama — perbarui Apps Script (lihat panduan)'; }
+  else { Cloud.status='error'; Cloud.err=(j&&j.error)||'respons server tidak dikenal'; }
+  syncPaint();
+}
+function syncNetErr(e){ Sync.cycleErr=true; Cloud.connected=false; Cloud.status='error'; Cloud.err=(e&&e.message)||'tidak terhubung'; syncPaint(); }
+
+/* ---------- shadow (versi server terakhir yang diketahui) di IndexedDB ---------- */
+let _idbP=null;
+function syncIdb(){
+  if(_idbP) return _idbP;
+  _idbP=new Promise(res=>{
+    try{
+      if(!window.indexedDB){ res(null); return; }
+      const rq=indexedDB.open('pm_sync',1);
+      rq.onupgradeneeded=()=>{ try{ rq.result.createObjectStore('kv'); }catch(e){} };
+      rq.onsuccess=()=>res(rq.result); rq.onerror=()=>res(null); rq.onblocked=()=>res(null);
+      setTimeout(()=>res(null),5000);
+    }catch(e){ res(null); }
+  });
+  return _idbP;
+}
+async function syncKvGet(k){
+  const db=await syncIdb();
+  if(db){ try{ const v=await new Promise(res=>{ const tx=db.transaction('kv','readonly'); const rq=tx.objectStore('kv').get(k); rq.onsuccess=()=>res(rq.result); rq.onerror=()=>res(undefined); }); if(v!==undefined) return v; }catch(e){} }
+  try{ const s=localStorage.getItem('pm_kv_'+k); return s?JSON.parse(s):undefined; }catch(e){ return undefined; }
+}
+async function syncKvSet(k,v){
+  const db=await syncIdb();
+  if(db){ try{ await new Promise((res,rej)=>{ const tx=db.transaction('kv','readwrite'); tx.objectStore('kv').put(v,k); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); tx.onabort=()=>rej(tx.error); }); try{ localStorage.removeItem('pm_kv_'+k); }catch(e){} return true; }catch(e){} }
+  try{ localStorage.setItem('pm_kv_'+k, JSON.stringify(v)); return true; }catch(e){ return false; }
+}
+async function syncLoadShadow(){
+  const room=Cloud.room;
+  if(Sync.loadedRoom===room && Sync.map) return;
+  const s=await syncKvGet('shadow:'+room);
+  if(s && s.map && typeof s.map==='object'){ Sync.map=s.map; Sync.lastRev=+s.lastRev||0; Sync.sid=s.sid||''; Sync.dt=s.dt||{}; Sync.attached=!!s.sid; }
+  else { Sync.map={}; Sync.lastRev=0; Sync.sid=''; Sync.dt={}; Sync.attached=false; }
+  Sync.loadedRoom=room; Sync.needDiff=true;
+}
+function syncSaveShadowSoon(){ clearTimeout(Sync.saveT); Sync.saveT=setTimeout(syncSaveShadowNow, 400); }
+function syncSaveShadowNow(){
+  clearTimeout(Sync.saveT);
+  if(!Sync.map||!Sync.loadedRoom) return;
+  syncKvSet('shadow:'+Sync.loadedRoom, { v:3, sid:Sync.attached?Sync.sid:'', lastRev:+Sync.lastRev||0, map:Sync.map, dt:Sync.dt, at:Date.now() });
+}
+
+/* ---------- data lokal ↔ key sinkron ("db:<id>", "jc:<id>", "stock:<id>", "jccheck:<id>", "act:<key>", "cfg:<key>", "img:denah") ---------- */
+let _imgRevC={s:null,r:''};
+function syncImgRev(img){ if(_imgRevC.s===img) return _imgRevC.r; const r=denahImgRev(img); _imgRevC={s:img,r}; return r; }
+function syncCfgVal(id){
+  if(CFG_LOCAL_KEYS[id]||!CFG) return undefined;
+  const v=CFG[id];
+  if(id==='denah' && v && typeof v==='object'){ const c=Object.assign({},v); c.img=''; return c; }
+  return v;
+}
+function syncEnsureIds(){
+  let ch=false;
+  try{ if(ensureRecIds()) ch=true; }catch(e){}
+  [JCPLANS,STOCK,JCCHECKS].forEach(arr=>{ const seen={};
+    (arr||[]).forEach(r=>{ if(!r||typeof r!=='object') return;
+      if(r.id==null||r.id===''||seen[String(r.id)]){ r.id=Date.now()+Math.floor(Math.random()*1e6); ch=true; }
+      seen[String(r.id)]=1; }); });
+  if(ch){ try{ saveLocal(); }catch(e){} }
+  return ch;
+}
+function syncCollectLocal(){
+  const m=new Map();
+  Object.keys(SYNC_ARR).forEach(c=>{ (SYNC_ARR[c]()||[]).forEach(r=>{ if(r&&typeof r==='object'&&r.id!=null&&r.id!=='') m.set(c+':'+r.id, JSON.stringify(r)); }); });
+  const a=actionStatus||{}; Object.keys(a).forEach(k=>{ if(k!==''&&a[k]!==undefined) m.set('act:'+k, JSON.stringify(a[k])); });
+  Object.keys(CFG||{}).forEach(k=>{ const v=syncCfgVal(k); if(v===undefined||typeof v==='function') return; m.set('cfg:'+k, JSON.stringify(v)); });
+  const img=denahImgGet(); if(img) m.set('img:denah','R'+syncImgRev(img));
+  return m;
+}
+function syncCtx(){
+  const ctx={ ix:{}, removed:{}, cfg:false, img:false, touched:false };
+  ctx.idx=function(c){ if(!ctx.ix[c]){ const m=new Map(); (SYNC_ARR[c]()||[]).forEach(r=>{ if(r&&typeof r==='object'&&r.id!=null) m.set(String(r.id),r); }); ctx.ix[c]=m; } return ctx.ix[c]; };
+  return ctx;
+}
+function syncCmpOf(c,v){ if(v===undefined) return undefined; if(c==='img') return 'R'+((v&&v.rev)||denahImgRev((v&&v.img)||'')); return JSON.stringify(v); }
+function syncLocalCmp(ctx,k){
+  const [c,id]=syncSplit(k);
+  if(SYNC_ARR[c]){ const r=ctx.idx(c).get(id); return r?JSON.stringify(r):undefined; }
+  if(c==='act'){ const a=actionStatus||{}; return (Object.prototype.hasOwnProperty.call(a,id)&&a[id]!==undefined)?JSON.stringify(a[id]):undefined; }
+  if(c==='cfg'){ const v=syncCfgVal(id); return (v===undefined||typeof v==='function')?undefined:JSON.stringify(v); }
+  if(c==='img'){ const img=denahImgGet(); return img?('R'+syncImgRev(img)):undefined; }
+  return undefined;
+}
+function syncSetLocal(ctx,k,v){
+  const [c,id]=syncSplit(k); ctx.touched=true;
+  if(SYNC_ARR[c]){
+    if(!v||typeof v!=='object') return;
+    const m=ctx.idx(c), cur=m.get(id);
+    if(cur && typeof cur==='object'){ Object.keys(cur).forEach(f=>{ if(!(f in v)) delete cur[f]; }); Object.assign(cur,v); }   // di tempat: referensi lama tetap valid
+    else { const arr=SYNC_ARR[c](); arr.push(v); m.set(id,v); }
+    if(ctx.removed[c]) ctx.removed[c].delete(id);
+  } else if(c==='act'){ if(!actionStatus||typeof actionStatus!=='object') actionStatus={}; actionStatus[id]=v; }
+  else if(c==='cfg'){
+    if(CFG_LOCAL_KEYS[id]) return;
+    if(id==='denah'){ const img=denahImgGet(); v=(v&&typeof v==='object')?Object.assign({},v):{racks:[]}; v.img=img; }
+    CFG[id]=v; ctx.cfg=true;
+  } else if(c==='img'){
+    CFG.denah=(CFG.denah&&typeof CFG.denah==='object')?CFG.denah:{img:'',racks:[]};
+    CFG.denah.img=(v&&typeof v.img==='string')?v.img:''; ctx.img=true;
+  }
+}
+function syncRemoveLocal(ctx,k){
+  const [c,id]=syncSplit(k); ctx.touched=true;
+  if(SYNC_ARR[c]){ (ctx.removed[c]||(ctx.removed[c]=new Set())).add(id); ctx.idx(c).delete(id); }
+  else if(c==='act'){ if(actionStatus) delete actionStatus[id]; }
+  else if(c==='cfg'){ if(CFG_LOCAL_KEYS[id]) return; if(id in DEFAULT_CFG) CFG[id]=JSON.parse(JSON.stringify(DEFAULT_CFG[id])); else delete CFG[id]; ctx.cfg=true; }
+  else if(c==='img'){ if(CFG.denah) CFG.denah.img=''; ctx.img=true; }
+}
+function syncNormalizeCfg(){
+  if(!CFG.shifts||!CFG.shifts.length) CFG.shifts=DEFAULT_CFG.shifts.slice();
+  if(!CFG.jcAreas) CFG.jcAreas=JSON.parse(JSON.stringify(DEFAULT_CFG.jcAreas));
+  if(!CFG.processes||!CFG.processes.length) CFG.processes=DEFAULT_CFG.processes.slice();
+  if(!Array.isArray(CFG.jcMaster)) CFG.jcMaster=[];
+  if(!CFG.cds||!CFG.cds.length) CFG.cds=DEFAULT_CFG.cds.slice();
+  if(!CFG.consumables) CFG.consumables=DEFAULT_CFG.consumables.slice();
+  if(!CFG.denah||typeof CFG.denah!=='object') CFG.denah={img:'',racks:[]};
+  if(!Array.isArray(CFG.denah.racks)) CFG.denah.racks=[];
+  if(typeof CFG.denah.img!=='string') CFG.denah.img='';
+  if(!CFG.lifetimes||typeof CFG.lifetimes!=='object') CFG.lifetimes={};
+  if(!CFG.machineSecs||typeof CFG.machineSecs!=='object') CFG.machineSecs={};
+  if(!CFG.commonReasons||!CFG.commonReasons.length) CFG.commonReasons=['JobChange','Roaster'];
+  if(!CFG.partReasons||typeof CFG.partReasons!=='object') CFG.partReasons={};
+  try{ ensurePartAreas(true); }catch(e){}
+}
+function syncFinishCtx(ctx, noSave){
+  const rm=ctx.removed;
+  if(rm.db&&rm.db.size) DB=DB.filter(r=>!(r&&rm.db.has(String(r.id))));
+  if(rm.jc&&rm.jc.size) JCPLANS=JCPLANS.filter(r=>!(r&&rm.jc.has(String(r.id))));
+  if(rm.stock&&rm.stock.size) STOCK=STOCK.filter(r=>!(r&&rm.stock.has(String(r.id))));
+  if(rm.jccheck&&rm.jccheck.size) JCCHECKS=JCCHECKS.filter(r=>!(r&&rm.jccheck.has(String(r.id))));
+  ctx.removed={}; ctx.ix={};
+  if(ctx.cfg){ syncNormalizeCfg(); ctx.cfg=false; }
+  if(ctx.img){ try{ Store.set('pm_denah', denahImgGet()); }catch(e){} ctx.img=false; }
+  if(noSave||!ctx.touched) return;
+  try{ ensureRecIds(); }catch(e){}
+  try{ migrateReasonGroups(); }catch(e){}
+  try{ saveLocal(); }catch(e){}
+  Sync.needDiff=true;
+  if(!cloudBusy()){ try{ buildNav(); }catch(e){} try{ render(); }catch(e){} }
+}
+/* Gabung 3 arah per field: field yang hanya diubah di perangkat ini dipertahankan, field yang hanya
+   diubah di server diambil; bila keduanya mengubah field yang sama → yang lebih baru menang. */
+function syncMerge3(base, local, server, lt, st){
+  if(!syncIsObj(local)||!syncIsObj(server)) return (lt>=st)?local:server;
+  const J=x=>x===undefined?undefined:JSON.stringify(x);
+  const out=Object.assign({},server), hasBase=syncIsObj(base);
+  const keys=new Set(Object.keys(local)); if(hasBase) Object.keys(base).forEach(f=>keys.add(f));
+  keys.forEach(f=>{
+    const lv=J(local[f]), sv=J(server[f]);
+    if(lv===sv) return;
+    if(hasBase){ const bv=J(base[f]); if(lv===bv) return; if(sv!==bv && st>lt) return; }
+    else if(st>lt) return;
+    if(local[f]===undefined) delete out[f]; else out[f]=local[f];
+  });
+  return out;
+}
+
+/* ---------- terapkan item dari server: [key, rev, del, mt, by, data] ---------- */
+function syncApplyItems(items, opts){
+  opts=opts||{};
+  const ctx=syncCtx(), map=Sync.map||(Sync.map={}), adm=(syncRoleEff()==='admin');
+  let nIn=0, nMerge=0, nDel=0, maxMt=0;
+  if(!opts.initial){ let pre=0; items.forEach(it=>{ if(it&&it[2]&&syncLocalCmp(ctx,String(it[0]))!==undefined) pre++; }); if(pre>=10) snapshotSave('sebelum menerima '+pre+' penghapusan dari server'); }
+  items.forEach(it=>{
+    if(!it) return;
+    const k=String(it[0]), rev=+it[1]||0, del=!!it[2], mt=+it[3]||0, v=it[5];
+    if(!rev||k.indexOf(':')<1) return;
+    const c=k.slice(0,k.indexOf(':'));
+    const sh=map[k];
+    if(sh && sh[0]>=rev) return;                                   // sudah punya versi ini
+    const loc=syncLocalCmp(ctx,k), srv=del?undefined:syncCmpOf(c,v), base=sh?sh[1]:undefined;
+    const dirty=(base===undefined||base===null)?(loc!==undefined):(loc!==base);
+    if(mt>maxMt) maxMt=mt;
+    if(!dirty || (!adm && SYNC_ADMIN_COLS[c])){                    // tidak ada perubahan lokal → ambil versi server
+      if(del){ if(loc!==undefined){ syncRemoveLocal(ctx,k); nDel++; } delete map[k]; }
+      else { if(loc!==srv){ syncSetLocal(ctx,k,v); nIn++; } map[k]=[rev,srv]; }
+      return;
+    }
+    const lt=opts.initial?(del?0:(Sync.legacy?syncNow():0)):(Sync.dt[k]||syncNow());
+    Sync.needDiff=true;
+    if(del){
+      if(loc===undefined){ delete map[k]; }                                      // sama-sama dihapus
+      else if(mt>lt){ syncRemoveLocal(ctx,k); delete map[k]; nDel++; }           // hapus di server lebih baru
+      else { map[k]=[rev,null]; nMerge++; }                                      // edit lokal lebih baru → dikirim ulang
+    } else if(loc===undefined){                                                  // dihapus di sini, diubah di server
+      if(mt>lt){ syncSetLocal(ctx,k,v); nIn++; }
+      map[k]=[rev,srv];
+    } else if(loc===srv){ map[k]=[rev,srv]; }
+    else if(c==='img' || !syncIsObj(v)){                                         // tanpa field → versi terbaru menang
+      if(mt>lt){ syncSetLocal(ctx,k,v); nIn++; } else nMerge++;
+      map[k]=[rev,srv];
+    } else {
+      let b=null; if(typeof base==='string'){ try{ b=JSON.parse(base); }catch(e){ b=null; } }
+      let l=null; try{ l=JSON.parse(loc); }catch(e){ l=null; }
+      syncSetLocal(ctx,k,syncMerge3(b,l,v,lt,mt)); map[k]=[rev,srv]; nMerge++;
+    }
+  });
+  syncFinishCtx(ctx);
+  if(maxMt){ try{ if(maxMt>lastModTime()){ CFG.lastMod=maxMt; localStorage.setItem('pm_lastmod',String(maxMt)); } }catch(e){} }
+  const n=nIn+nDel;
+  if(!opts.quiet && (n||nMerge)) toast('☁️ '+(n?n+' perubahan dari perangkat lain diterima':'')+(nMerge?((n?' · ':'')+nMerge+' data digabung otomatis'):''));
+  return {nIn,nDel,nMerge};
+}
+/* Data lengkap dari server (sinkron pertama, atau perangkat terlalu lama offline). */
+function syncApplyFull(items, initial){
+  const srv=new Set(items.map(it=>String(it[0])));
+  const cur=syncCollectLocal(), ctx=syncCtx(), old=Sync.map||{};
+  const unknown=[]; cur.forEach((cmp,k)=>{ if(!srv.has(k)) unknown.push(k); });
+  if(initial) snapshotSave('sebelum sinkron pertama');
+  else {   // cadangan hanya bila sinkron penuh ini akan menghapus data di perangkat
+    let risk=0;
+    unknown.forEach(k=>{ const sh=old[k]; if(sh && sh[1]!==null && sh[1]===cur.get(k)) risk++; });
+    items.forEach(it=>{ if(it && it[2] && cur.has(String(it[0]))) risk++; });
+    if(risk) snapshotSave('sebelum sinkron penuh ('+risk+' data dihapus di server)');
+  }
+  let nRm=0;
+  if(initial){
+    Sync.map={};
+    const dataUnknown=unknown.filter(k=>!SYNC_ADMIN_COLS[k.slice(0,k.indexOf(':'))]);
+    if(items.length && dataUnknown.length){
+      const keep=confirm('☁️ Sinkron pertama dengan server\n\nPerangkat ini punya '+dataUnknown.length+' data (record / plan JC / stock / ceklist / status action) yang belum ada di server.\n\nOK = kirim ke server (data baru dari perangkat ini)\nBatal = buang dari perangkat ini (mis. data lama yang sudah dihapus di perangkat lain)\n\nCadangan otomatis sudah dibuat dulu — Admin bisa memulihkannya di Settings.');
+      if(!keep) dataUnknown.forEach(k=>{ syncRemoveLocal(ctx,k); nRm++; });
+    }
+  } else {
+    const m={}; Object.keys(old).forEach(k=>{ if(srv.has(k)) m[k]=old[k]; });
+    // pernah tersinkron & tidak diubah di sini, tapi sudah tidak ada di server → sudah dihapus
+    unknown.forEach(k=>{ const sh=old[k]; if(sh && sh[1]!==null && sh[1]===cur.get(k)){ syncRemoveLocal(ctx,k); nRm++; } });
+    Sync.map=m;
+  }
+  syncFinishCtx(ctx, true);
+  const r=syncApplyItems(items, {initial:!!initial, quiet:true});
+  if(nRm) ctx.touched=true;
+  if(nRm && !r.nIn && !r.nDel && !r.nMerge){ try{ saveLocal(); }catch(e){} if(!cloudBusy()){ try{ buildNav(); render(); }catch(e){} } }
+  const n=r.nIn+r.nDel+nRm;
+  if(n||r.nMerge) toast('☁️ Sinkron '+(initial?'pertama':'penuh')+' selesai'+(n?' · '+n+' perubahan':'')+(r.nMerge?' · '+r.nMerge+' digabung':''));
+}
+
+/* ---------- daftar kirim (diff terhadap shadow) ---------- */
+function syncOutbox(){
+  syncEnsureIds();
+  const cur=syncCollectLocal(), map=Sync.map||(Sync.map={}), now=syncNow(), adm=(syncRoleEff()==='admin');
+  const out=[];
+  cur.forEach((cmp,k)=>{ const sh=map[k]; if(sh && sh[1]===cmp) return; out.push({k, b:sh?sh[0]:0, d:0, cmp}); });
+  Object.keys(map).forEach(k=>{ if(cur.has(k)) return; const sh=map[k]; if(sh[1]===null){ delete map[k]; return; } out.push({k, b:sh[0], d:1, cmp:null}); });
+  const keys=new Set();
+  out.forEach(o=>{ keys.add(o.k); if(!Sync.dt[o.k]) Sync.dt[o.k]=now; o.mt=Sync.dt[o.k]; });
+  Object.keys(Sync.dt).forEach(k=>{ if(!keys.has(k)) delete Sync.dt[k]; });
+  const send=[], localCfg=[];
+  out.forEach(o=>{
+    const c=o.k.slice(0,o.k.indexOf(':'));
+    if(SYNC_ADMIN_COLS[c] && !adm){ localCfg.push(o.k); return; }
+    if(Sync.forbidden[o.k]) return;
+    if(!o.d) o.s=(o.k==='img:denah')?JSON.stringify({img:denahImgGet(), rev:syncImgRev(denahImgGet())}):o.cmp;
+    send.push(o);
+  });
+  const sig=localCfg.sort().join('|');
+  if(Sync.userEdit && localCfg.length && sig!==Sync.cfgDirtyPrev && Sync.attached && syncTok()){
+    const added=localCfg.filter(k=>Sync.cfgDirtyPrev.split('|').indexOf(k)<0);
+    if(added.length) toast('⚙️ Perubahan pengaturan ini hanya berlaku di perangkat ini — perlu PIN Admin agar dibagikan');
+  }
+  Sync.cfgDirtyPrev=sig; Sync.userEdit=false;
+  Sync.nCfgLocal=localCfg.length; Sync.nOut=send.length; Cloud.dirty=send.length>0;
+  Sync.needDiff=false;
+  return send;
+}
+function syncCanWrite(){ return Sync.attached && !Sync.blocked && !!syncTok() && (syncRoleEff()==='admin' || Sync.init); }
+
+/* ---------- siklus sinkron: (konflik) → kirim → tarik ---------- */
+function syncSchedule(ms){ if(!Cloud.enabled) return; clearTimeout(Sync.timer); Sync.timer=setTimeout(()=>syncCycle('local'), ms==null?800:ms); }
+async function syncCycle(why){
+  if(!Cloud.enabled||!Cloud.url||Sync.blocked||!syncTok()) return;
+  if(Sync.running){ Sync.again=true; return; }
+  Sync.running=true; Sync.cycleErr=false;
+  try{
+    await syncLoadShadow();
+    if(!Sync.attached){ if(!(await syncAttach())) return; }
+    for(let loop=0; loop<4; loop++){
+      if(Sync.conflicts.length){ if(cloudBusy()) Sync.deferred=true; else await syncResolveConflicts(); }
+      if(Sync.cycleErr) break;
+      const out=syncOutbox();
+      if(out.length && syncCanWrite()){ if(!(await syncPush(out))) break; }
+      await syncPull();
+      if(Sync.cycleErr||Sync.deferred) break;
+      if(!Sync.needDiff && !Sync.conflicts.length) break;
+    }
+    if(!Sync.cycleErr){ Cloud.status='connected'; Cloud.connected=true; Cloud.err=''; }
+  }catch(e){ console.warn('sync:',e); syncNetErr(e); }
+  finally{
+    Sync.running=false; syncSaveShadowSoon(); syncPaint();
+    if(Sync.again){ Sync.again=false; syncSchedule(400); }
+  }
+}
+async function syncAttach(){
+  if(cloudBusy()){ Sync.deferred=true; return false; }
+  let j; try{ j=await syncGet({action:'pull', since:0, tomb:1}, 120000); }catch(e){ syncNetErr(e); return false; }
+  if(!j||!j.ok||j.proto==null){ syncServerErr(j); return false; }
+  if(cloudBusy()){ Sync.deferred=true; return false; }
+  const adm=(syncRoleEff()==='admin'), items=j.items||[];
+  if(!items.length && !adm){ Sync.init=false; Sync.attached=false; syncPaint(); return false; }   // server kosong → tunggu Admin
+  try{ Sync.legacy=(localStorage.getItem('pm_dirty')==='1'); }catch(e){ Sync.legacy=false; }
+  Sync.dt={}; Sync.conflicts=[]; Sync.forbidden={};
+  syncApplyFull(items, true);
+  Sync.sid=j.sid||''; Sync.lastRev=+j.rev||0; Sync.attached=true; Sync.init=(Sync.lastRev>0)||adm; Sync.legacy=false; Sync.deferred=false;
+  clearDirty();
+  Sync.needDiff=true; syncSaveShadowNow();
+  return true;
+}
+async function syncPush(out){
+  const MAXN=250, MAXB=1500000; let i=0;
+  while(i<out.length){
+    const batch=[]; let bytes=0;
+    while(i<out.length && batch.length<MAXN && (bytes<MAXB||!batch.length)){ const o=out[i++]; batch.push(o); bytes+=(o.s?o.s.length:0)+80; }
+    const tx=syncDevId()+'-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7);
+    const body={ action:'push', app:APP_BUILD, proto:SYNC_PROTO, room:Cloud.room, dev:syncDevId(), tok:syncTok(),
+      by:(typeof curUser==='function'?(curUser()||''):''), tx,
+      changes:batch.map(o=>o.d?{k:o.k,b:o.b,d:1,mt:o.mt}:{k:o.k,b:o.b,mt:o.mt,s:o.s}) };
+    Cloud.pending=tx; Cloud.pendingSince=Date.now(); syncPaint();
+    let j;
+    try{ j=await syncPost(body); }catch(e){ Cloud.pending=null; syncNetErr(e); return false; }
+    Cloud.pending=null;
+    if(!j||!j.ok||j.proto==null){ syncServerErr(j); return false; }
+    const byK={}; batch.forEach(o=>{ byK[o.k]=o; });
+    (j.applied||[]).forEach(a=>{ const k=a[0], rev=+a[1]||0, o=byK[k]; if(!o) return;
+      if(o.d||!rev) delete Sync.map[k]; else Sync.map[k]=[rev,o.cmp];
+      delete Sync.dt[k]; });
+    (j.rejected||[]).forEach(r=>{ const k=r[0], why=r[1];
+      if(why==='conflict'){ if(Sync.conflicts.indexOf(k)<0) Sync.conflicts.push(k); }
+      else Sync.forbidden[k]=why||'ditolak'; });
+    if(j.role && !Sync.adminTok && j.role!==Sync.role){ Sync.role=j.role; syncSaveCreds(); }
+    Sync.lastOk=Date.now(); syncSaveShadowSoon();
+  }
+  Sync.nOut=Sync.conflicts.length; Cloud.dirty=Sync.conflicts.length>0;
+  return true;
+}
+async function syncResolveConflicts(){
+  const keys=Sync.conflicts.slice(); Sync.conflicts=[];
+  for(let i=0;i<keys.length;i+=60){
+    const part=keys.slice(i,i+60); let j;
+    try{ j=await syncGet({action:'items', keys:JSON.stringify(part)}, 30000); }
+    catch(e){ Sync.conflicts=Sync.conflicts.concat(keys.slice(i)); syncNetErr(e); return; }
+    if(!j||!j.ok){ Sync.conflicts=Sync.conflicts.concat(keys.slice(i)); syncServerErr(j); return; }
+    if(cloudBusy()){ Sync.conflicts=Sync.conflicts.concat(keys.slice(i)); Sync.deferred=true; return; }
+    syncApplyItems(j.items||[], {});
+  }
+}
+async function syncPull(){
+  if(cloudBusy()){ Sync.deferred=true; return false; }
+  const since=+Sync.lastRev||0; let j;
+  try{ j=await syncGet({action:'pull', since, tomb:1}, since?45000:120000); }catch(e){ syncNetErr(e); return false; }
+  if(!j||!j.ok||j.proto==null){ syncServerErr(j); return false; }
+  if(cloudBusy()){ Sync.deferred=true; return false; }
+  Sync.deferred=false;
+  if(j.sid && Sync.sid && j.sid!==Sync.sid){ Sync.attached=false; return false; }   // server berganti → sinkron awal ulang
+  if(j.full) syncApplyFull(j.items||[], (+j.rev<since));                           // revisi mundur = server direset
+  else if(j.items && j.items.length) syncApplyItems(j.items, {});
+  Sync.lastRev=+j.rev||0; Sync.init=Sync.lastRev>0||syncRoleEff()==='admin';
+  syncSaveShadowSoon();
+  return true;
+}
+async function syncPoll(force){
+  if(!Cloud.enabled||!Cloud.url||Sync.blocked==='old') return;
+  if(Sync.running) return;
+  if(!force && document.hidden && Date.now()-Sync.lastPing<60000) return;      // hemat kuota saat aplikasi di latar
+  if(!syncTok()){ syncPaint(); return; }
+  let j; const t0=Date.now();
+  try{ j=await syncGet({action:'ping'}, 15000); }catch(e){ syncNetErr(e); return; }
+  Sync.lastPing=Date.now();
+  if(!j||!j.ok||j.proto==null){ Sync.cycleErr=false; syncServerErr(j); return; }
+  if(j.t) Sync.skew=j.t-Math.round((t0+Sync.lastPing)/2);
+  if(j.need && +j.need>APP_BUILD){ syncServerErr({code:'OLD_APP',proto:SYNC_PROTO}); return; }
+  if(Sync.blocked==='server') Sync.blocked='';
+  Cloud.connected=true;
+  if(Cloud.status==='error'){ Cloud.status='connecting'; Cloud.err=''; }
+  if(!Sync.adminTok && j.role && j.role!==Sync.role){ Sync.role=j.role; syncSaveCreds(); }
+  Sync.init=(+j.rev>0);
+  if(Sync.sid && j.sid && j.sid!==Sync.sid) Sync.attached=false;
+  if(!Sync.attached || +j.rev!==+Sync.lastRev || Sync.needDiff || Cloud.dirty || Sync.conflicts.length || Sync.deferred) syncCycle('poll');
+  else { Cloud.status='connected'; syncPaint(); }
+}
+function syncListeners(){
+  if(Sync._ls) return; Sync._ls=true;
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden) syncSaveShadowNow(); else setTimeout(()=>syncPoll(true),300); });
+  window.addEventListener('online',()=>setTimeout(()=>syncPoll(true),600));
+  window.addEventListener('pagehide',()=>{ try{ syncSaveShadowNow(); }catch(e){} });
+  // modal ditutup / fokus input lepas → tarik data yang tertunda
+  document.addEventListener('focusout',()=>{ if(Sync.deferred) setTimeout(()=>{ if(Sync.deferred&&!cloudBusy()) syncCycle('deferred'); },700); });
+  document.addEventListener('click',()=>{ if(Sync.deferred) setTimeout(()=>{ if(Sync.deferred&&!cloudBusy()) syncCycle('deferred'); },900); });
+}
+function gsConnect(cfg){
+  if(!cfg||!cfg.url){ Cloud.status='error'; Cloud.err='Web App URL kosong'; syncPaint(); return; }
+  Cloud.url=cfg.url; Cloud.room=syncRoomName(cfg.room); Cloud.poll=Math.max(8,(+cfg.poll||12)); Cloud.enabled=true;
+  Cloud.status='connecting'; Cloud.err=''; if(Sync.blocked!=='old') Sync.blocked='';
+  Sync.tok=cfg.tok||''; Sync.role=Sync.tok?(cfg.role||null):null;
+  if(Sync.loadedRoom && Sync.loadedRoom!==Cloud.room){ Sync.loadedRoom=''; Sync.map=null; Sync.attached=false; }
+  syncInjectCss(); syncListeners();
+  clearInterval(Cloud._pollTimer); Cloud._pollTimer=setInterval(()=>syncPoll(false), Cloud.poll*1000);
+  if(!Sync.tok) setTimeout(()=>pinLoginPrompt(false), 1300);
+  // muat shadow segera (tanpa jaringan) → antrian kirim & status sudah benar walau sedang offline
+  syncLoadShadow().then(()=>{ if(Sync.attached && !Sync.running){ try{ syncOutbox(); }catch(e){} } syncPaint(); }).catch(()=>{});
+  setTimeout(()=>syncPoll(true), 300);
+  syncPaint();
+}
+function cloudBusy(){
+  const ids=['cmodal','jcmodal','mmodal','pinmodal']; for(let i=0;i<ids.length;i++){ const el=document.getElementById(ids[i]); if(el&&el.classList&&el.classList.contains('show')) return true; }
+  const a=document.activeElement; if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName||'')) return true;
+  return false;
+}
+
+/* ---------- PIN: masuk perangkat & buka akses Admin ---------- */
+function pinOpen(opts){
+  syncInjectCss();
+  Sync._pin=opts||{};
+  let m=document.getElementById('pinmodal');
+  if(!m){ m=document.createElement('div'); m.className='pin-ov'; m.id='pinmodal';
+    m.innerHTML='<div class="pin-card" id="pinbox" role="dialog" aria-modal="true" aria-labelledby="pinTitle"></div>';
+    m.addEventListener('click',e=>{ if(e.target===m) pinClose(true); });
+    m.addEventListener('keydown',e=>{ if(e.key==='Escape') pinClose(true); });
+    document.body.appendChild(m); }
+  const o=Sync._pin, admin=(o.mode==='admin');
+  document.getElementById('pinbox').innerHTML=`<div class="pin-h"><h3 id="pinTitle">${admin?'🔓 Akses Admin':'🔑 Masuk sinkron cloud'}</h3>
+      <button class="pin-x" type="button" onclick="pinClose(true)" aria-label="Tutup">✕</button></div>
+    <div class="pin-sub">${esc(o.why||(admin?'Masukkan PIN Admin untuk melanjutkan.':'Masukkan PIN Operator atau PIN Admin (diberikan oleh Admin).'))}</div>
+    <form onsubmit="event.preventDefault();pinSubmit()" autocomplete="off">
+      <input id="pinIn" class="pin-in" type="password" inputmode="numeric" autocomplete="off" maxlength="24" placeholder="••••" aria-label="PIN">
+      <div class="pin-err" id="pinErr" aria-live="polite"></div>
+      <div class="pin-act">
+        <button type="button" class="btn sec" onclick="pinClose(true)">${admin?'Batal':'Nanti'}</button>
+        <button type="submit" class="btn" id="pinGo">${admin?'Buka':'Masuk'}</button></div>
+    </form>
+    <div class="pin-foot">${admin?'Akses Admin otomatis terkunci lagi setelah 30 menit.':'Tanpa masuk, data tetap tersimpan di perangkat ini dan otomatis dikirim setelah Anda masuk.'}</div>`;
+  m.classList.add('show');
+  setTimeout(()=>{ const i=document.getElementById('pinIn'); if(i) i.focus(); },80);
+}
+function pinClose(cancel){
+  const m=document.getElementById('pinmodal'); if(m) m.classList.remove('show');
+  const o=Sync._pin; Sync._pin=null;
+  try{ if(document.activeElement&&document.activeElement.id==='pinIn') document.activeElement.blur(); }catch(e){}
+  if(cancel && o && typeof o.onCancel==='function') try{ o.onCancel(); }catch(e){}
+}
+async function pinSubmit(){
+  const inp=document.getElementById('pinIn'), er=document.getElementById('pinErr'), go=document.getElementById('pinGo');
+  const pin=((inp&&inp.value)||'').trim(); if(!pin){ if(er) er.textContent='Ketik PIN dulu'; return; }
+  const o=Sync._pin||{};
+  if(!Cloud.url){ if(er) er.textContent='URL server belum diisi (Settings)'; return; }
+  if(go){ go.disabled=true; go.textContent='Memeriksa…'; }
+  let j=null; try{ j=await syncGet({action:'auth', pin, tok:''}, 20000); }catch(e){ if(er) er.textContent='Tidak bisa menghubungi server — cek internet'; }
+  if(go){ go.disabled=false; go.textContent=(o.mode==='admin')?'Buka':'Masuk'; }
+  if(!j) return;
+  if(!j.ok){
+    if(j.code==='OLD_APP'||j.code==='SETUP'||j.proto==null&&!j.code){ pinClose(false); syncServerErr(j); return; }
+    if(er) er.textContent=j.error||'PIN salah'; if(inp){ inp.value=''; inp.focus(); } return;
+  }
+  if(o.mode==='admin'){
+    if(j.role!=='admin'){ if(er) er.textContent='Ini PIN Operator — perlu PIN Admin'; if(inp){ inp.value=''; inp.focus(); } return; }
+    pinClose(false); syncAdminUnlock(j.tok);
+    toast('🔓 Akses Admin aktif (terkunci otomatis 30 menit)');
+    try{ if(typeof o.onOk==='function') o.onOk(); else render(); }catch(e){ console.error(e); }
+    return;
+  }
+  Sync.tok=j.tok; Sync.role=j.role; Sync.adminTok=''; syncSaveCreds();
+  Cloud.status='connecting'; Cloud.err=''; Sync.cycleErr=false;
+  pinClose(false); toast(j.role==='admin'?'✓ Masuk sebagai Admin':'✓ Masuk sebagai Operator');
+  try{ render(); }catch(e){}
+  syncPoll(true);
+  try{ if(typeof o.onOk==='function') o.onOk(); }catch(e){}
+}
+function pinLoginPrompt(force){
+  if(!Cloud.enabled||syncTok()) return;
+  if(Sync.promptShown && !force) return;
+  Sync.promptShown=true; pinOpen({mode:'login'});
+}
+function syncAdminUnlock(tok){
+  Sync.adminTok=tok; clearTimeout(Sync.adminTimer);
+  Sync.adminTimer=setTimeout(()=>syncAdminLock(false), 30*60000);
+  Sync.needDiff=true; syncSchedule(300);
+}
+function syncAdminLock(silent){
+  if(!Sync.adminTok) return;
+  Sync.adminTok=''; clearTimeout(Sync.adminTimer);
+  if(!silent) toast('🔒 Akses Admin dikunci');
+  try{ render(); }catch(e){}
+}
+/* Jalankan cb hanya bila Admin; selain itu minta PIN Admin dulu. noAuto=true: setelah PIN benar,
+   pengguna diminta mengulang tindakannya (dipakai untuk pemilih file yang butuh ketukan langsung). */
+function requireAdmin(cb, why, noAuto){
+  if(isAdminUI()){ if(cb) cb(); return; }
+  pinOpen({ mode:'admin', why:'Perlu PIN Admin untuk '+(why||'tindakan ini')+'.',
+    onOk: noAuto?(()=>{ try{ render(); }catch(e){} toast('🔓 Akses Admin aktif — ulangi tindakan tadi'); }):cb });
+}
+function syncLogout(){
+  if(!confirm('Keluar dari sinkron di perangkat ini?\n\nData tetap tersimpan di perangkat. Masukkan PIN lagi untuk melanjutkan sinkron.')) return;
+  Sync.tok=''; Sync.role=null; syncAdminLock(true); syncSaveCreds();
+  Cloud.status='connecting'; Cloud.err='';
+  try{ render(); }catch(e){}
+  pinLoginPrompt(true);
+}
+/* Fungsi Admin dibungkus: Operator diminta PIN Admin dulu. Dipasang saat boot. */
+function syncInstallGuards(){
+  const G={ saveJCMaster:'menyimpan Master JC', delJCMaster:'menghapus Master JC', jcSaveToMaster:'menyimpan ke Master JC',
+    importJCMasterPick:['impor Master JC',1], importJCMasterXLSX:'impor Master JC',
+    importJSON:'impor data', importXLSX:'impor Excel', linkExcel:['menautkan file Excel',1], resetData:'reset semua data',
+    snapshotRestore:'memulihkan cadangan', toggleDenahEdit:'mengubah denah stock', denahPick:['mengganti gambar denah',1],
+    denahRemove:'menghapus gambar denah', saveRackEdit:'mengubah rak', delRack:'menghapus rak', cloudDisconnect:'memutus sinkron cloud' };
+  Object.keys(G).forEach(name=>{
+    const orig=window[name]; if(typeof orig!=='function'||orig.__guarded) return;
+    const spec=G[name], why=Array.isArray(spec)?spec[0]:spec, noAuto=Array.isArray(spec)&&!!spec[1];
+    const w=function(){ const a=arguments, self=this;
+      if(name==='toggleDenahEdit' && window._denahEdit) return orig.apply(self,a);   // keluar dari mode edit selalu boleh
+      if(isAdminUI()) return orig.apply(self,a);
+      requireAdmin(()=>orig.apply(self,a), why, noAuto); };
+    w.__guarded=true; try{ window[name]=w; }catch(e){}
+  });
+}
+
 /* ===== BATCH 3 — cadangan otomatis + rem darurat sebelum data lokal ditimpa data cloud ===== */
+function syncLockCardHTML(){
+  return `<div class="setgroup" data-gt="Akses Admin"><div class="card sync-lockcard" style="margin-top:14px"><h3>🔒 Pengaturan Admin<span class="tag">perlu PIN Admin</span></h3>
+    <div class="note" style="margin:0 0 12px">Lifetime &amp; threshold, Master List, part &amp; reason, section per mesin, man power, bab reason, impor data dan reset hanya bisa diubah <b>Admin</b>. Perangkat ini ${syncTok()?'masuk sebagai <b>Operator</b>':'<b>belum masuk</b>'} — input data (record, plan JC, stock, ceklist) tetap bisa dan otomatis tersinkron.</div>
+    <button class="btn" onclick="requireAdmin(()=>render(),'membuka pengaturan Admin')">🔓 Buka dengan PIN Admin</button>
+  </div></div>`;
+}
 function snapshotSave(why){
   try{
     localStorage.setItem('pm_snapshot', JSON.stringify({ t:Date.now(), why:why||'', n:(DB||[]).length,
@@ -3069,11 +3617,12 @@ function snapshotInfo(){ try{ const s=JSON.parse(localStorage.getItem('pm_snapsh
   return (s&&s.t)?{t:s.t,n:s.n||0,why:s.why||''}:null; }catch(e){ return null; } }
 function snapshotRestore(){
   const info=snapshotInfo(); if(!info){ toast('Belum ada cadangan otomatis',1); return; }
-  if(!confirm('Pulihkan data ke kondisi '+fmtModTime(info.t)+' ('+info.n+' record)?\n\nData yang ada sekarang akan diganti.')) return;
+  if(!confirm('Pulihkan data ke kondisi '+fmtModTime(info.t)+' ('+info.n+' record)?\n\nData yang ada sekarang akan diganti'+(Cloud.enabled?' dan perubahannya dikirim ke server.':'.'))) return;
   try{
     const s=JSON.parse(localStorage.getItem('pm_snapshot')); const img=denahImgGet();
     if(Array.isArray(s.db)) DB=s.db;
-    if(s.cfg){ CFG=Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)),s.cfg);
+    if(s.cfg){ const keep={}; Object.keys(CFG_LOCAL_KEYS).forEach(k=>{ if(CFG&&CFG[k]!==undefined) keep[k]=CFG[k]; });
+      CFG=Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)),s.cfg,keep);
       CFG.denah=CFG.denah||{img:'',racks:[]}; CFG.denah.img=img; ensurePartAreas(true); }
     if(s.actions) actionStatus=s.actions;
     if(Array.isArray(s.jc)) JCPLANS=s.jc;
@@ -3083,100 +3632,93 @@ function snapshotRestore(){
     toast('✓ Data dipulihkan dari cadangan');
   }catch(e){ toast('Gagal memulihkan cadangan',1); }
 }
-function cloudApply(data){ if(Cloud.dirty) return;   // ada perubahan lokal belum terkonfirmasi → jangan timpa
-  // REM DARURAT: kalau data cloud tiba-tiba jauh lebih sedikit, tanya dulu — jangan hilang diam-diam.
-  try{
-    const nOld=(DB||[]).length, nNew=Array.isArray(data.db)?data.db.length:0;
-    if(nOld>=10 && nNew<nOld*0.8){
-      snapshotSave('sebelum data cloud yang lebih sedikit');
-      if(!confirm('⚠️ Data dari cloud berisi '+nNew+' record, sedangkan di perangkat ini ada '+nOld+' record.\n\nKemungkinan perangkat lain menimpa data.\n\nTetap timpa data di perangkat ini?\n(Cadangan otomatis sudah dibuat — bisa dipulihkan di Settings)')) return;
-    }
-  }catch(e){}
-  snapshotSave('sebelum menerima data cloud');
-  Cloud.suppress=true;
-  const _imgKeep=denahImgGet();
-  try{
-    if(Array.isArray(data.db)) DB=data.db;
-    if(data.cfg) CFG=Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)),data.cfg);
-    if(data.cfg) ensurePartAreas(!!(data.cfg.partAreas&&typeof data.cfg.partAreas==='object'));
-    if(data.actions) actionStatus=data.actions;
-    if(Array.isArray(data.jc)) JCPLANS=data.jc;
-    if(Array.isArray(data.stock)) STOCK=data.stock;
-    if(Array.isArray(data.jccheck)) JCCHECKS=data.jccheck;
-    if(!CFG.machineSecs||typeof CFG.machineSecs!=='object') CFG.machineSecs={};
-    if(!CFG.commonReasons||!CFG.commonReasons.length) CFG.commonReasons=['JobChange','Roaster'];
-    if(!CFG.partReasons||typeof CFG.partReasons!=='object') CFG.partReasons={};
-    if(Object.keys(CFG.partReasons).length===0) analyzePartReasons(true);
-    // BATCH 1: gambar denah tidak ikut dikirim → pakai yang tersimpan di perangkat ini.
-    // Ambil dari cloud HANYA bila penanda versinya berbeda.
-    CFG.denah=CFG.denah||{img:'',racks:[]}; CFG.denah.img=_imgKeep;
-    var _oldFmtImg=(data.cfg&&data.cfg.denah&&typeof data.cfg.denah.img==='string')?data.cfg.denah.img:'';
-    if(!_imgKeep && _oldFmtImg) CFG.denah.img=_oldFmtImg;   // perangkat lain masih versi lama
-    var _wantRev=(data.cfg&&data.cfg.denah&&data.cfg.denah.imgRev)||'';
-    if(_wantRev && _wantRev!==denahImgRev(_imgKeep)) setTimeout(function(){ gsPullDenah(_wantRev); }, 800);
-    ensureRecIds();   // BATCH 2: pastikan record dari cloud juga punya id
-    migrateReasonGroups();
-  }catch(e){}
-  try{ saveLocal(); }catch(e){}
-  clearDirty(); Cloud.pending=null; Cloud.suppress=false;
-  try{ buildNav&&buildNav(); }catch(e){}
-  try{ render&&render(); }catch(e){}
-  toast&&toast('☁️ Data dari perangkat lain diterima');
+
+/* ---------- tombol di Settings ---------- */
+async function sendDataNow(){
+  if(!Cloud.enabled||!Cloud.url){ toast('Sambungkan cloud dulu di Settings',1); return; }
+  if(!syncTok()){ pinLoginPrompt(true); return; }
+  toast('🔄 Menyinkronkan…');
+  for(let i=0;i<60&&Sync.running;i++) await syncSleep(500);
+  Sync.needDiff=true; await syncCycle('manual');
+  if(Cloud.status==='error') toast('🔴 '+(Cloud.err||'gagal sinkron'),1);
+  else if(Cloud.dirty||Sync.conflicts.length) toast('🟡 Sebagian belum terkirim — dicoba ulang otomatis',1);
+  else if(Sync.deferred) toast('🟡 Tutup form yang sedang terbuka agar data terbaru bisa ditarik',1);
+  else toast('✓ Tersinkron'+(Sync.nCfgLocal&&syncRoleEff()!=='admin'?' · '+Sync.nCfgLocal+' pengaturan hanya lokal':''));
+  try{ render(); }catch(e){}
 }
-function cloudPush(immediate){ if(Cloud.enabled){ markDirty(); gsPush(immediate); } }
-function cloudDisconnect(){ clearInterval(Cloud._pollTimer); Cloud.enabled=false; Cloud.connected=false; Cloud.status='off'; const cf=cloudCfgGet()||{}; cf.enabled=false; cloudCfgSet(cf); render&&render(); }
-function cloudTest(){ if(!Cloud.url){ toast('Connect first',1); return; } toast('Testing connection…'); gsPoll(); }
-/* Kirim data sekarang DENGAN konfirmasi nyata (push → poll cek token sampai server mengakui). */
-function sendDataNow(){
-  if(!Cloud.enabled||!Cloud.url){ toast('Hubungkan cloud dulu di Settings',1); return; }
-  markDirty(); toast('⬆️ Mengirim data ke cloud…'); gsPush(true);
-  const myToken=Cloud.pending; let tries=0;
-  const iv=setInterval(()=>{ tries++;
-    if(!Cloud.dirty && Cloud.confirmedToken && (Cloud.confirmedToken===myToken || Cloud.confirmedToken.split(':')[0]===CLIENT_ID)){
-      clearInterval(iv); toast('✓ Tersimpan & tersinkron ke cloud'); render&&render(); return; }
-    if(Cloud.status==='error'){ clearInterval(iv); toast('🔴 Gagal kirim: '+(Cloud.err||'cek koneksi / URL Apps Script'),1); return; }
-    if(tries>=8){ clearInterval(iv); toast('⚠️ Belum terkonfirmasi server. Data aman di perangkat — akan dicoba ulang otomatis.',1); render&&render(); return; }
-    gsPoll();
-  }, 1500);
+function cloudForcePull(silent){
+  if(!Cloud.enabled||!Cloud.url){ toast('Sambungkan cloud dulu',1); return; }
+  if(!syncTok()){ pinLoginPrompt(true); return; }
+  if(silent!==true && !confirm('Tarik ulang seluruh data dari server?\n\nPerubahan di perangkat ini yang belum terkirim tetap dipertahankan & dikirim. Cadangan otomatis dibuat dulu.')) return;
+  Sync.lastRev=0; Sync.needDiff=true; toast('🔁 Menarik ulang data dari server…'); syncCycle('full');
 }
-/* Tarik data server & timpa lokal (dengan konfirmasi bila ada perubahan lokal belum tersinkron). */
-function cloudForcePull(){ if(Cloud.dirty && !confirm('Ada perubahan lokal yang BELUM tersinkron. Tarik data dari server dan timpa data lokal? (perubahan lokal yang belum terkirim akan hilang)')) return;
-  clearDirty(); Cloud.pending=null; Cloud.lastRev=null; toast('🔄 Menarik data terbaru…'); gsFullPull(); }
-/* DIAGNOSTIK: tes tulis payload KECIL ke room terpisah, lalu baca balik tokennya.
-   Memisahkan masalah "mekanisme tulis rusak" vs "data terlalu besar". Tidak menyentuh data asli. */
-function cloudDiag(){
-  if(!Cloud.url){ toast('Hubungkan cloud dulu',1); return; }
-  const tok='diag:'+Date.now(); const room='__diag_'+CLIENT_ID;
-  toast('🔍 Menguji tulis ke cloud…');
-  // 1) kirim payload kecil lewat hidden form (mekanisme yang sama dengan push asli)
-  let sent=false;
-  try{
-    _ensureSyncForm();
-    const frm=document.getElementById('__syncFrm');
-    frm.action=Cloud.url;
-    frm.querySelector('input[name=body]').value=JSON.stringify({action:'set',room:room,secret:Cloud.secret||'',w:tok,data:{ping:Date.now()}});
-    frm.submit(); sent=true;
-  }catch(e){}
-  // 2) baca balik beberapa kali, cek apakah token kembali
-  let tries=0;
-  const iv=setInterval(()=>{ tries++;
-    gsJsonp({action:'rev',room:room,secret:Cloud.secret||''},(err,j)=>{
-      if(err){ clearInterval(iv); alert('❌ BACA gagal: '+err.message+'\n\nURL Apps Script mungkin salah / belum di-deploy "Anyone".'); return; }
-      if(j&&j.ok&&j.w===tok){ clearInterval(iv);
-        alert('✅ TULIS BERHASIL.\n\nMekanisme simpan ke cloud bekerja normal.\n\nKalau IMPORT data besar tetap kuning, berarti ukuran datanya yang jadi masalah — beri tahu saya untuk mengaktifkan kompresi otomatis.'); return; }
-      if(tries>=6){ clearInterval(iv);
-        alert('❌ TULIS GAGAL — token tidak kembali dari server.\n\nPenyebab paling umum:\n1) Apps Script BELUM di-deploy ulang sebagai "New version" (kode lama masih jalan)\n2) Deployment bukan "Who has access: Anyone"\n3) Kode Code.gs belum versi terbaru yang membaca form\n\nRespons server: '+(j?JSON.stringify(j).slice(0,180):'kosong')); return; }
-    });
-  },1600);
+async function cloudDiag(){
+  if(!Cloud.url){ toast('Isi URL dulu',1); return; }
+  toast('🔍 Menguji koneksi…');
+  const L=[]; const t0=Date.now(); let j=null;
+  try{ j=await syncGet({action:'ping'},15000); L.push('✓ Server menjawab ('+(Date.now()-t0)+' ms)'); }
+  catch(e){ alert('❌ Server tidak bisa dihubungi: '+e.message+'\n\nCek: internet, URL /exec benar, deploy "Who has access: Anyone".'); return; }
+  if(!j||!j.ok){ L.push('❌ '+((j&&(j.error||j.code))||'respons tidak dikenal')+((j&&j.proto==null&&!j.code)?' — Code.gs masih versi lama':'')); }
+  else {
+    L.push('✓ Server v'+j.proto+' · revisi '+j.rev+' · peran Anda: '+(j.role==='admin'?'Admin':'Operator'));
+    const t1=Date.now();
+    try{ const r=await syncPost({ action:'push', app:APP_BUILD, proto:SYNC_PROTO, room:Cloud.room, dev:syncDevId(), tok:syncTok(), by:(curUser()||''), tx:syncDevId()+'-diag-'+Date.now().toString(36), changes:[] });
+      L.push(r&&r.ok?('✓ Jalur kirim OK lewat '+(Sync.mode==='form'?'form tersembunyi':'fetch')+' ('+(Date.now()-t1)+' ms)'):('⚠️ Kirim: '+((r&&(r.error||r.code))||'?')));
+    }catch(e){ L.push('❌ Kirim gagal: '+e.message); }
+  }
+  const nF=Object.keys(Sync.forbidden).length;
+  L.push('Antrian kirim: '+(Sync.nOut||0)+' · konflik menunggu: '+Sync.conflicts.length+(nF?(' · ditolak server: '+nF):'')+(Sync.nCfgLocal&&syncRoleEff()!=='admin'?(' · pengaturan lokal: '+Sync.nCfgLocal):''));
+  L.push('Perangkat: '+syncDevId()+' · build '+APP_BUILD);
+  alert(L.join('\n'));
 }
+function cloudDisconnect(){ clearInterval(Cloud._pollTimer); Cloud.enabled=false; Cloud.connected=false; Cloud.status='off'; syncSaveShadowNow(); const cf=cloudCfgGet()||{}; cf.enabled=false; cloudCfgSet(cf); render&&render(); }
 function cloudSaveConfig(){
   const url=($('#gs_url')&&$('#gs_url').value.trim())||'';
-  const room=($('#gs_room')&&$('#gs_room').value.trim())||'pmdata';
-  const secret=($('#gs_secret')&&$('#gs_secret').value.trim())||'';
-  const poll=($('#gs_poll')&&+$('#gs_poll').value)||12;
-  if(!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec/.test(url)){ toast('URL must be in the format https://script.google.com/macros/s/XXXX/exec',1); return; }
-  const cfg={ url, room, secret, poll, enabled:true }; cloudCfgSet(cfg);
-  toast('Config saved — connecting…'); gsConnect(cfg);
+  const room=syncRoomName(($('#gs_room')&&$('#gs_room').value.trim())||'pmdata');
+  const poll=Math.max(8,($('#gs_poll')&&+$('#gs_poll').value)||12);
+  if(!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec/.test(url)){ toast('URL harus berformat https://script.google.com/macros/s/XXXX/exec',1); return; }
+  if(Sync.running){ toast('Tunggu sinkron yang sedang berjalan selesai, lalu coba lagi',1); return; }
+  const prev=cloudCfgGet()||{};
+  const cfg=Object.assign({}, prev, { url, room, poll, enabled:true });
+  if(prev.url && prev.url!==url){ cfg.tok=''; cfg.role=''; }          // server lain → masuk ulang
+  if(prev.url!==url || syncRoomName(prev.room)!==room){ syncSaveShadowNow(); Sync.loadedRoom=''; Sync.map=null; Sync.attached=false; Sync.lastRev=0; }
+  cloudCfgSet(cfg);
+  toast('Tersimpan — menyambung…'); gsConnect(cfg);
+}
+function syncSettingsCard(){
+  const cf=cloudCfgGet()||{}, role=syncRoleEff(), logged=!!syncTok(), adm=isAdminUI(), st=cloudState();
+  const roleChip=role?`<span class="sync-role ${role}">${role==='admin'?((Sync.adminTok&&Sync.role!=='admin')?'🔓 Admin (sementara)':'👑 Admin'):'👷 Operator'}</span>`
+    :`<span class="sync-role none">${Cloud.enabled?'🔑 belum masuk':'⚪ mode lokal'}</span>`;
+  const showConn=adm||!logged;
+  const snap=(adm&&logged)?(function(){ const s=snapshotInfo(); return s?`<div class="note" style="margin:8px 0 0">🛡️ Cadangan otomatis terakhir: <b>${fmtModTime(s.t)}</b> (${s.n} record) — ${esc(s.why||'')}.</div>`:''; })():'';
+  const nF=Object.keys(Sync.forbidden).length;
+  return `<div class="card" style="margin-top:14px;border-color:${st.cls==='connected'?'var(--green)':(st.cls==='error'?'var(--red)':'var(--line2)')}"><h3>☁️ Sinkron Cloud & Akses PIN<span class="tag">${esc(cloudStatusLabel())}</span></h3>
+    <div style="margin:2px 0 10px">${roleChip}</div>
+    <div class="sync-stat">
+      <div class="sync-kv" style="grid-column:1/-1"><span>Status</span><b>${esc(st.lbl)}</b></div>
+      <div class="sync-kv"><span>Room</span><b>${esc(Cloud.room||cf.room||'pmdata')}</b></div>
+      <div class="sync-kv"><span>Revisi server</span><b class="mono">${+Sync.lastRev||0}</b></div>
+      <div class="sync-kv"><span>Antrian kirim</span><b>${Sync.nOut||0} data${(Sync.nCfgLocal&&role!=='admin')?` · ${Sync.nCfgLocal} pengaturan lokal`:''}${nF?` · ${nF} ditolak`:''}</b></div>
+      <div class="sync-kv"><span>Terakhir terkirim</span><b>${Sync.lastOk?fmtModTime(Sync.lastOk):'—'}</b></div>
+      <div class="sync-kv"><span>ID perangkat</span><b class="mono">${esc(syncDevId())}</b></div>
+    </div>
+    <div class="toolbar" style="margin:10px 0 0;flex-wrap:wrap;gap:8px">
+      ${logged?`<button class="btn sec" onclick="sendDataNow()">🔄 Sinkron sekarang</button><button class="btn sec" onclick="cloudForcePull()">🔁 Tarik ulang penuh</button><button class="btn sec" onclick="cloudDiag()">🔍 Tes koneksi</button>`
+        :(Cloud.enabled?`<button class="btn" onclick="pinLoginPrompt(true)">🔑 Masuk dengan PIN</button>`:'')}
+      ${(logged&&Sync.role==='operator'&&!Sync.adminTok)?`<button class="btn sec" onclick="requireAdmin(()=>render(),'membuka pengaturan Admin')">🔓 Buka akses Admin</button>`:''}
+      ${Sync.adminTok?`<button class="btn sec" onclick="syncAdminLock()">🔒 Kunci Admin</button>`:''}
+      ${logged?`<button class="btn sec" onclick="syncLogout()">🚪 Keluar / ganti PIN</button>`:''}
+      ${(adm&&logged)?`<button class="btn sec" onclick="snapshotRestore()" title="Kembalikan data ke kondisi sebelum sinkron besar terakhir">↩️ Pulihkan cadangan</button><button class="btn danger sm" onclick="cloudDisconnect()">⏹️ Disconnect</button>`:''}
+    </div>${snap}
+    ${Cloud.status==='error'&&Cloud.err?`<div class="roaster-note" style="border-left-color:var(--red);background:rgba(255,90,90,.10);margin-top:10px">🔴 ${esc(Cloud.err)}</div>`:''}
+    ${showConn?`<div class="grid g2" style="margin-top:12px">
+      <div class="fg" style="grid-column:1/-1"><label>Web App URL (…/exec)</label><input id="gs_url" value="${esc(cf.url||Cloud.url||'')}" placeholder="https://script.google.com/macros/s/AKfy.../exec"></div>
+      <div class="fg"><label>Room / Grup</label><input id="gs_room" value="${esc(cf.room||Cloud.room||'pmdata')}" placeholder="pmdata"></div>
+      <div class="fg"><label>Cek tiap (detik)</label><input id="gs_poll" type="number" min="8" value="${cf.poll||Cloud.poll||12}"></div>
+      <div class="fg" style="grid-column:1/-1"><button class="btn" onclick="cloudSaveConfig()" style="width:100%">🔗 Simpan & sambungkan</button></div>
+    </div>`:''}
+    <div class="note" style="margin-top:12px">Sinkron <b>per record</b>: hanya data yang berubah yang dikirim dan digabung di server per ID, jadi input dari beberapa perangkat tidak saling menimpa. Bila dua orang mengubah data yang sama, field yang berbeda digabung otomatis; field yang sama → perubahan terbaru menang. <b>PIN Operator</b> = input data; <b>PIN Admin</b> = Settings, Master, impor & reset. Server menyimpan backup harian otomatis di Google Drive.</div>
+  </div>`;
 }
 
 /* ============ COMPUTE ENGINE ============ */
@@ -3449,8 +3991,8 @@ function pwaLS(k,v){ try{ if(v===undefined) return localStorage.getItem(k); if(v
    bila tidak (umumnya Chrome Android utk aplikasi 1 file) → tampil dgn 3 langkah lewat menu ⋮ · "Sudah, tutup" = tidak ditampilkan lagi di HP itu
    · iPhone/iPad: Safari tidak memberi tahu status → tampil sampai dipasang / diabaikan · dibuka dari WhatsApp/Telegram → sarankan buka di Chrome */
 function pwaAskWanted(){ if(typeof isDesktop==='function'&&isDesktop()) return false; const st=pwaState();
-  if(st==='installed'||st==='has') return false;
-  if((st==='manual'||st==='file')&&!pwaTouch()) return false;
+  if(st==='installed'||st==='file'||st==='has') return false;
+  if(st==='manual'&&!pwaTouch()) return false;
   if(pwaLS('pm_pwa_never')==='1') return false;
   const l=+pwaLS('pm_pwa_later')||0; if(l&&Date.now()-l<PWA_LATER_DAYS*864e5) return false;
   return true; }
@@ -3464,15 +4006,14 @@ function pwaAsk(){ const st=pwaState(); _pwaShown=true; let m=document.getElemen
   if(!m){ bk=document.createElement('div'); bk.id='pwaAskBack'; bk.className='jcm-menu-back'; bk.onclick=function(){ pwaLater(); }; document.body.appendChild(bk);
     m=document.createElement('div'); m.id='pwaAsk'; m.className='jcm-menu who-menu pwa-ask'; m.setAttribute('role','dialog'); m.setAttribute('aria-modal','true'); m.setAttribute('aria-labelledby','pwaAskT'); document.body.appendChild(m); }
   const ic=(document.querySelector('link[rel="icon"]')||{}).href||'';
-  const how={file:`<ol class="pwa-steps"><li>Buka <b>link aplikasi</b> (alamat <b>…github.io/…</b>) di <b>Chrome</b> — bukan file hasil unduhan / dari WhatsApp</li><li>Ketuk menu <b>⋮</b> → <b>Tambahkan ke layar utama</b></li></ol>`,
-    ios:`<ol class="pwa-steps"><li>Ketuk ikon <b>Bagikan</b> <span class="pwa-k">⬆︎</span> di bawah layar Safari</li><li>Pilih <b>Tambahkan ke Layar Utama</b></li><li>Ketuk <b>Tambah</b> di pojok kanan atas</li></ol>`,
+  const how={ios:`<ol class="pwa-steps"><li>Ketuk ikon <b>Bagikan</b> <span class="pwa-k">⬆︎</span> di bawah layar Safari</li><li>Pilih <b>Tambahkan ke Layar Utama</b></li><li>Ketuk <b>Tambah</b> di pojok kanan atas</li></ol>`,
     inapp:`<ol class="pwa-steps"><li>Ketuk menu <b>⋮</b> di pojok kanan atas</li><li>Pilih <b>Buka di Chrome</b> (atau "Buka di browser")</li><li>Pop-up ini muncul lagi di Chrome — ikuti langkahnya</li></ol>`,
     manual:(pwaSamsung()?`<ol class="pwa-steps"><li>Ketuk menu <b>≡</b> di bawah layar</li><li>Pilih <b>Tambahkan halaman ke</b> → <b>Layar beranda</b></li><li>Ketuk <b>Tambah</b></li></ol>`
       :`<ol class="pwa-steps"><li>Ketuk menu <b>⋮</b> di pojok kanan atas Chrome</li><li>Pilih <b>Tambahkan ke layar utama</b> (atau <b>Instal aplikasi</b>)</li><li>Ketuk <b>Tambah</b> / <b>Instal</b></li></ol>`)
       +`<div class="pwa-tip">HP <b>Xiaomi / Redmi / POCO / Oppo / Vivo / Realme</b>: bila ikon tidak muncul, buka <b>Setelan → Aplikasi → ${pwaSamsung()?'Samsung Internet':'Chrome'} → Izin</b> → aktifkan <b>Pintasan layar utama</b>, lalu ulangi.</div>`}[st]||'';
   m.innerHTML=`<div class="jm-grab"></div>
-    <div class="pwa-hd"><img class="pwa-ic" src="${ic}" alt=""><div><b id="pwaAskT">Pasang IS Machine di layar utama?</b><small>${st==='ready'?'Belum terpasang di HP ini':st==='ios'?'iPhone / iPad · lewat Safari':st==='manual'?'Lewat menu browser · 3 langkah':st==='file'?'Sedang dibuka sebagai file — belum bisa dipasang':'Dibuka dari aplikasi lain'}</small></div></div>
-    ${st==='file'?'<div class="pwa-tip">Chrome menyembunyikan <b>Tambahkan ke layar utama</b> untuk file lokal (alamat berawalan <b>content://</b> / <b>file://</b>). Pemasangan hanya bisa dari alamat web.</div>':'<ul class="pwa-why"><li>Buka langsung dari ikon — tanpa cari link</li><li>Layar penuh, tanpa bilah alamat browser</li><li>Data & sinkronisasi tetap sama</li></ul>'}
+    <div class="pwa-hd"><img class="pwa-ic" src="${ic}" alt=""><div><b id="pwaAskT">Pasang IS Machine di layar utama?</b><small>${st==='ready'?'Belum terpasang di HP ini':st==='ios'?'iPhone / iPad · lewat Safari':st==='manual'?'Lewat menu browser · 3 langkah':'Dibuka dari aplikasi lain'}</small></div></div>
+    <ul class="pwa-why"><li>Buka langsung dari ikon — tanpa cari link</li><li>Layar penuh, tanpa bilah alamat browser</li><li>Data & sinkronisasi tetap sama</li></ul>
     ${how?`<div class="pwa-how"${(st==='ios'||st==='manual')?' hidden':''}>${how}</div>`:''}
     <div class="pwa-acts"><button type="button" class="btn pwa-go" onclick="pwaAskGo()">${st==='ready'?'📲 Pasang':(st==='ios'||st==='manual')?'Lihat caranya':'Mengerti'}</button><button type="button" class="btn sec" onclick="pwaLater()">Nanti saja</button></div>
     <button type="button" class="pwa-never" onclick="pwaNever()">Jangan tampilkan lagi</button>`;
@@ -8681,7 +9222,7 @@ function setSplitApply(){ if(!setSplitOn()) return; const view=document.querySel
   const det=document.createElement('section'); det.className='set-detail'; det.id='setDetail'; det.setAttribute('aria-live','polite');
   groups[0].parentNode.insertBefore(wrap,groups[0]);
   const GT=['Target & Status','Tampilan','Data & Sinkron','Master Data'];
-  groups.forEach((g,i)=>{ const t=document.createElement('div'); t.className='set-gt'; t.textContent=GT[i]||''; list.appendChild(t); list.appendChild(g); });
+  groups.forEach((g,i)=>{ const t=document.createElement('div'); t.className='set-gt'; t.textContent=g.getAttribute('data-gt')||GT[i]||''; list.appendChild(t); list.appendChild(g); });
   wrap.appendChild(list); wrap.appendChild(det);
   view.querySelectorAll('.setcard').forEach(c=>{ c.classList.remove('open'); const h=c.querySelector('h3.setcard-h'); if(h){ h.setAttribute('role','button'); h.setAttribute('tabindex','0');
     h.onkeydown=function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); setSelect(h.getAttribute('data-key')); } }; } });
@@ -8700,8 +9241,9 @@ function setSelect(key,noScroll){ const view=document.querySelector('#main .view
 (function(){ let last=null, t=null; window.addEventListener('resize',function(){ clearTimeout(t); t=setTimeout(function(){ const on=window.matchMedia(SET_SPLIT_MQ).matches; if(last===null){ last=on; return; } if(on!==last){ last=on; if(typeof current!=='undefined'&&current==='set') render(); } },150); }); })();
 function vSet(){
   after.push(enhanceSettingsCollapse);
+  const ADM=isAdminUI();   /* sinkron v3: Operator hanya melihat preferensi perangkat, akses PIN & export */
   return `<h2 class="title">⚙️ Settings & Data</h2><div class="sub">Configure lifetimes, thresholds, master list, and data backup.</div>
-  <div class="setgroup">
+  ${ADM?`<div class="setgroup">
   <div class="grid g2">
     <div class="card"><h3>⏱️ Lifetime Target (days)</h3>
       ${CFG.parts.map(p=>`<div class="fg" style="flex-direction:row;align-items:center;gap:12px;margin-bottom:9px"><label style="width:130px">${p}</label><input type="number" value="${CFG.lifetimes[p]}" onchange="setLT('${p}',this.value)" style="width:100px"></div>`).join('')}
@@ -8714,7 +9256,7 @@ function vSet(){
       <div class="note" style="margin-top:14px">OVERDUE &lt; 0 · URGENT ≤ lifetime÷${CFG.urgentDiv||4} · WARNING ≤ lifetime÷${CFG.warnDiv||2} · OK di atasnya<br>Replacement Category & target Avg-Lifetime: <b>${CFG.pmTarget||70}%</b></div>
     </div>
   </div>
-  </div>
+  </div>`:syncLockCardHTML()}
   <div class="setgroup">
   <div class="card" style="margin-top:14px"><h3>🧭 Configure Bottom Menu Bar<span class="tag">${Math.min(BN_MAX,(CFG.bottomNav||[]).length)} / ${BN_MAX} aktif</span></h3>
     <div class="note" style="margin:0 0 12px">Pilih menu untuk bar bawah (HP & tablet), <b>1–${BN_MAX} menu</b>. Menu dibagi ke 2 kapsul kiri–kanan dengan tombol <b>＋</b> selalu di tengah — jumlah ganjil: kapsul kiri dapat 1 lebih. Bila 5–6 menu, hanya menu yang aktif yang menampilkan nama (lainnya ikon saja). Menu yang tidak dipilih tetap ada di menu ☰.</div>
@@ -8753,42 +9295,27 @@ function vSet(){
   </div>
   </div>
   <div class="setgroup">
-  <div class="card" style="margin-top:14px;border-color:${Cloud.connected?'var(--green)':(Cloud.status==='error'?'var(--red)':'var(--line2)')}"><h3>☁️ Cross-Device Sync (Google Sheets / Apps Script)<span class="tag">${cloudStatusLabel()}</span></h3>
-    ${Cloud.connected?`
-      <div class="roaster-note" style="border-left-color:${(Cloud.dirty||Cloud.pending)?'var(--accent)':'var(--green)'};background:${(Cloud.dirty||Cloud.pending)?'rgba(245,166,35,.10)':'var(--greenbg)'}">${(Cloud.dirty||Cloud.pending)?'🟡 Ada perubahan yang sedang disimpan ke cloud… (data sudah aman di perangkat ini)':'🟢 Tersinkron'} · room <b>${esc(Cloud.room)}</b> · cek tiap ${Cloud.poll} detik. Semua entri dibagikan otomatis ke perangkat lain dengan URL & Room yang sama.</div>
-      <div class="toolbar" style="margin:8px 0 0"><button class="btn sec" onclick="sendDataNow()">⬆️ Kirim data sekarang</button><button class="btn sec" onclick="cloudForcePull()">🔄 Tarik data terbaru</button><button class="btn sec" onclick="cloudDiag()">🔍 Tes tulis cloud</button><button class="btn sec" onclick="snapshotRestore()" title="Kembalikan data ke kondisi sebelum sinkronisasi terakhir">↩️ Pulihkan cadangan</button><button class="btn danger sm" onclick="cloudDisconnect()">⏹️ Disconnect</button></div>${(function(){var s=snapshotInfo();return s?`<div class="note" style="margin:8px 0 0">🛡️ Cadangan otomatis terakhir: <b>${fmtModTime(s.t)}</b> (${s.n} record). Dibuat setiap kali data cloud masuk.</div>`:'';})()}`
-    :`
-      <div class="note" style="margin:0 0 12px">Data is stored in <b>your Google Sheet</b> via Apps Script. Follow the guide (I explain it in chat), paste the Web App URL <code>.../exec</code>, then Connect. This method is immune to CORS errors, so it works even when the app is opened as a local file.</div>
-      <div class="grid g2">
-        <div class="fg" style="grid-column:1/-1"><label>Web App URL (…/exec)</label><input id="gs_url" value="${esc((cloudCfgGet()&&cloudCfgGet().url)||'')}" placeholder="https://script.google.com/macros/s/AKfy.../exec"></div>
-        <div class="fg"><label>Room / Group Name</label><input id="gs_room" value="${esc((cloudCfgGet()&&cloudCfgGet().room)||'pmdata')}" placeholder="workshop-IS"></div>
-        <div class="fg"><label>Secret (optional)</label><input id="gs_secret" value="${esc((cloudCfgGet()&&cloudCfgGet().secret)||'')}" placeholder="shared password"></div>
-        <div class="fg"><label>Check interval (sec)</label><input id="gs_poll" type="number" min="5" value="${(cloudCfgGet()&&cloudCfgGet().poll)||12}"></div>
-        <div class="fg" style="display:flex;align-items:flex-end"><button class="btn" onclick="cloudSaveConfig()" style="width:100%">🔗 Connect</button></div>
-      </div>
-      ${Cloud.status==='error'?`<div class="roaster-note" style="border-left-color:var(--red);background:rgba(255,90,90,.10);margin-top:8px">🔴 ${esc(Cloud.err||'gagal')}.</div>`:''}
-      <div class="note" style="margin-top:10px">Everyone just uses <b>URL + Room</b> the same one. While the room is empty, your data automatically becomes the initial data.</div>`}
-  </div>
+  ${syncSettingsCard()}
   <div class="card" style="margin-top:14px"><h3>🧾 Log Perubahan & Anomali</h3>
     <div class="fg" style="flex-direction:row;align-items:center;gap:12px;margin-bottom:9px"><label style="width:170px">Nama pencatat</label><input list="dlPeopleSet" value="${esc(curUser())}" placeholder="mis. Afrizal" onchange="setAuditUser(this.value)" style="flex:1;max-width:220px"></div>
     <div class="note" style="margin:0 0 14px">Dipakai sebagai kolom <b>User</b> di Log Perubahan. Disimpan per perangkat — ganti cepat lewat tombol profil di kanan atas, atau di <b>👷 Man Power & Pencatat</b>.</div>
-    <div class="fg" style="flex-direction:row;align-items:center;gap:12px;margin-bottom:9px"><label style="width:170px">Ambang anomali (%)</label><input type="number" min="1" max="100" step="1" value="${jccDevPct()}" onchange="setJccCfg('jccDevPct',this.value)" style="width:100px"></div>
+    ${ADM?`    <div class="fg" style="flex-direction:row;align-items:center;gap:12px;margin-bottom:9px"><label style="width:170px">Ambang anomali (%)</label><input type="number" min="1" max="100" step="1" value="${jccDevPct()}" onchange="setJccCfg('jccDevPct',this.value)" style="width:100px"></div>
     <div class="fg" style="flex-direction:row;align-items:center;gap:12px;margin-bottom:9px"><label style="width:170px">Min. ceklist pembanding</label><input type="number" min="2" max="20" step="1" value="${jccMinN()}" onchange="setJccCfg('jccMinN',this.value)" style="width:100px"></div>
     <div class="fg" style="flex-direction:row;align-items:center;gap:12px;margin-bottom:9px"><label style="width:170px">Jendela korelasi (hari)</label><input type="number" min="1" max="120" step="1" value="${jccLinkDays()}" onchange="setJccCfg('jccLinkDays',this.value)" style="width:100px"></div>
     <div class="fg" style="flex-direction:row;align-items:center;gap:12px"><label style="width:170px">Batas entri log</label><input type="number" min="50" max="5000" step="50" value="${auditMax()}" onchange="setJccCfg('auditMax',this.value)" style="width:100px"></div>
-    <div class="note" style="margin-top:14px">Titik tekanan ditandai menyimpang bila selisihnya ≥ ambang terhadap median minimal ${jccMinN()} ceklist sebelumnya. Jendela korelasi menentukan berapa hari setelah ceklist penggantian part masih dianggap terkait.</div>
+    <div class="note" style="margin-top:14px">Titik tekanan ditandai menyimpang bila selisihnya ≥ ambang terhadap median minimal ${jccMinN()} ceklist sebelumnya. Jendela korelasi menentukan berapa hari setelah ceklist penggantian part masih dianggap terkait.</div>`:`<div class="note" style="margin:0">🔒 Ambang anomali &amp; batas log diatur Admin.</div>`}
   </div>
   <div class="card" style="margin-top:14px"><h3>💾 Backup & Restore Data</h3>
     <div class="toolbar" style="margin:0">
       <button class="btn sec" onclick="exportJSON()">⬇️ Export JSON</button>
       <button class="btn sec" onclick="exportCSV()">⬇️ Export CSV</button>
-      <label class="btn sec" style="cursor:pointer">⬆️ Import JSON<input type="file" accept=".json" onchange="importJSON(this)" style="display:none"></label>
-      <button class="btn danger sm" onclick="resetData()" style="margin-left:auto" title="Kosongkan semua data; Settings & Master JC tidak berubah">🗑️ Reset Semua Data</button>
+      ${ADM?`<label class="btn sec" style="cursor:pointer">⬆️ Import JSON<input type="file" accept=".json" onchange="importJSON(this)" style="display:none"></label>
+      <button class="btn danger sm" onclick="resetData()" style="margin-left:auto" title="Kosongkan semua data; Settings & Master JC tidak berubah">🗑️ Reset Semua Data</button>`:''}
     </div>
     <div class="note" style="margin-top:14px">Data is saved automatically in the browser. Use Export to back up / move devices. ${Store.ok?'✓ Persistent storage active.':'⚠️ Temporary mode — export to save permanently.'}</div>
   </div>
   </div>
-  <div class="setgroup">
+  ${ADM?`<div class="setgroup">
   ${mpSettingsHTML()}
   <div class="card" style="margin-top:14px"><h3>🔢 Sections per Machine<span class="tag">C1/C2 default 8 · C5 default 10</span></h3>
     <div class="note" style="margin:0 0 12px">Choose the sections each machine has. Machine <b>C1.x</b> & <b>C2.x</b> auto S1–S8; other machines S1–S${CFG.sections.length}. Click a chip to enable/disable per machine (e.g. turn off S9 & S10 only for certain machines, without affecting others).</div>
@@ -8863,7 +9390,7 @@ function vSet(){
       <div class="fg" style="grid-column:1/-1"><label>Consumable Part (single-use on change — others reusable)</label><textarea rows="2" onchange="setList('consumables',this.value)">${(CFG.consumables||[]).join(', ')}</textarea></div>
     </div>
   </div>
-  </div>`;
+  </div>`:''}`;
 }
 function removePartReason(part,r){ if(!CFG.partReasons||!CFG.partReasons[part])return; CFG.partReasons[part]=CFG.partReasons[part].filter(x=>x.toLowerCase()!==String(r).toLowerCase()); saveAll(); render(); }
 function addPartReasonManual(i){ const part=CFG.parts[i]; const el=$('#pr_in_'+i); if(!el)return; const r=(el.value||'').trim(); if(!r){toast('Type a reason first',1);return;}
@@ -9008,9 +9535,11 @@ async function saveExcel(){
   exportXLSX();
 }
 function importJSON(inp){const f=inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=e=>{try{const o=JSON.parse(e.target.result);
-  if(o.db)DB=o.db;if(o.cfg)CFG=Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)),o.cfg);if(o.actions)actionStatus=o.actions;
+  const _keepLocal={}; try{ Object.keys(CFG_LOCAL_KEYS).forEach(k=>{ if(CFG&&CFG[k]!==undefined&&!(o.cfg&&o.cfg[k]!==undefined)) _keepLocal[k]=CFG[k]; }); }catch(_e){}
+  if(o.db)DB=o.db;if(o.cfg)CFG=Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)),o.cfg,_keepLocal);if(o.actions)actionStatus=o.actions;
   if(o.cfg) ensurePartAreas(!!(o.cfg.partAreas&&typeof o.cfg.partAreas==='object'));
   if(Array.isArray(o.jc))JCPLANS=o.jc; if(Array.isArray(o.stock))STOCK=o.stock; if(Array.isArray(o.jccheck))JCCHECKS=o.jccheck; if(Array.isArray(o.audit))AUDIT=o.audit;
+  try{ ensureRecIds(); }catch(_e){}
   saveLocal();   // simpan ke perangkat DULU (pasti aman, tidak tergantung cloud)
   toast('✓ Diimpor & disimpan di perangkat: '+DB.length+' record · '+JCPLANS.length+' JC · '+STOCK.length+' stock');
   buildNav();render();
@@ -9530,6 +10059,7 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
   }catch(_){ } });
   window.addEventListener('unhandledrejection',function(ev){ try{ console.warn('Promise ditolak (diabaikan, data aman):', ev&&ev.reason); }catch(_){ } });
   try{ await loadAll(); }catch(e){ console.error('loadAll failed:',e); }
+  try{ syncInstallGuards(); }catch(e){ console.error(e); }   /* fungsi Admin (Master, impor, reset, denah) → minta PIN Admin bagi Operator */
   try{ jcVarAreaMigrate(); }catch(e){ console.error(e); }
   try{ Cloud.dirty = (localStorage.getItem('pm_dirty')==='1'); }catch(e){}   // pulihkan status "belum tersinkron" setelah reload → lindungi input lokal
   try{ var _lr0=parseInt(localStorage.getItem('pm_lastrev'),10); Cloud.lastRev=isNaN(_lr0)?null:_lr0; }catch(e){}   // pulihkan revisi cloud terakhir yang sudah diserap
@@ -9548,7 +10078,7 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
     if(!(cc&&cc.enabled&&cc.url) && CLOUD_DEFAULT && CLOUD_DEFAULT.url){ cc={ url:CLOUD_DEFAULT.url, room:CLOUD_DEFAULT.room||'pmdata', secret:CLOUD_DEFAULT.secret||'', poll:12, enabled:true }; cloudCfgSet(cc); }
     // URL di dalam file = sumber kebenaran: bila beda dgn yang tersimpan, pakai URL file (deploy ulang cukup update file)
     else if(cc && CLOUD_DEFAULT && CLOUD_DEFAULT.url && cc.url!==CLOUD_DEFAULT.url){ cc.url=CLOUD_DEFAULT.url; cc.enabled=true; Cloud.lastRev=null; cloudCfgSet(cc); }
-    if(cc && cc.enabled && cc.url){ gsConnect(cc); if(Cloud.dirty) setTimeout(()=>gsPush(true),1200); }   // ada input lokal belum terkirim → segera kirim ulang
+    if(cc && cc.enabled && cc.url){ gsConnect(cc); }   // sinkron v3: login PIN → sinkron per record (input lokal yang belum terkirim ikut terkirim)
   }catch(e){}
   document.addEventListener('input',e=>{if(['i_part','i_date','i_reason','i_reason_sel','i_section','i_machine'].includes(e.target.id))previewLive();});
   // re-apply desktop side-nav / mobile bottom-nav on resize
