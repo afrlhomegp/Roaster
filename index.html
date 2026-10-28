@@ -2641,7 +2641,7 @@ function ensureChart(){ if(window._chartReady) return window._chartReady;
   return p; }
 function mkChart(target,cfg){
   if(window._dvNoAnim&&cfg){ cfg.options=cfg.options||{}; cfg.options.animation=false; }   /* pindah Summary ⇄ Summary JC: grafik langsung tampil */
-  if(typeof Chart!=='undefined') return new Chart(target,cfg);
+  if(typeof Chart!=='undefined'){ try{ if(typeof _fsChart==='function') _fsChart(cfg); }catch(e){} return new Chart(target,cfg); }
   if(!window._chartRedrawQueued){ window._chartRedrawQueued=true;
     ensureChart().then(function(){ window._chartRedrawQueued=false; try{ render(); }catch(e){} })
       .catch(function(){ window._chartRedrawQueued=false; }); }
@@ -2891,7 +2891,7 @@ const Cloud = { enabled:false, connected:false, url:'', room:'pmdata', secret:''
   dirty:false, pending:null, pendingSince:0, confirmedToken:null };
 const SYNC_ARR = { db:()=>DB, jc:()=>JCPLANS, stock:()=>STOCK, jccheck:()=>JCCHECKS };
 const SYNC_ADMIN_COLS = { cfg:1, img:1 };                                  // hanya Admin yang boleh mengirim
-const CFG_LOCAL_KEYS = { theme:1, uiScale:1, bottomNav:1, lastMod:1 };     // preferensi per perangkat — tidak disinkron
+const CFG_LOCAL_KEYS = { theme:1, uiScale:1, fontScale:1, bottomNav:1, lastMod:1 };     // preferensi per perangkat — tidak disinkron
 const Sync = { tok:'', role:null, adminTok:'', adminTimer:null, sid:'', lastRev:0, map:null, dt:{}, loadedRoom:'', attached:false,
   running:false, again:false, needDiff:true, userEdit:false, conflicts:[], forbidden:{}, mode:'', blocked:'', init:true, deferred:false,
   cycleErr:false, nOut:0, nCfgLocal:0, cfgDirtyPrev:'', lastOk:0, lastPing:0, skew:0, legacy:false, timer:null, saveT:null,
@@ -4308,7 +4308,7 @@ document.addEventListener('keydown',function(e){ if(e.key==='Escape'&&document.b
 function setJccCfg(k,v){ const n=parseFloat(v); if(!isFinite(n)||n<=0){ toast('Nilai tidak valid',1); return; } CFG[k]=n; saveAll(); render(); }
 function setTheme(t){ CFG.theme=t; saveAll(); applyTheme(); render(); tickClock(); }
 /* ============ DISPLAY SCALE (ZOOM) — perkecil/perbesar seluruh tampilan ============ */
-function clampScale(n){ n=Math.round((+n||100)/5)*5; if(n<50)n=50; if(n>140)n=140; return n; }
+function clampScale(n){ n=Math.round((+n||100)/5)*5; if(n<50)n=50; if(n>200)n=200; return n; }
 function applyScale(){ var n=clampScale(CFG.uiScale||100);
   try{ document.documentElement.style.zoom = (n/100); }catch(e){}
   // beri tahu CSS faktor zoom agar layout satu-layar (dashboard desktop) bisa mengisi penuh tinggi walau di-scale
@@ -4321,6 +4321,58 @@ function previewScale(n){ n=clampScale(n); CFG.uiScale=n; applyScale(); }   // l
 function setScale(n){ CFG.uiScale=clampScale(n); applyScale(); saveAll(); }  // simpan permanen
 function nudgeScale(d){ setScale((CFG.uiScale||100)+d); }
 function resetScale(){ setScale(100); }
+/* ============ UKURAN HURUF DASAR 120% (rasio tetap, ikut Display Scale) ============
+   Ukuran huruf asli di aplikasi memakai px tetap dan terasa kecil, jadi semua huruf dibesarkan 1,2×
+   secara permanen; Display Scale (zoom) lalu memperbesar/memperkecil semuanya dengan rasio yang sama.
+   • aturan CSS font-size ditulis ulang dari nilai aslinya (bar menu bawah HP dibiarkan, ruangnya sempit),
+   • style inline di template (style="font-size:11px") diskalakan saat elemen masuk DOM (MutationObserver),
+   • grafik SVG digambar pada lebar W/1,2 lalu diperbesar utuh; Chart.js: ukuran font opsi & default ikut. */
+const FONT_BASE=1.2;
+function fontFactor(){ return FONT_BASE; }
+const _fsRule=new WeakMap(), _fsFont=new WeakMap(); let _fsObs=null, _fsApplied=1;
+function _fsVal(orig,f){ const v=String(orig||'').trim(); if(f===1||!v) return v;
+  const m=v.match(/^(-?[\d.]+)px$/); if(m) return (Math.round(+m[1]*f*100)/100)+'px';
+  if(/px|vw|vh|vmin|vmax/.test(v)) return 'calc(('+v+') * '+f+')';
+  return v; }   // em / % / rem mengikuti induknya
+function _fsRules(list,f){ for(let i=0;i<list.length;i++){ const r=list[i];
+    if(r.style&&!(r.selectorText&&/\.bn-|\.bnd\b|#nav\b/.test(r.selectorText))){ let o=_fsRule.get(r); if(o===undefined){ o=r.style.getPropertyValue('font-size'); if(o) _fsRule.set(r,o); }
+      if(o){ const nv=_fsVal(o,f), pr=r.style.getPropertyPriority('font-size'); if(r.style.getPropertyValue('font-size')!==nv) r.style.setProperty('font-size',nv,pr); } }
+    if(r.cssRules&&r.cssRules.length) _fsRules(r.cssRules,f); } }   // @media / @supports / nesting
+function _fsAllRules(f){ Array.prototype.forEach.call(document.styleSheets,sh=>{ let rl=null; try{ rl=sh.cssRules; }catch(e){ return; } if(rl) _fsRules(rl,f); }); }
+function _fsInline(root,f){ if(!root||root.nodeType!==1) return;
+  const list=root.querySelectorAll?Array.prototype.slice.call(root.querySelectorAll('[style*="font-size"]')):[];
+  if(root.getAttribute&&/font-size/.test(root.getAttribute('style')||'')) list.push(root);
+  list.forEach(el=>{ if(el.ownerSVGElement) return;   // teks di dalam grafik SVG → diperbesar lewat fsMag
+    let o=el.__fs0; if(o===undefined){ o=el.style.fontSize; if(!o) return; el.__fs0=o; }
+    const nv=_fsVal(o,f); if(el.style.fontSize!==nv) el.style.fontSize=nv; }); }
+function _fsObserve(on){
+  if(on&&!_fsObs&&typeof MutationObserver!=='undefined'){
+    _fsObs=new MutationObserver(ms=>{ const f=fontFactor(); if(f===1&&_fsApplied===1) return; let css=false;
+      ms.forEach(m=>m.addedNodes.forEach(n=>{ if(n.nodeType!==1) return;
+        if(n.tagName==='STYLE'||n.tagName==='LINK'||(n.querySelector&&n.querySelector('style'))) css=true;
+        _fsInline(n,f); }));
+      if(css) _fsAllRules(f); });
+    _fsObs.observe(document.documentElement,{childList:true,subtree:true});
+  } else if(!on&&_fsObs){ _fsObs.disconnect(); _fsObs=null; } }
+function _fsChart(cfg){ const f=fontFactor();
+  try{ if(window.Chart&&Chart.defaults&&Chart.defaults.font){ if(Chart.__fs0==null) Chart.__fs0=Chart.defaults.font.size||12; Chart.defaults.font.size=Math.round(Chart.__fs0*f*10)/10; } }catch(e){}
+  if(!cfg||!cfg.options) return; const seen=new Set();
+  (function walk(o,d){ if(!o||typeof o!=='object'||seen.has(o)||d>9) return; seen.add(o);
+    if(Array.isArray(o)){ o.forEach(x=>walk(x,d+1)); return; }
+    Object.keys(o).forEach(k=>{ const v=o[k];
+      if(k==='font'&&v&&typeof v==='object'&&!Array.isArray(v)&&typeof v.size==='number'){ let o0=_fsFont.get(v); if(o0===undefined){ o0=v.size; _fsFont.set(v,o0); } v.size=Math.round(o0*f*10)/10; }
+      else if(v&&typeof v==='object') walk(v,d+1); }); })(cfg.options,0); }
+/* grafik SVG (dashboard, analisis, timeline JC): digambar pada lebar logis W/f lalu diperbesar utuh
+   — teks & jarak baris membesar bersama, jadi tidak saling menimpa */
+function fsW(W){ const f=fontFactor(); return f===1?W:Math.max(120,Math.floor(W/f)); }
+function fsMag(el){ const f=fontFactor(); if(f===1||!el) return;
+  el.querySelectorAll('svg.ana-svg,svg.jtl-svg').forEach(sv=>{ if(sv.__fsMag) return; const w=+sv.getAttribute('width'), h=+sv.getAttribute('height');
+    if(w>0&&h>0){ sv.setAttribute('width',Math.round(w*f)); sv.setAttribute('height',Math.round(h*f)); sv.__fsMag=1; } }); }
+function applyFontScale(){ const f=fontFactor();
+  try{ if(CFG&&Object.prototype.hasOwnProperty.call(CFG,'fontScale')) delete CFG.fontScale; }catch(e){}   // sisa pengaturan "Ukuran Teks" lama
+  if(f!==1||_fsApplied!==1){ _fsAllRules(f); _fsInline(document.body,f); _fsApplied=f; }
+  _fsObserve(f!==1);
+  try{ document.documentElement.style.setProperty('--fontscale',f); }catch(e){} }
 /* ============ FULLSCREEN (mode layar penuh / kiosk) ============ */
 function fsElement(){ return document.fullscreenElement||document.webkitFullscreenElement||document.mozFullScreenElement||document.msFullscreenElement; }
 function toggleFullscreen(){
@@ -5233,7 +5285,7 @@ function jtlSectionHTML(){ const n=jtlPlans().length;
   <div class="card jtl-card" style="margin-bottom:16px"><div class="jtl-ch" id="jtlCh"></div>
     <div class="jtl-leg"><span><i style="background:var(--red)"></i>Belum siap (≤1 hari)</span><span><i style="background:var(--orange)"></i>Belum siap</span><span><i style="background:var(--blue)"></i>Form dicetak</span><span><i style="background:var(--green)"></i>Siap</span><span><i style="background:var(--green);border-radius:50%;width:8px;height:8px"></i>ada roaster</span><span><i style="background:transparent;outline:2px dashed var(--yellow);outline-offset:-2px"></i>trial</span><span><i style="background:var(--accent);width:2px;border-radius:0"></i>hari ini</span></div>
     <div class="jtl-hint">Angka di kotak = jumlah part yang diganti dibanding JC sebelumnya di mesin itu.</div></div>`; }
-function jtlDraw(){ const el=document.getElementById('jtlCh'); if(!el) return; const W=Math.floor(el.clientWidth); if(W<160) return;
+function jtlDraw(){ const el=document.getElementById('jtlCh'); if(!el) return; const W0=Math.floor(el.clientWidth); if(W0<160) return; const W=fsW(W0);
   const P=jtlPlans(), machs=CFG.machines.slice(), days=15, narrow=W<520, LW=Math.round((narrow?46:66)*anaFS()), dw=(W-LW)/days, RH=narrow?28:32, top=34;
   const BL=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']; let g='';
   for(let d=0;d<days;d++){ const dt=new Date(TODAY.getTime()+d*86400000), x=LW+d*dw;
@@ -5251,7 +5303,7 @@ function jtlDraw(){ const el=document.getElementById('jtlCh'); if(!el) return; c
         +(o.ro?`<circle cx="${(xx+w-2).toFixed(1)}" cy="${(yy+1).toFixed(1)}" r="4.5" style="fill:var(--green);stroke:var(--panel);stroke-width:2"/>`:'')+`<title>${esc(tip)}</title></g>`; }); });
   g+=`<line x1="${(LW+dw/2).toFixed(1)}" x2="${(LW+dw/2).toFixed(1)}" y1="${top-3}" y2="${top+machs.length*RH}" style="stroke:var(--accent);stroke-width:2;pointer-events:none"/>`;
   const H=top+machs.length*RH+4;
-  el.innerHTML=`<svg class="jtl-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg>`;
+  el.innerHTML=`<svg class="jtl-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg>`; fsMag(el);
   el.onclick=function(ev){ const h=ev.target.closest&&ev.target.closest('.jtl-hit'); if(!h) return; const id=+h.getAttribute('data-id'); if(!isNaN(id)) openJCPlan(id); }; }
 (function(){ let t=null; window.addEventListener('resize',function(){ clearTimeout(t); t=setTimeout(function(){ try{ if(typeof current!=='undefined'&&current==='plan') jtlDraw(); }catch(e){} },150); }); })();
 
@@ -5576,7 +5628,7 @@ const SUM_BL=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov',
 function sumDraw(){ const S=window._SUM; if(!S||dashView()==='jc') return;
   document.querySelectorAll('#main [data-sum]').forEach(el=>{ const k=el.dataset.sum, fn={marker:sumMarker,lolli:sumLolli,heat:sumHeat,col:sumCol}[k]; if(!fn) return;
     const W=Math.floor(el.clientWidth); if(W<120) return;
-    try{ el.innerHTML=fn(W,S); }catch(e){ console.error('sumDraw '+k,e); el.innerHTML='<div class="ana-empty">Gagal menggambar chart.</div>'; }
+    try{ el.innerHTML=fn(fsW(W),S); fsMag(el); }catch(e){ console.error('sumDraw '+k,e); el.innerHTML='<div class="ana-empty">Gagal menggambar chart.</div>'; }
     el.onclick=function(ev){ const h=ev.target.closest&&ev.target.closest('[data-si]'); if(!h||!el.contains(h)) return; ev.stopPropagation(); sumTap(k,h.getAttribute('data-si')); }; }); }
 (function(){ let t=null; window.addEventListener('resize',function(){ clearTimeout(t); t=setTimeout(function(){ try{ if(typeof current!=='undefined'&&current==='dash'&&dashView()!=='jc') sumDraw(); }catch(e){} },150); }); })();
 function sumTap(k,v){ const S=window._SUM; if(!S) return;
@@ -8728,7 +8780,7 @@ const ANA_DRAW={life:anaDrawLife,mtbf:anaDrawMtbf,par:anaDrawPareto,freq:anaDraw
 function anaDraw(){ if(!window._ANA) return;
   document.querySelectorAll('#main .ana-ch[data-ana]').forEach(el=>{ const k=el.dataset.ana, fn=ANA_DRAW[k]; if(!fn) return;
     const W=Math.floor(el.clientWidth); if(W<120) return;
-    try{ el.innerHTML=fn(W); }catch(e){ console.error('anaDraw '+k,e); el.innerHTML='<div class="ana-empty">Gagal menggambar chart: '+esc(e.message)+'</div>'; }
+    try{ el.innerHTML=fn(fsW(W)); fsMag(el); }catch(e){ console.error('anaDraw '+k,e); el.innerHTML='<div class="ana-empty">Gagal menggambar chart: '+esc(e.message)+'</div>'; }
     el.onclick=function(ev){ const h=ev.target.closest&&ev.target.closest('.ana-hit'); if(!h||!el.contains(h)) return; anaDetail(k,h.getAttribute('data-i')); }; }); }
 (function(){ let t=null; window.addEventListener('resize',function(){ clearTimeout(t); t=setTimeout(function(){ if(typeof current!=='undefined'&&(current==='ana'||(current==='dash'&&document.querySelector('#main .ana-ch[data-ana]')))) anaDraw(); },150); }); })();
 
@@ -9272,10 +9324,10 @@ function vSet(){
   </div>
   ${pwaSettingsHTML()}
   <div class="card" style="margin-top:14px"><h3>🔍 Display Scale (Zoom)<span class="tag">${CFG.uiScale||100}%</span></h3>
-    <div class="note" style="margin:0 0 12px">Perkecil / perbesar <b>seluruh</b> tampilan (teks, kartu, grafik). Untuk layar besar, pakai <b>75–85%</b> agar lebih banyak data muat tanpa scroll.</div>
+    <div class="note" style="margin:0 0 12px">Perkecil / perbesar <b>seluruh</b> tampilan (teks, kartu, grafik) dengan rasio yang sama. Huruf dasar sudah dibesarkan 120%. Monitor dashboard yang dilihat dari jauh: <b>110–150%</b>; layar kecil yang ingin muat lebih banyak data: <b>80–90%</b>.</div>
     <div class="scalebar">
       <div class="scale-nudge"><button onclick="nudgeScale(-5)" title="Perkecil">−</button></div>
-      <input id="scaleRange" type="range" min="50" max="140" step="5" value="${CFG.uiScale||100}" oninput="previewScale(this.value)" onchange="setScale(this.value)" aria-label="Skala tampilan">
+      <input id="scaleRange" type="range" min="50" max="200" step="5" value="${CFG.uiScale||100}" oninput="previewScale(this.value)" onchange="setScale(this.value)" aria-label="Skala tampilan">
       <div class="scale-nudge"><button onclick="nudgeScale(5)" title="Perbesar">+</button></div>
       <div id="scaleVal" class="scaleval">${CFG.uiScale||100}%</div>
     </div>
@@ -9286,6 +9338,7 @@ function vSet(){
       <button class="themebtn ${(CFG.uiScale||100)==100?'on':''}" data-scale="100" onclick="setScale(100)">100%<span class="ps-sub">Normal</span></button>
       <button class="themebtn ${(CFG.uiScale||100)==110?'on':''}" data-scale="110" onclick="setScale(110)">110%<span class="ps-sub">Besar</span></button>
       <button class="themebtn ${(CFG.uiScale||100)==125?'on':''}" data-scale="125" onclick="setScale(125)">125%<span class="ps-sub">Sangat besar</span></button>
+      <button class="themebtn ${(CFG.uiScale||100)==150?'on':''}" data-scale="150" onclick="setScale(150)">150%<span class="ps-sub">Layar jauh</span></button>
     </div>
     <div class="toolbar" style="margin:14px 0 0;flex-wrap:wrap;gap:10px">
       <button class="btn" onclick="toggleFullscreen()">⛶ Mode Layar Penuh</button>
@@ -10065,6 +10118,7 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
   try{ var _lr0=parseInt(localStorage.getItem('pm_lastrev'),10); Cloud.lastRev=isNaN(_lr0)?null:_lr0; }catch(e){}   // pulihkan revisi cloud terakhir yang sudah diserap
   try{ applyTheme(); }catch(e){ console.error(e); }
   try{ applyScale(); }catch(e){ console.error(e); }
+  try{ applyFontScale(); }catch(e){ console.error(e); }   /* huruf dasar 120% (rasio tetap, ikut Display Scale) */
   try{ updateFsBtn(); }catch(e){ console.error(e); }
   try{ tickClock(); }catch(e){ console.error(e); }
   try{ buildNav(); }catch(e){ console.error(e); }
