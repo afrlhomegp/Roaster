@@ -1543,6 +1543,13 @@ body.anapop-open .mnav{display:none!important}
 .jtl-ch{width:100%;min-height:60px}
 .jtl-svg{display:block;overflow:visible}
 .jtl-svg text{font-family:inherit}
+.jtl-exp{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.jtl-exp-t{font-weight:700;font-size:12.5px;margin-right:auto}
+.jtl-exp label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--txt2)}
+.jtl-exp input[type=date]{width:auto;padding:6px 8px}
+.jtl-exp-b{display:flex;gap:8px}
+.jsu-days{display:inline-flex;gap:6px}
+@media(max-width:600px){.jtl-exp-t{flex-basis:100%}}
 .jtl-hit{cursor:pointer}
 .jtl-hit:hover rect{filter:brightness(1.15)}
 .jtl-leg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11.5px;color:var(--txt2);margin-top:10px;align-items:center}
@@ -3034,8 +3041,9 @@ function syncPaint(){
 function syncInjectCss(){
   if(document.getElementById('syncCss')) return;
   const s=document.createElement('style'); s.id='syncCss';
-  s.textContent=`.pin-ov{position:fixed;inset:0;z-index:400;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(4,8,16,.62)}
+  s.textContent=`.pin-ov{position:fixed;inset:0;z-index:9000;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(4,8,16,.62)}
 .pin-ov.show{display:flex}
+.pin-ov.gate{background:rgba(4,8,16,.86);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 .pin-card{width:100%;max-width:380px;background:var(--bg2);border:1px solid var(--line2);border-radius:20px;box-shadow:0 24px 70px rgba(0,0,0,.45);padding:20px 20px 18px;color:var(--txt)}
 body.soft .pin-card{background:var(--panel);border:0}
 .pin-h{display:flex;align-items:flex-start;gap:12px}
@@ -3052,7 +3060,7 @@ body.soft .pin-card{background:var(--panel);border:0}
 .sync-kv b{font-weight:700;overflow-wrap:anywhere}
 .sync-role{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;font-weight:800;font-size:12px;border:1px solid var(--line2);background:var(--panel2)}
 .sync-role.admin{color:var(--accent2);border-color:var(--accent)}.sync-role.operator{color:var(--blue);border-color:var(--blue)}.sync-role.none{color:var(--txt3)}
-.sync-upd{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 10px);z-index:500;display:flex;gap:12px;align-items:center;width:max-content;max-width:calc(100vw - 24px);background:var(--redbg,#3a1620);color:var(--txt);border:1px solid var(--red);border-radius:14px;padding:10px 12px 10px 16px;box-shadow:var(--shadow);font-size:13px;line-height:1.35}
+.sync-upd{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 10px);z-index:9500;display:flex;gap:12px;align-items:center;width:max-content;max-width:calc(100vw - 24px);background:var(--redbg,#3a1620);color:var(--txt);border:1px solid var(--red);border-radius:14px;padding:10px 12px 10px 16px;box-shadow:var(--shadow);font-size:13px;line-height:1.35}
 .sync-upd button{flex:0 0 auto;background:var(--red);color:#fff;border:0;border-radius:10px;padding:9px 13px;font-weight:800;cursor:pointer;font-family:inherit}
 .sync-lockcard .btn{margin-top:4px}`;
   document.head.appendChild(s);
@@ -3482,7 +3490,7 @@ function gsConnect(cfg){
   if(Sync.loadedRoom && Sync.loadedRoom!==Cloud.room){ Sync.loadedRoom=''; Sync.map=null; Sync.attached=false; }
   syncInjectCss(); syncListeners();
   clearInterval(Cloud._pollTimer); Cloud._pollTimer=setInterval(()=>syncPoll(false), Cloud.poll*1000);
-  if(!Sync.tok) setTimeout(()=>pinLoginPrompt(false), 1300);
+  if(!Sync.tok) setTimeout(()=>pinLoginPrompt(true), 500);   // belum masuk → gerbang PIN wajib
   // muat shadow segera (tanpa jaringan) → antrian kirim & status sudah benar walau sedang offline
   syncLoadShadow().then(()=>{ if(Sync.attached && !Sync.running){ try{ syncOutbox(); }catch(e){} } syncPaint(); }).catch(()=>{});
   setTimeout(()=>syncPoll(true), 300);
@@ -3505,22 +3513,24 @@ function pinOpen(opts){
     m.addEventListener('keydown',e=>{ if(e.key==='Escape') pinClose(true); });
     document.body.appendChild(m); }
   const o=Sync._pin, admin=(o.mode==='admin');
-  document.getElementById('pinbox').innerHTML=`<div class="pin-h"><h3 id="pinTitle">${admin?'🔓 Akses Admin':'🔑 Masuk sinkron cloud'}</h3>
-      <button class="pin-x" type="button" onclick="pinClose(true)" aria-label="Tutup">✕</button></div>
-    <div class="pin-sub">${esc(o.why||(admin?'Masukkan PIN Admin untuk melanjutkan.':'Masukkan PIN Operator atau PIN Admin (diberikan oleh Admin).'))}</div>
+  m.classList.toggle('gate',!admin);   // masuk perangkat = wajib, menutupi seluruh aplikasi
+  document.getElementById('pinbox').innerHTML=`<div class="pin-h"><h3 id="pinTitle">${admin?'🔓 Akses Admin':'🔑 Masuk dengan PIN'}</h3>
+      ${admin?'<button class="pin-x" type="button" onclick="pinClose(true)" aria-label="Tutup">✕</button>':''}</div>
+    <div class="pin-sub">${esc(o.why||(admin?'Masukkan PIN Admin untuk melanjutkan.':'Aplikasi hanya bisa dipakai setelah masuk. Masukkan PIN Operator atau PIN Admin (diberikan oleh Admin).'))}</div>
     <form onsubmit="event.preventDefault();pinSubmit()" autocomplete="off">
       <input id="pinIn" class="pin-in" type="password" inputmode="numeric" autocomplete="off" maxlength="24" placeholder="••••" aria-label="PIN">
       <div class="pin-err" id="pinErr" aria-live="polite"></div>
       <div class="pin-act">
-        <button type="button" class="btn sec" onclick="pinClose(true)">${admin?'Batal':'Nanti'}</button>
-        <button type="submit" class="btn" id="pinGo">${admin?'Buka':'Masuk'}</button></div>
+        ${admin?'<button type="button" class="btn sec" onclick="pinClose(true)">Batal</button>':''}
+        <button type="submit" class="btn" id="pinGo"${admin?'':' style="flex:1"'}>${admin?'Buka':'Masuk'}</button></div>
     </form>
-    <div class="pin-foot">${admin?'Akses Admin otomatis terkunci lagi setelah 30 menit.':'Tanpa masuk, data tetap tersimpan di perangkat ini dan otomatis dikirim setelah Anda masuk.'}</div>`;
+    <div class="pin-foot">${admin?'Akses Admin otomatis terkunci lagi setelah 30 menit.':'Data yang sudah ada di perangkat ini tetap aman. Belum punya PIN? Hubungi Admin.'}</div>`;
   m.classList.add('show');
   setTimeout(()=>{ const i=document.getElementById('pinIn'); if(i) i.focus(); },80);
 }
 function pinClose(cancel){
-  const m=document.getElementById('pinmodal'); if(m) m.classList.remove('show');
+  if(cancel && Sync._pin && Sync._pin.mode!=='admin' && Cloud.enabled && !syncTok()) return;   // gerbang login wajib
+  const m=document.getElementById('pinmodal'); if(m) m.classList.remove('show','gate');
   const o=Sync._pin; Sync._pin=null;
   try{ if(document.activeElement&&document.activeElement.id==='pinIn') document.activeElement.blur(); }catch(e){}
   if(cancel && o && typeof o.onCancel==='function') try{ o.onCancel(); }catch(e){}
@@ -3535,7 +3545,9 @@ async function pinSubmit(){
   if(go){ go.disabled=false; go.textContent=(o.mode==='admin')?'Buka':'Masuk'; }
   if(!j) return;
   if(!j.ok){
-    if(j.code==='OLD_APP'||j.code==='SETUP'||j.proto==null&&!j.code){ pinClose(false); syncServerErr(j); return; }
+    if(j.code==='OLD_APP'||j.code==='SETUP'||j.proto==null&&!j.code){
+      if(o.mode==='admin'){ pinClose(false); syncServerErr(j); return; }
+      syncServerErr(j); if(er) er.textContent=(j.code==='OLD_APP')?'Versi aplikasi lama — ketuk "Muat ulang" di atas':(j.error||Cloud.err||'Server belum siap — hubungi Admin'); return; }
     if(er) er.textContent=j.error||'PIN salah'; if(inp){ inp.value=''; inp.focus(); } return;
   }
   if(o.mode==='admin'){
@@ -3554,7 +3566,8 @@ async function pinSubmit(){
 }
 function pinLoginPrompt(force){
   if(!Cloud.enabled||syncTok()) return;
-  if(Sync.promptShown && !force) return;
+  const m=document.getElementById('pinmodal');
+  if(m && m.classList.contains('show') && Sync._pin && Sync._pin.mode!=='admin') return;   // sudah tampil — jangan hapus PIN yang sedang diketik
   Sync.promptShown=true; pinOpen({mode:'login'});
 }
 function syncAdminUnlock(tok){
@@ -4816,7 +4829,7 @@ let after=[];
 function upcomingJCList(horizon){ horizon=(horizon!=null?horizon:(CFG.jcAlertDays!=null?CFG.jcAlertDays:7));
   return (JCPLANS||[]).filter(p=>p&&p.jcDate)
     .map(p=>({p,rem:daysBetween(TODAY,parseD(p.jcDate))}))
-    .filter(x=>x.rem>=0 && x.rem<=horizon)
+    .filter(x=>x.rem>=0 && x.rem<=horizon && !x.p.postponed)
     .sort((a,b)=>(a.p.jcDate||'').localeCompare(b.p.jcDate||'')||String(a.p.machine||'').localeCompare(String(b.p.machine||'')));
 }
 function jcStatusTag(p){
@@ -5195,7 +5208,7 @@ function jxList(){ const horizon=(CFG.jcSummaryDays!=null?CFG.jcSummaryDays:14);
   if(F.brand && F.brand!=='all') list=list.filter(x=>brandOf(x.p.machine||x.p.line)===F.brand);
   return list; }
 function jxBase(p){ const machine=p.machine||p.line;
-  return (JCPLANS||[]).filter(q=>q&&(q.machine||q.line)===machine&&q.id!==p.id&&(q.jcDate||'')<=(p.jcDate||''))
+  return (JCPLANS||[]).filter(q=>q&&(q.machine||q.line)===machine&&!q.postponed&&q.id!==p.id&&(q.jcDate||'')<=(p.jcDate||''))
     .sort((a,b)=>(b.jcDate||'').localeCompare(a.jcDate||'')||((b.id||0)-(a.id||0)))[0]||null; }
 /* item persiapan per plan: part ganti/pasang (+ stok) lalu roaster — urutan tetap (dipakai indeks centang) */
 function jxItems(p){ const kit=(p.prep&&p.prep.kit)||{}; const diff=transitionDiff(jxBase(p),p); const out=[];
@@ -5284,7 +5297,11 @@ function jtlSectionHTML(){ const n=jtlPlans().length;
   return `<div class="sectiontitle">🗓️ Timeline JC 14 Hari <span style="font-size:11px;color:var(--txt3);font-weight:600">— ${n} JC · tap kotak untuk buka plan</span></div>
   <div class="card jtl-card" style="margin-bottom:16px"><div class="jtl-ch" id="jtlCh"></div>
     <div class="jtl-leg"><span><i style="background:var(--red)"></i>Belum siap (≤1 hari)</span><span><i style="background:var(--orange)"></i>Belum siap</span><span><i style="background:var(--blue)"></i>Form dicetak</span><span><i style="background:var(--green)"></i>Siap</span><span><i style="background:var(--green);border-radius:50%;width:8px;height:8px"></i>ada roaster</span><span><i style="background:transparent;outline:2px dashed var(--yellow);outline-offset:-2px"></i>trial</span><span><i style="background:var(--accent);width:2px;border-radius:0"></i>hari ini</span></div>
-    <div class="jtl-hint">Angka di kotak = jumlah part yang diganti dibanding JC sebelumnya di mesin itu.</div></div>`; }
+    <div class="jtl-hint">Angka di kotak = jumlah part yang diganti dibanding JC sebelumnya di mesin itu.</div>
+    <div class="jtl-exp"><span class="jtl-exp-t">📄 Form Job Set Up IS Maintenance</span>
+      <label>mulai <input type="date" id="jsuStart" value="${ymd(TODAY)}"></label>
+      <span class="jsu-days">${[7,14].map(n=>`<button class="btn sm${jsuDays()===n?'':' sec'}" data-d="${n}" aria-pressed="${jsuDays()===n}" onclick="jsuSetDays(${n},this)">${n} hari</button>`).join('')}</span>
+      <span class="jtl-exp-b"><button class="btn sec sm" onclick="jsuExport(jsuDays())">⬇️ Excel</button><button class="btn sec sm" onclick="jsuExport(jsuDays(),'png')">🖼️ Foto</button></span></div></div>`; }
 function jtlDraw(){ const el=document.getElementById('jtlCh'); if(!el) return; const W0=Math.floor(el.clientWidth); if(W0<160) return; const W=fsW(W0);
   const P=jtlPlans(), machs=CFG.machines.slice(), days=15, narrow=W<520, LW=Math.round((narrow?46:66)*anaFS()), dw=(W-LW)/days, RH=narrow?28:32, top=34;
   const BL=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']; let g='';
@@ -6118,6 +6135,9 @@ function vPlan(){
 
   ${jtlSectionHTML()}
 
+  <div class="sectiontitle">🧰 Persiapan Spec Jobchange <span style="font-size:11px;color:var(--txt3);font-weight:600">— hanya JC yang akan dilaksanakan; lewat tanggal otomatis hilang dari list</span></div>
+  <div id="jpPlanBox">${jpPlanBoxHTML()}</div>
+
   <div class="sectiontitle">♻️ Roaster Coverage per Section <span style="font-size:11px;color:var(--txt3);font-weight:600">— target: all sections roastered within ${lt} days</span></div>
   <div class="card" style="margin-bottom:16px">
     <div class="toolbar" style="margin-top:0">
@@ -6144,10 +6164,6 @@ function vPlan(){
     <div class="note" style="margin-top:12px">💡 Roaster can cover 2–4 sections at once. Prioritize sections that are <b>never replaced</b> & <b>past their window</b> so all ${totalSec} sections are covered within ${lt} days. Log a roaster via the + button (reason: <b>Roaster</b>).</div>
   </div>
 
-  <div class="sectiontitle">🧰 Persiapan Spec Jobchange <span style="font-size:11px;color:var(--txt3);font-weight:600">— hanya JC yang akan dilaksanakan; lewat tanggal otomatis hilang dari list</span></div>
-  <div id="jpPlanBox">${jpPlanBoxHTML()}</div>
-
-  ${cmpCardHTML()}
   <div class="sectiontitle">⏱️ Part Due ≤30 Hari</div>
   <div id="jpDueBox">${jpDueBoxHTML(m)}</div>
   <div class="sectiontitle">📦 Part Requirement Summary (Procurement)</div>
@@ -6221,7 +6237,7 @@ function jpPlanBoxHTML(){
     const tot=jcTotalParts();
     const rowHTML=p=>{const filled=Object.values(p.specs||{}).filter(v=>v&&String(v).trim()).length;const rem=p.jcDate?daysBetween(TODAY,parseD(p.jcDate)):null;
       const when=p.jcDate?(rem===0?'<b style="color:var(--accent2)">hari ini</b>':rem>0?rem+'h lagi':Math.abs(rem)+'h lalu'):'';
-      return `<tr class="${jcpSelSet().has(p.id)?'jcp-on':''}"><td class="jcp-c" onclick="event.stopPropagation()"><input type="checkbox" class="rowchk jcpchk" value="${p.id}" ${jcpSelSet().has(p.id)?'checked':''} onchange="jcpToggle(${p.id},this.checked)"></td><td><b>${p.machine||p.line||'—'}</b>${p.trial?' <span class="pill" style="background:rgba(245,166,35,.15);color:var(--accent2)">🧪 TRIAL</span>':''}</td><td class="mono">${p.jcDate?fmtD(parseD(p.jcDate)):'—'}<div style="font-size:10px;color:var(--txt3)">${when}</div>${jaChips(p)}</td><td>${p.shift||'—'}</td><td>${p.process||'—'}</td><td class="mono">${p.cd||'—'}</td>
+      return `<tr class="${jcpSelSet().has(p.id)?'jcp-on':''}"><td class="jcp-c" onclick="event.stopPropagation()"><input type="checkbox" class="rowchk jcpchk" value="${p.id}" ${jcpSelSet().has(p.id)?'checked':''} onchange="jcpToggle(${p.id},this.checked)"></td><td><b>${p.machine||p.line||'—'}</b>${p.trial?' <span class="pill" style="background:rgba(245,166,35,.15);color:var(--accent2)">🧪 TRIAL</span>':''}${p.postponed?' <span class="pill" style="background:rgba(255,90,90,.15);color:var(--red)">⏸ DITUNDA</span>':''}</td><td class="mono">${p.jcDate?fmtD(parseD(p.jcDate)):'—'}<div style="font-size:10px;color:var(--txt3)">${when}</div>${jaChips(p)}</td><td>${p.shift||'—'}</td><td>${p.process||'—'}</td><td class="mono">${p.cd||'—'}</td>
       <td class="mono"><b>${p.typeJob||'—'}</b></td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.description||p.bottleSize||'—'}</td><td class="mono">${p.weight?p.weight+' gr':'—'}</td>
       <td class="mono">${filled}/${tot}</td>
       <td>${jccPlanBadge(p)}</td>
@@ -6366,7 +6382,7 @@ function jaTodos(R){ const c=jaCfg(), ph=jaPhase(); const out=[];
   /* roaster belum dicatat setelah JC */
   all.filter(x=>x.d<=0&&x.d>=-14&&!x.p.trial&&!x.p.roasterApplied&&jcRoHasSect(x.p)).forEach(x=>
     add(x.d<0?'now':'today',x.p,'Log Roaster',x.d<0?('JC sudah lewat '+(-x.d)+' hari, roaster plan belum dicatat sebagai record'):'Setelah JC selesai, catat roaster plan sebagai record',B.log(x.p.id),x.d));
-  const up=all.filter(x=>x.d>=0&&x.d<=c.horizon).sort((a,b)=>a.d-b.d||String(a.p.machine).localeCompare(String(b.p.machine),undefined,{numeric:true}));
+  const up=all.filter(x=>x.d>=0&&x.d<=c.horizon&&!x.p.postponed).sort((a,b)=>a.d-b.d||String(a.p.machine).localeCompare(String(b.p.machine),undefined,{numeric:true}));
   up.forEach(x=>{ const p=x.p, d=x.d, id=p.id, rd=jaReady(p), pr=jaPrinted(p);
     if(d<=c.prepDays+1&&jaSpecN(p)===0) add(d<=1?'now':'today',p,'Spec JC belum diisi','Isi variabel / spec dulu supaya persiapan & form lengkap',B.edit(id),d);
     if(d===0){
@@ -6978,6 +6994,8 @@ function renderJCForm(){
     </div></div>
     <label class="jc-trial ${c.trial?'on':''}"><input type="checkbox" ${c.trial?'checked':''} onchange="window._jcEdit.trial=this.checked;renderJCForm()">
       <span><b>🧪 Trial run</b> — botol percobaan singkat. ${c.trial?'<b style="color:var(--accent2)">Tidak masuk</b> ke dashboard status mesin; hanya muncul sebagai <b>notifikasi</b>.':'Centang bila ini hanya uji coba — supaya tidak masuk ke dashboard status mesin, cukup jadi notifikasi.'}</span></label>
+    <label class="jc-trial ${c.postponed?'on':''}"${c.postponed?' style="border-color:var(--red)"':''}><input type="checkbox" ${c.postponed?'checked':''} onchange="window._jcEdit.postponed=this.checked;renderJCForm()">
+      <span><b>⏸️ Ditunda (postponed)</b> — ${c.postponed?'JC ini <b style="color:var(--red)">ditunda</b>: ditandai merah di Form Job Set Up, tidak memicu pengingat persiapan, dan tidak dipakai sebagai pembanding JC berikutnya.':'centang bila JC tidak jadi dilaksanakan di tanggal ini (ditandai merah di Form Job Set Up).'}</span></label>
     <div class="fg" style="margin-bottom:14px"><label>Notes</label><textarea rows="2" oninput="window._jcEdit.notes=this.value" placeholder="catatan persiapan...">${esc(c.notes)}</textarea></div>
     <div class="card" style="padding:14px;margin-bottom:12px"><h3>👷 Man Power <span class="tag">Form Prepare JC</span></h3>
       <div class="form jcf-mpgrid">${jcfMpHTML(c)}</div>
@@ -7054,7 +7072,7 @@ function jcRoEditRow(i){const c=window._jcEdit;const r=c.roasterPlan[i];if(!r)re
 function jcRoCancelEdit(){window._jcRoEdit=null; window._jcRoSecs=[]; renderJCRoaster();}
 function jcRoDelRow(i){const c=window._jcEdit;c.roasterPlan.splice(i,1);if(window._jcRoEdit===i){window._jcRoEdit=null;window._jcRoSecs=[];}renderJCRoaster();}
 function jcPrevPlan(c){ c=c||window._jcEdit; if(!c) return null; const machine=c.machine||c.line;
-  return (JCPLANS||[]).filter(q=>q&&(q.machine||q.line)===machine&&!q.trial&&q.id!==c.id&&(q.jcDate||'')<=(c.jcDate||''))
+  return (JCPLANS||[]).filter(q=>q&&(q.machine||q.line)===machine&&!q.trial&&!q.postponed&&q.id!==c.id&&(q.jcDate||'')<=(c.jcDate||''))
     .sort((a,b)=>(b.jcDate||'').localeCompare(a.jcDate||'')||((b.id||0)-(a.id||0)))[0]||null; }
 function jcPrevSpec(part){ const p=jcPrevPlan(window._jcEdit); return p&&p.specs?String(p.specs[part]||''):''; }
 function jcUseSame(part){ const c=window._jcEdit; const v=jcPrevSpec(part);
@@ -7180,7 +7198,7 @@ function jcSavePlanNow(){const c=window._jcEdit; if(!c.machine||!c.jcDate){toast
   if(c.varApplied){ syncJCVarPlan(c); }
   if(c.roasterApplied){ const res=syncRoasterPlan(c); if(res.added||res.removed) msg='✓ Plan saved · roaster synced ('+(res.added?'+'+res.added:'')+(res.added&&res.removed?', ':'')+(res.removed?'-'+res.removed:'')+')'; }
   saveAll(); closeJC(); toast(msg); render();}
-function dupJCPlan(id){const p=JCPLANS.find(x=>x.id===id);if(!p)return;const c=JSON.parse(JSON.stringify(p));c.id=null;c.jcDate=ymd(TODAY);c.roasterApplied=false;c.varApplied=false;(c.roasterPlan||[]).forEach(r=>delete r._jc);window._jcEdit=c;window._jcRoSecs=[];window._jcRoEdit=null;renderJCForm();document.getElementById('jcmodal').classList.add('show');toast('Copied — save as a new plan');}
+function dupJCPlan(id){const p=JCPLANS.find(x=>x.id===id);if(!p)return;const c=JSON.parse(JSON.stringify(p));c.id=null;c.jcDate=ymd(TODAY);c.postponed=false;c.roasterApplied=false;c.varApplied=false;(c.roasterPlan||[]).forEach(r=>delete r._jc);window._jcEdit=c;window._jcRoSecs=[];window._jcRoEdit=null;renderJCForm();document.getElementById('jcmodal').classList.add('show');toast('Copied — save as a new plan');}
 function closeJC(){const el=document.getElementById('jcmodal'); if(el)el.classList.remove('show');}
 function delJCPlan(id){const p=JCPLANS.find(x=>x.id===id);if(!confirm('Delete plan JC ini?'+((p&&p.roasterApplied)?'\nRoaster records already logged from this plan will also be deleted.':'')))return;
   if(p&&p.roasterApplied){ for(let i=DB.length-1;i>=0;i--){ if(DB[i]._jc===id) DB.splice(i,1); } }
@@ -7226,8 +7244,8 @@ function jcpDelSelected(){
 /* 16 kolom A..P = 190 mm (lebar isi A4). C..H = 6 kolom sempit: kotak/angka PLG Positioner (│□│70│□│83│□│90│)
    sekaligus kotak PROCESS/CD; SIZE/TYPE = I:J (I = kotak slot ke-3 PROCESS/CD). */
 /* KETERANGAN = O:P → O (3 mm) khusus kurung kurawal "}", P (19 mm) teks; baris biasa digabung O:P */
-const JCF_COLS=[6,23.6,6.4,6.4,6.4,6.4,6.4,6.4,6.4,15.6,12,12,12,16,3,19,26];
-const JCF_X={NO:0,NM:1,BOX:2,SZ:8,QTY:10,OK:11,NG:12,CHG:13,KB:14,KET:15,MP:16};
+const JCF_COLS=[6,23.6,6.4,6.4,6.4,6.4,6.4,6.4,6.4,15.6,12,12,12,3,16,3,17,25];   /* …NG · [kurung|CHANGE] · [kurung|KETERANGAN] · MP */
+const JCF_X={NO:0,NM:1,BOX:2,SZ:8,QTY:10,OK:11,NG:12,CB:13,CHG:14,KB:15,KET:16,MP:17};
 const JCF_PAPER={A4:{w:210,h:297,xl:9,label:'A4'},F4:{w:215,h:330,xl:14,label:'F4 / Folio'}};
 const JCF_MARGIN={x:10,y:8};
 const JCF_DEF={company:'PT. MULIA GLASS',division:'CONTAINER DIVISION',
@@ -7242,7 +7260,7 @@ const JCF_ST={
   tag:{fs:8,b:1,al:'right'}, pl:{fs:8,b:1}, pc:{fs:8,b:1}, il:{fs:8,b:1}, iv:{fs:9},
   th:{fs:7.5,b:1,al:'center',bx:1,wrap:1}, ths:{fs:6.5,b:1,al:'center',bx:1}, no:{fs:7,al:'center',bx:1}, noa:{fs:7.5,b:1,al:'center',bx:1},
   area:{fs:7.5,b:1,bx:1}, nm:{fs:7,bx:1}, v:{fs:7.5,al:'center',bx:1}, sb:{fs:7,al:'center',bx:1},
-  ck:{fs:9,b:1,al:'center',bx:1}, chg:{fs:7,al:'center',bx:1}, kb:{bx:1,nb:'r'}, kt:{fs:7.5,al:'center',bx:1,nb:'l'}, mp:{fs:8,al:'center',bx:1,wrap:1}, notes:{fs:8,va:'top',bx:1,wrap:1},
+  ck:{fs:9,b:1,al:'center',bx:1}, chg:{fs:7,al:'center',bx:1}, chgt:{fs:7,al:'center',bx:1,nb:'l'}, kb:{bx:1,nb:'r'}, kt:{fs:7.5,al:'center',bx:1,nb:'l'}, mp:{fs:8,al:'center',bx:1,wrap:1}, notes:{fs:8,va:'top',bx:1,wrap:1},
   fn:{fs:7.5,i:1}, fl:{fs:8}, pb:{fs:7.5,al:'center',bx:1}, pr:{fs:6.5,al:'center',bx:1}, sig:{bx:1}, pt:{fs:7,al:'center',bx:1}, e:{}
 };
 /* tinggi baris tetap (mm): kop 44.5 · header tabel 8.8 · kaki 30.8 — sisanya dibagi ke baris part + kotak catatan */
@@ -7257,10 +7275,11 @@ function jcfKop(){ const k=(CFG&&CFG.jcfKop&&typeof CFG.jcfKop==='object')?CFG.j
 function jcfKopSet(k,v){ CFG.jcfKop=Object.assign({},CFG.jcfKop||{}); CFG.jcfKop[k]=String(v||'').trim(); saveAll(); jcfRenderPreview(); }
 /* Logo kop: BAWAAN = logo dari file Excel form user (tertanam di file ini).
    Logo unggahan disimpan per-perangkat (localStorage), tidak ikut sinkron cloud supaya CFG tetap ringan.
-   pm_jcf_logo: kosong = bawaan · JSON {d,w,h} = unggahan · 'none' = tanpa logo (kop teks) */
-const JCF_LOGO_DEF={d:'data:image/png;base64,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',w:245,h:142};
-function jcfLogoMode(){ const raw=jcfLS('pm_jcf_logo'); if(raw==='none') return 'none'; try{ const o=JSON.parse(raw||'null'); if(o&&o.d) return 'custom'; }catch(e){} return 'default'; }
-function jcfLogo(){ const m=jcfLogoMode(); if(m==='none') return null; if(m==='custom'){ try{ return JSON.parse(jcfLS('pm_jcf_logo')); }catch(e){} } return JCF_LOGO_DEF; }
+   pm_jcf_logo: kosong = bawaan (warna) · 'mono' = bawaan hitam · JSON {d,w,h} = unggahan · 'none' = tanpa logo (kop teks) */
+const JCF_LOGO_DEF={d:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPUAAACOCAIAAABmNtkwAAAXqUlEQVR42u2dbWwcx3nHZ+ZOpEy9RIb8EqSpPgSUG1hyXLe261KpUcctYlKl6g8C07o1ArcWRcOOpRoRjLSUHRsuDJhUTBoGWp2dBIkLsXYVRD2FPCHpybVhkyqKJiQsCSZ5aEEVbXN2ZFEmRYnk3U4/DG84nJ2dfWZ372VfBoZh82Z35+U/v/3PM7O7mFKKkpSkiCaSNEGSIpzSca78p4vzX/nen29t2eLnJEvl5Tf2Hvn85s9Wo4Rdb37j0tVPCcaez/CrhUs9dz20786vxbOLcZz9ybd+1vfG+IkUJmVqeW9BhP/0S50vffXpwIt37qPpjh/+BULIZ/FamtZPHviXxJ/EKy2Wlt78YJhgXy1AMKGInvww//GVi4GX8Lm3XylTC2OS8lpIVrwrS1dPTb+b6Dte6fu/OL5UXraoVaaWN5WnMLGohRC6WrrW997rgcP7g+IUQqhklbzdYdMkzeqFEX4m/3Ki73jB+9Uzbwg3cZQmaUP1pHBlVJSscuAIf+7tV+YW59l/W9RKk5TpGSi1SlYJIZQi5H/nPoonwkls4T2/tMCxzQyuqQ1g6mEpWIRzeEs8NnIm3LWXrDLB5Pm3X0n0HSN4l6wSXitWajJpK1nltVoPEuEivPn5KXiWmSYpe8Dl0rW5GCKcxNV5L6VJSopLAG1AmqSVAbugEK6EN7vJQOYJaZJCCNurNrc4H0OEk3jCe2H5mgRgjma9DWAeRhmwCwrhdniLMnU1URalonESRB9HhJN4wps5VKWl1tsAutZ2S2lu6crjP/l2NeC9Ov4w0YxAUgnp2MdeCpMYIpzEE94sZqJMGhuQJinLzQR/UJw699F0NeAtTGqpk3HC2pEZQ4STeMLbbr7XTh+R3YgDwxdzi/PPeWWkK7zFeIjKOFFNpdjIjBvCSTzh7WC+kRAuxKLEmXr0R/lHuCu8NSOQulWK548VwkkM4e1kvm1GnMLV4x/hQHiLI5DPNZ1st92Cxw3hJIbw1phvpRFPAdTjH+FweEsBe74O75po/GLhJIbw1ptvyQZghLH57hRThBvBW7TUGGG+Dg/Jz4sXE4STGMK7bFlwG4Axpp62pxoh3BTelUVKTBFNp9LwQ1DMEE7iBm+jtKl547fufczytEUejnAjeKcwwQgTTEpWmWD8J7f90XXp9WBLU+aWPSYIJ3GDN9tPBzz2+vWbHrv7oTt/7TaMcPUQDoE3qci6TC2KKHMaLeuue/r3up+45+GWdVCJ05jtSCFxg3eapICRkE3NG5+570mE0At/8BTGOFUdF+6+YIkwG11c1rwinV+8/8YNWx+5Y29Tqglu2cXiRR7hJG7whpvv69dvemD7vQihHTdtv+fXf5OqFn38I9wJ3gzYKUwoopKyWbouvf7Qlx9FCDWnm+AIl6oQeYSTxHnr4c3Ss/c9uaGpBWOyLrUuQITb4c3sNdsIQJ3XIzm82f/CES5a8DggnMQK3nDzzeHN0o6btt928y3L5WUK2MEHRziHN8MqC1xSwEIphzdLRgincdoXHmV9H86/PL90RcIexHxL8OYI39S8sWSVseHbGpwQfvo/x0Yv/JzRmpUKODGQ4G2KcMnqzC3Of/PUi4ulpUTfYUofX7l48sO8pBig+ZbgLSLcfov3g/A0SVPwthYneJsi3F74pfLS939xPNF3mFLfe69fLV3z77ztCGfrPkYSVyL8K1/43bs//yVk/FS8At5GCKe27TcLy9dePfNGJBFO4gNvoPlWwltCuDIW4QHhfMD4hLcRwi1qYcVbuKKJcBIfeKcwcXUCGnjbEW4UTlEiXBowfuBthHB7WCaqCCfxgTf16rydFGkaTvGPcA28jRCuLHMkEU7i47xd97i6wtuuSKNwik+Eu8IbjnCq2gEfSYSTmMAbYpdd4a1UpFE4xQ/CXeENR7jSgkcS4SQm8HY130B4KxUJD6d4RjgQ3nCEK1dGo4dwEhN4U9/O21WRwHCKN4QD4Q1HuNOAjBjCSUxi3nrzbQRvJ4QDwykeEG4EbyDCqcNDqBFDOIkDvF3hagRvJ0XCwymmCDeCNxDhThY8YggncYC33nx7gLeTIoEr7UYI9wBvIMKdNidGCeEkDvCmwTlvV0WWg0a4B3gDEa4pZ2QQTuKw20Rjvj3DW6PIMuA9tECEt6xbv+/Or3mANwTh1Pk9MJFBOIk8vPXm2zO89aaCUur6PjcIwptSTY//zsOei6dHuMaCRwbhJPLwJpg4PQDvE956hGOM9eEUV4S3rFv/xD0PN6eb/BRPj3DNe2CigXASeXhjZ3/iE956hEPCKXqEN6WaHrljr8/i6RGuf/FVBBBOIr/P2wlRgcBbH9pzDafMLc4/lftb5YBJk7R/eLsiXL91JgIIJ9GGtyZKEAi8uSJ/63M7lIbbNZxy4fL/2R9/fPa+J7e2bPEPb1eEu06Fw45wEm14E0xoleHN0kD731yXbna6gWg0pHyCfcdN20f3/VMg8HZFuJ4OYUc4iTa8ncx3gPBm6cYNWzu/eL+TjvXhFOUT7AGKW49w13fPhhrhJNpPWCrNd+DwZunQlx91ehWgPpxSm5eQ9Nz10A0t15ta8LAjnEQY3k7mO3B4QxCuD6fU5iUkz3hdjQovwkmE4a0031WCtyvC9U63Ngh/YPu916/f5CHOE16EkwjDW2m+qwRvCML14ZQ6Ihzy+YeQIpxE+N0mdvNdVXhDEK7xA3VEOOQB0pAinEQV3kosVRXeQIRrwin1QngZ9mHyMCKcRPjFVLjm8IYjXBlOqSPCIbwII8JDpu/CJzMjU/8K6Qz7R6RqAG84wp3CKfVCOPALbMvW8kvvZRJ9Vyv99c/6Z699imAvuq4LvIEId0JmvRAOfIfLlaWrxyayH1+5mOg7+GT0HSYJSDWDNxzhTt+6rwvCgRYcIXS1dK3vvdcTfQefjD6ih+sHbzjCEUKWTVj1Qjjw4dGSVT75YT4sCCeRhLdkvmsMbyOEs8EohVPqgnACfgtXiBBOIglvEUW1gfePzp360blT3hDOvj4sjoS6IJyAX6QYIoST6MFbQlEN4L1YWnr29OCzpwel2Bkc4XaJ1x7hJasMf6N5WBBOogdv0XzXBt7sK23K5Q8gwpm8qPCcaF0QDv94YlgQTqIHb9F81wbe7CttyuUPExcuh1PquCMlMggn0YM3N9+1hDdyXsGGI1wKp9Qe4fAvl4cF4SRi8GYftK49vJHzCrYRwqVwSo0RbmTBQ4FwEjF4cwjVHt5BIVyca9Ye4XALHgqEk4jBm38rtfbwDhDhosQTFx5ZfXuAN8NPveAdFMLFcEqNEW5kwRsf4SRK8Ea1jXnb4R2oC18Np9QS4aYWvMERTqIEb4af+sI7QITzcEqNEW5kwRsc4SRK8Gbmu77wDhbhPJySuPBI6dsbvMuW1Zxuqju8NQjv/f3HP6N6gt11rrmwtFAzhMO/6Nn4CCdRct4U0Zs3bK07vDUI39y88bG7/8z1+8J2iWOM/+fTYm0QboH3gjc+wklk4M27pxHgrUE48BPxinAKQofzL9cA4Z/bdJOpBW9YhJPIwDtNUltbtjQIvDUIB34iXjnX/OXcxz8+/9Nqd8Hz9/8Vdf9gaDgQjimlDVWgrje/MXrh596O3dqy5bMbb6xq8T66cvHiwqzrp+yR8AGdp3b9Zc9dD0mD5Lf/7o+BD5Lah/Fv3PCFqtZxubxc+OQCvI5i2tS04d1Hhzx/MCji+j730fTef3zC1JwQTFgtUoSUrDJG2Bt+4Ik9925RShElmGDthz62rN/8H4/9s/Q+2L//92Pfef+7wPuAeF2MMfBBMu+aQJg/61A2VHmapLp27n7pq08n/iQY5806gyJKEWUdTxFl0yMPkyRgF2JMytRio8iiFhNBmqRSmLDdXQQT/u6H+aWFV//th4G4cAp+StJYB5hghFmZKaJlarF/MMJGzdhoLpyE13mnMElhwmVt3yJbsspMcMEKvWSVqYpqJausFL1FrX+YyCLzT8Tbx5U3z+ByQ0CYnZnJ2h6SsigVh2u4XDgJI7zTJE0wKVc0hLRL3GwABCt05XsdnAbDhqaWF//wm8j8+8JSlasha94++nmtRS2MMbzKjYNwEi54pzAhmCBETUnGO1K8EfszqVD/47SeaoRwSi3/zoTbNois7aq1qJXCBFLrxkE4CRG8CSYYY8tfT/MbsU+hs1uH6+H6zTBAhLOblX9Zc9vm58bFZvD6ijcOwkko4M2mblYQDJOEThHCCGOEibnQ2ZqLn52MEISnSQp7ngcjHIis7aZcfE6qkRFOGhzezCmyqVs1Ll1R+UqHmQrd0n7+D7KTUY/wFCYIYaO6i7Q2NSGmfo9xp5ERXn99n5p+1wnejBDVDmZLQscrMUdoy2CMnSZ/kJ2MeoTTyv6qWpoQozsYc3rqN/YvXXn8J9+Ou76fV8GbNZkyYlXtxMjEwAwRulO4EL4N3QnhzJI1oKwVaKCUrEz9kesHyGOk71PT7166NmeP/QVrtQMRusaHKMOF8G3oSoSnSVqzT7URZC21gEUtgrFkyucW55+r/rbextW3CO80SRFMKLWsmjMbInT2BmEnoUvhQtNniOwIVwYEeQEaRNaqCTdNrV0Mqi/CSYPAGyOMELYASzZ17z/+qmxR0GVqIWH9yPQZIgnhUkBQlHVdPJspDiqmPF13hJO6wztVsdrAiVSDCB0Jb8Nh/y5ZJYtSz0/vc4TzgCCfAIRC1nZTjtDKwn4dEV43ff/4/E//+/Iv+ZIBCmfiQue+EyO8xdMDoAzhDNJsnPAJQHgbx6IWRWhucf7QqRfrUoZ0vSp/+r/Gbt54w9aWLSgqyaJ0bnH+k6uze3c84O0Mj9yx9zvvf3dT88bPNG90+lh9GNPC8rVfLVxCyf7vJCUp+X5xkpKU6DtJSUr0naRE30lKUqLvJCUp0XeSkpToO0lJSvSdpCQZ6Ru7pcOHD7/22msTExPItsffKBkVUXmG06dP64+amprC5kl/UdeaGlUB0hpnzpzZs2ePUXNdvnz5zJkzR44c2bNnD7/EkSNHTp48OTU1hRCamJiQLhpgZ3ko9smTJw8fPsyutWfPHi6wCxcuKK9ulp/a0tjYmD3D7Ozs+Ph4b28v+2NnZ+fk5CQ/hP0xk8kUi0XxL+IZisUiP5yaJ6lUnZ2d+vyZTEbMPzY2pjmb9Cuv8tDQEEJoaGhodnbW9HDXKkCO6unpQQiNj48DWymfz/P2GR8f58WenJzs7+836ndgpfwUe3JysrOzU5LT5OQk14lUTtP8lFK11DQNITbTzMwMz9/T0wM5A6u5t1aTRqam+WZnZ9mFNN2p/1XMZtpEwCq4Zp6cnGQ5e3t7IScX6cNBI6bx8XH91b1Vyluxi8UiE6soJDuePOf3qO9isch/6u/v5/kltTmdgUHCs77F0aVpvnw+z0kWXn2LtyB7jzqJW5+ZS7x6+gYWW8ymuQl4zu9R38pfFed1OMPs7KwffXM26Juvp6eHXSi8+pbKPzQ0BLElENgzoVRJ3/Biu/YjG4qe8wep7yqRQCk10Xgom29ycjKTyQRSizrqO5vNZrNZSH5JUvl8Xn9mdgeuUq/Biy3NpuyGSkKhaf4A/AmTUY31LZpI5cn7+/vZ+A61vtl8RnQdThM+aV7o6mSCsk8+iy3NdxFC2WxWc2bT/H7nl06TmGrrm1LK5xl2XLGZZVB3oXrpe3x8nNVLHMzSDN6p46VQTy31bVTsmZkZe+yvs7PTaTyY5jfWtxgf7O3t1Yi72voW7abUfNlsllc4vPpm8wf7YFay2TXgWzN9GxWbKUrMJk4hnOI/RvlB+hbHSn9//9DQkBj5rou+Jccphm7EuHhI9T0zMyMaP9HOKucbDaJv02Jzu2s3HpqJhGn+as0zqqpvSilbeZHClOPj42JThlTfmUxGBJ40mO32o0H0bVpsKSQgrVfoBwY8f1j1LTUfuz3xmWV49S3OH5QO204pcTLnWlOEdAvYnnvNQ7GVUU67/dAcCMkfVn1LzceW0IFrqDXTtz1i5XpUNpu1r8vqp2virUxjdqUFL/umA8+V8lZsJ6hLGyvEaIFR/tDrW5pQDw0NAddQjfrSabkEcvjY2Bj3TsCjlPMnKUnzH6kdNPEE16t7q5S3Ymt2WEiS9ZafpRDvj922bZtowo4dO3b77bfDD3eapki2Z9u2bZ5LODw8vHnzZnj+iYmJffv2OXGdZ3vnnXekdhA7eHh4uKrNbq+Ut2IjhI4fP668RFdXl8hjz/mruA8BcgYW7mE73TzwW7oDKuYW2jKI92une7r9ngCvIMOqbAe1R4nxNf0ipT0bZP+J/35XVspbsfV3G7ufNs1ff3/Cb2qum101VpifxB4BhZsB5UIsi/d7riATHNwy5fN5+33fyWcrc7ruH/Svb3ulPBdbsw+UY0tsf9P8jvr2vw8YeAa4vmdnZ9mdLp/PS6hgGLZXDFKGYrHIb2fi5vVisTg0NKTpNunkUouLO5JFlGqKxGoh7arXzyOVsTMeUujs7Mzn87xGbPu+/lgPlfJTbOmPvKh8EUfqU9P8Cn3DA0nALdr6MwD9CSSqJZ7BtBZswiQuY2UyGYgtQaDv+nk5SjIYUujDtVNYjcQ5H1uby2azSiEGVSmjYvMRXiwWs9msePNRtr9pfpaS9w8mCSXPFycpSYm+k5SkRN9JSlKi7yQlKdF3kpKU6DtJib6TlKRE38CU2y++4GvXYAEhVBgczK3JVBjcJb0JbH/O6Vd2CvvJ9+eka9nT/pyteIXBXWvOqCw1u2wOWAx9KVgZNHkUpXEulfIY98KLh4itqyq8Q0aEUG5wsOBwuULwnes/0YDTSDc7b9vAdOVP0wNtCCGEukdsuVb/VMkkHCfkW3s0pXSku/L/I938t8o5+EmE34S0ks3+g0P5QcVwOnZ6oE1Zc56Hn3ttzfWlstXUsQCa0490qzLaOo4XnuXQHxJw5/pOJGhud2RYcd8/0Fr5a+uB91c7RMjVNjB9tF3INNKNEBo9uH3NuG1rWzkw0+EEue6R1dOsTe1HhTbkl+87OIoQQpkTBnwAFEOdKvVyTLyMo28NFwzOylpUbi7N6Q/2rc2YO3F24AervYTUDdU2cKidn2pNN+olEFTnNpA/ye3vyLBReqjd3iG93ZV70wtss3J3r9S47YdY62VeEOq6s5frQ92X7Ued1K3+NXeislfaROCuxVCkwuD+wYJrCRHafivr5dHz00YDZ6VF1zSXqgke7FbVN3cC9erUjSq1/bpw+tYDvV36KgfbuY2k74pw2rp2tzorrTD81ijLdut2W5fdslNFsvajHBv+x3nuxNmBkZXTuSlDroBZMXJ9B8+CTjx9nrVI94PtRlXh48IF/BVpiQIvDJ649VA76PyjB7cLdrj9gGZQ1Ltzq6nvwtRZk85EO29xbieZZMJN3t84Lwy+cLZrd/vurjZjS2BQDKaIjozJXW/N/RxYnBXFuIK/tVJfPqALw+dv3d1qZq0yHa6Tvvp2bqjjg9I4n/Im7+G3dvYeaF29txsKHFgMNo3S2+4KFXFHpm1gmorzleCTXN/CMHoQdL32o3I9quKUA+ncxtB35aaKzk45N5Pi9iaN84MZD9fO9R3cueIBKqbUNusyg7iuGO2HBnZqJqwD05TP/LxRi98xlc2lNuGjB/tyKNd3/pZ2A/GtidjomFDPzq22vlthN/3VbPabaqXDHBz8mnHucYLAbrKiezAKoxgVo/XA0QokC7lcQRfe8UTFihtwbC6HWeb+KVfrveKchGEnB8EarXOrz+/WAz8YaHNkYiWYsJrNNrurBO66NfN613CbfmY5bQ+DG84yPRUj13cCter7dG2cwmQ+390Lsxp8lnkW7QZ6IalpVuSrMdd169ya+BNevkyHbbnq6+hQpWLKaGhhcFcldL46z1LOWT2N88Lgrg4pHrZqSt2kZVqMNfQqDO7CHWcdHcRqnxrZFGWYGQZX4Hjgs4TVQskBcV19atm5qIbrl1Qxs3JYmdNnE3+1L2fJS1yKVuGnW/ObuOwpZR/oVpwCWAwX7nSPKPOI66xOjeV4Zufmcmp1eS3V5diVyilbwPVyQXauj5Q8f5kklOyvSlKSQpn+H66rTu11AWYmAAAAAElFTkSuQmCC',w:245,h:142};   /* bawaan: simbol hijau Muliaglass */
+const JCF_LOGO_MONO={d:'data:image/png;base64,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',w:245,h:142};   /* bawaan hitam-putih */
+function jcfLogoMode(){ const raw=jcfLS('pm_jcf_logo'); if(raw==='none') return 'none'; if(raw==='mono') return 'mono'; try{ const o=JSON.parse(raw||'null'); if(o&&o.d) return 'custom'; }catch(e){} return 'default'; }
+function jcfLogo(){ const m=jcfLogoMode(); if(m==='none') return null; if(m==='mono') return JCF_LOGO_MONO; if(m==='custom'){ try{ return JSON.parse(jcfLS('pm_jcf_logo')); }catch(e){} } return JCF_LOGO_DEF; }
 function jcfLogoPick(){ const i=document.createElement('input'); i.type='file'; i.accept='image/*';
   i.onchange=()=>{ const f=i.files&&i.files[0]; if(!f)return; const r=new FileReader();
     r.onload=()=>{ const img=new Image(); img.onload=()=>{ const k=Math.min(1,360/Math.max(img.width,img.height));
@@ -7271,7 +7290,8 @@ function jcfLogoPick(){ const i=document.createElement('input'); i.type='file'; 
     r.readAsDataURL(f); };
   i.click(); }
 function jcfLogoDel(){ jcfLS('pm_jcf_logo','none'); jcfRenderModal(); toast('Tanpa logo — kop memakai teks'); }
-function jcfLogoReset(){ jcfLS('pm_jcf_logo',null); jcfRenderModal(); toast('✓ Logo bawaan dipakai lagi'); }
+function jcfLogoReset(){ jcfLS('pm_jcf_logo',null); jcfRenderModal(); toast('✓ Logo bawaan (warna) dipakai'); }
+function jcfLogoMono(){ jcfLS('pm_jcf_logo','mono'); jcfRenderModal(); toast('✓ Logo bawaan hitam-putih dipakai'); }
 
 /* ---- Man Power per kelompok area (FEEDER · MACHINE · WARE HANDLING + HOT END COATING) ---- */
 function jcfMpGroups(){ const out=[];
@@ -7332,6 +7352,14 @@ function jcfFitFs(t,wmm,base){ const need=String(t).length*0.53*0.3528; return M
 function jcfBraceTip(f){ return Math.max(14,Math.min(86,(+f||0.5)*100)); }
 function jcfBracePath(f){ const t=jcfBraceTip(f);
   return 'M1,1 C5,1 5,3 5,8 L5,'+(t-6)+' C5,'+(t-2)+' 6.5,'+t+' 9.5,'+t+' C6.5,'+t+' 5,'+(t+2)+' 5,'+(t+6)+' L5,92 C5,97 5,99 1,99'; }
+/* Kelompok kurung kurawal: baris part dalam 1 area dengan teks sama digabung jadi satu kurung,
+   termasuk bila di antaranya ada baris kosong (tidak ada yang beda). Baris dengan teks lain memutus grup. */
+function jcfGroups(body,arr){ const grp={}, inn={};
+  for(let i=0;i<body.length;i++){ if(body[i].k!=='part'||!arr[i]) continue; let j=i;
+    for(let k=i+1;k<body.length&&body[k].k==='part'&&body[k].a===body[i].a;k++){ if(!arr[k]) continue; if(arr[k]!==arr[i]) break; j=k; }
+    if(j>i){ grp[i]=j-i+1; for(let x=i;x<=j;x++) inn[x]=i; }
+    i=j; }
+  return {grp:grp,inn:inn}; }
 /* ---- MODEL GRID ---- */
 function jcfModel(p,opt){
   p=p||{}; opt=opt||jcfOpt(); const kop=jcfKop(); const logo=jcfLogo(); const X=JCF_X, NC=JCF_COLS.length;
@@ -7362,7 +7390,7 @@ function jcfModel(p,opt){
   const info=[['TANGGAL',jcfDate(p.jcDate)],['LINE',p.machine||p.line||''],['TYPE JOB',p.typeJob||''],
               ['DESCRIPTION',p.description||p.bottleSize||''],['Ø BOTTLE/JAR',p.diameter||''],['WEIGHT',jcfWeight(p.weight)]];
   info.forEach((it,i)=>{ const cells=[{c:X.OK,cs:2,s:'il',v:it[0]}];   /* label sejajar kolom KONDISI */
-    if(i===5) cells.push({c:X.CHG,s:'iv',v:': '+it[1]},{c:X.KB,cs:2,s:'iv',v:'GRAM'}); else cells.push({c:X.CHG,cs:NC-X.CHG,s:'iv',v:': '+it[1]});
+    if(i===5) cells.push({c:X.CB,cs:2,s:'iv',v:': '+it[1]},{c:X.KB,cs:2,s:'iv',v:'GRAM'}); else cells.push({c:X.CB,cs:NC-X.CB,s:'iv',v:': '+it[1]});
     if(i===1) cells.push.apply(cells,slots('PROCESS',pS));
     if(i===2) cells.push.apply(cells,slots('CD',cS));
     add(4.2,cells); });
@@ -7370,25 +7398,24 @@ function jcfModel(p,opt){
   /* header tabel */
   const th=(c,cs,rs,v)=>({c:c,cs:cs,rs:rs,s:'th',v:v});
   add(4.4,[th(X.NO,1,2,'NO'),th(X.NM,X.SZ-X.NM,2,'NAME PART'),th(X.SZ,2,2,'SIZE/TYPE'),th(X.QTY,1,2,'QTY'),th(X.OK,2,1,'KONDISI'),
-           th(X.CHG,1,2,'CHANGE'),th(X.KB,2,2,'KETERANGAN'),th(X.MP,1,2,'MAN POWER')]);
+           th(X.CB,2,2,'CHANGE'),th(X.KB,2,2,'KETERANGAN'),th(X.MP,1,2,'MAN POWER')]);
   add(4.4,[{c:X.OK,s:'ths',v:'OK'},{c:X.NG,s:'ths',v:'TDK OK'}]);
   /* isi */
   const prev=opt.auto?jcfPrev(p):null; const groups=jcfMpGroups(); const mp=(p.manpower&&typeof p.manpower==='object')?p.manpower:{};
   const gOf={}; groups.forEach((g,gi)=>g.areas.forEach(a=>{ gOf[a]=gi; }));
   const roM=jcfRoaster(p), chgW=JCF_COLS[X.CHG]*cw/190;
-  const vals=(size,ket,chg,bi)=>{ const o=[{c:X.SZ,cs:2,s:'v',v:size||''},{c:X.QTY,s:'v'},{c:X.OK,s:'v'},{c:X.NG,s:'v'},
-    chg?{c:X.CHG,s:'chg',v:chg,fs:jcfFitFs(chg,chgW,7)}:{c:X.CHG,s:'v'}];
-    if(bi!=null&&kIn[bi]!=null){ const st0=kIn[bi], n=kGrp[st0], li=st0+Math.floor((n-1)/2);   /* baris teks: tengah; genap → baris tengah atas */
-      o.push(bi===st0?{c:X.KB,s:'kb',v:[{brace:{n:n,f:+((li-st0+0.5)/n).toFixed(4),h:+(n*rowH).toFixed(2)}}]}:{c:X.KB,s:'kb'},
-             {c:X.KET,s:'kt',v:bi===li?ket:''}); }
-    else o.push({c:X.KB,s:'kb'},{c:X.KET,s:'kt',v:ket||''});   /* teks selalu di kolom teks yang sama → Sama/Ganti/Pasang/Lepas sejajar */
-    return o; };
-  /* keterangan per baris, lalu kelompokkan baris part berurutan (dalam 1 area) yang statusnya sama → satu sel bergabung + kurung kurawal */
+  /* nilai per baris → kelompok kurung kurawal (lihat jcfGroups); teks grup ditulis sekali di baris tengah */
   const ketA=body.map(b=>b.k==='part'?jcfKet(p,prev,b.pt):'');
-  const kGrp={}, kIn={};
-  for(let i=0;i<body.length;i++){ if(body[i].k!=='part'||!ketA[i]) continue; let j=i;
-    while(j+1<body.length&&body[j+1].k==='part'&&body[j+1].a===body[i].a&&ketA[j+1]===ketA[i]) j++;
-    if(j>i){ kGrp[i]=j-i+1; for(let x=i;x<=j;x++) kIn[x]=i; } i=j; }
+  const chgA=body.map(b=>b.k==='part'?(roM.map[b.pt]||''):'');
+  const KG=jcfGroups(body,ketA), CG=jcfGroups(body,chgA);
+  const brPair=(G,arr,bi,cb,ct,st,fit)=>{ const mk=t=>{ const o={c:ct,s:st,v:t||''}; if(t&&fit) o.fs=jcfFitFs(t,fit,7); return o; };
+    if(bi==null) return [{c:cb,s:'kb'},mk('')];
+    const s0=G.inn[bi];
+    if(s0==null) return [{c:cb,s:'kb'},mk(arr[bi])];
+    const n=G.grp[s0], li=s0+Math.floor((n-1)/2);   /* baris teks: tengah; genap → baris tengah atas */
+    return [bi===s0?{c:cb,s:'kb',v:[{brace:{n:n,f:+((li-s0+0.5)/n).toFixed(4),h:+(n*rowH).toFixed(2)}}]}:{c:cb,s:'kb'},mk(bi===li?arr[s0]:'')]; };
+  const vals=(size,bi)=>[{c:X.SZ,cs:2,s:'v',v:size||''},{c:X.QTY,s:'v'},{c:X.OK,s:'v'},{c:X.NG,s:'v'}]
+    .concat(brPair(CG,chgA,bi,X.CB,X.CHG,'chgt',chgW), brPair(KG,ketA,bi,X.KB,X.KET,'kt',0));   /* teks selalu di kolom teks yang sama → sejajar */
   let lastG=-1;
   body.forEach((b,bi)=>{ const cells=[]; const gi=gOf[b.a];
     if(gi!==lastG){ let n=0; for(let j=bi;j<body.length&&gOf[body[j].a]===gi;j++) n++;
@@ -7402,7 +7429,7 @@ function jcfModel(p,opt){
         const nk=jcfNeckNum(p);   /* angka awal Neck Ring Arm (mis. "70 offset" → 70); bila tidak ada → dari isi PLG Positioner */
         JCF_DEF.plg.forEach((n,k)=>cells.push({c:X.BOX+2*k,s:'ck',v:tick(nk!=null?String(nk)===n:jcfHasNum(val,n))},{c:X.BOX+2*k+1,s:'sb',v:n})); }
       else cells.push({c:X.NM,cs:X.SZ-X.NM,s:'nm',v:nm});
-      cells.push.apply(cells,vals(val,ketA[bi],roM.map[b.pt],bi)); }
+      cells.push.apply(cells,vals(val,bi)); }
     add(rowH,cells); });
   /* kotak catatan: notes plan + roaster plan */
   const nt=[]; if(String(p.notes||'').trim()) nt.push(String(p.notes).trim());
@@ -7412,10 +7439,10 @@ function jcfModel(p,opt){
   add(2,[]);
   add(4.2,[{c:0,cs:NC,s:'fn',v:[{t:'Note : ',b:1},{t:JCF_DEF.note}]}]);
   add(4.2,[{c:X.QTY,cs:X.MP-X.QTY,s:'pb',v:'Prepared by;'}]);
-  add(4.2,[{c:X.NM,s:'fl',v:'Checked by;'},{c:X.QTY,cs:2,s:'pr',v:'Forming'},{c:X.NG,cs:2,s:'pr',v:'IS Maint'},{c:X.KB,cs:2,s:'pr',v:'Mould Repair'}]);
-  add(6,[{c:X.QTY,cs:2,rs:2,s:'sig'},{c:X.NG,cs:2,rs:2,s:'sig'},{c:X.KB,cs:2,rs:2,s:'sig'}]);
+  add(4.2,[{c:X.NM,s:'fl',v:'Checked by;'},{c:X.QTY,cs:2,s:'pr',v:'Forming'},{c:X.NG,cs:3,s:'pr',v:'IS Maint'},{c:X.KB,cs:2,s:'pr',v:'Mould Repair'}]);
+  add(6,[{c:X.QTY,cs:2,rs:2,s:'sig'},{c:X.NG,cs:3,rs:2,s:'sig'},{c:X.KB,cs:2,rs:2,s:'sig'}]);
   add(6,[]);
-  add(4.2,[{c:X.NM,s:'fl',v:'Technician'},{c:X.QTY,cs:2,s:'pt',v:'SI/HoD'},{c:X.NG,cs:2,s:'pt',v:'SI/HoD'},{c:X.KB,cs:2,s:'pt',v:'Spv'}]);
+  add(4.2,[{c:X.NM,s:'fl',v:'Technician'},{c:X.QTY,cs:2,s:'pt',v:'SI/HoD'},{c:X.NG,cs:3,s:'pt',v:'SI/HoD'},{c:X.KB,cs:2,s:'pt',v:'Spv'}]);
   const k=cw/190;
   return {P:P,cw:cw,cols:JCF_COLS.map(w=>+(w*k).toFixed(2)),rows:rows,notesH:notesH,plan:p}; }
 
@@ -7432,7 +7459,7 @@ function jcfCSS(){
   css+='td.notes{padding:1.2mm 1.6mm}td.title{letter-spacing:.1mm}td.fn b{font-style:normal}'
    +'.cb{display:inline-block;position:relative;width:3mm;height:3mm;border:.25mm solid #000;vertical-align:-.6mm;margin-right:1.2mm}'
    +'.cb.on::after{content:"";position:absolute;left:.75mm;top:-.9mm;width:1.1mm;height:2.5mm;border:solid #000;border-width:0 .55mm .55mm 0;transform:rotate(45deg)}'
-   +'td.kb{padding:0;border-right:0!important;position:relative;overflow:visible;background:transparent}td.kt{border-left:0!important}.kg{position:absolute;left:.5mm;top:.4mm;width:2.2mm;z-index:1}.kg svg{display:block;width:100%;height:100%;overflow:visible}.kg path{fill:none;stroke:#000;stroke-width:1.1;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round}'
+   +'td.kb{padding:0;border-right:0!important;position:relative;overflow:visible;background:transparent}td.kt,td.chgt{border-left:0!important}.kg{position:absolute;left:.5mm;top:.4mm;width:2.2mm;z-index:1}.kg svg{display:block;width:100%;height:100%;overflow:visible}.kg path{fill:none;stroke:#000;stroke-width:1.1;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round}'
    +'td.ck{padding:0}.tk{display:inline-block;width:1.15mm;height:2.3mm;border:solid #000;border-width:0 .5mm .5mm 0;transform:rotate(45deg);margin-top:-.7mm}'
    +'.lg{display:block;max-width:100%;max-height:14mm;margin:0 auto;object-fit:contain}'
    +'.nt{white-space:pre-wrap;overflow:hidden;max-height:calc(var(--nh) - 2.6mm)}';
@@ -7485,10 +7512,12 @@ function jcfRenderModal(){ const st=window._jcf; const box=document.getElementBy
       +'<div class="fg"><label>Nama perusahaan</label><input value="'+esc(kop.company)+'" onchange="jcfKopSet(\'company\',this.value)"></div>'
       +'<div class="fg"><label>Divisi</label><input value="'+esc(kop.division)+'" onchange="jcfKopSet(\'division\',this.value)"></div>'
       +'<div class="fg"><label>Doc No / Rev</label><input value="'+esc(kop.docNo)+'" onchange="jcfKopSet(\'docNo\',this.value)"></div></div>'
-      +'<div class="toolbar" style="margin:10px 0 0;align-items:center;gap:8px;flex-wrap:wrap"><button class="btn sec sm" onclick="jcfLogoPick()">🖼️ Ganti logo</button>'
-      +(lm!=='none'?'<button class="btn sec sm" onclick="jcfLogoDel()">Pakai teks (tanpa logo)</button>':'')
-      +(lm!=='default'?'<button class="btn sec sm" onclick="jcfLogoReset()">Kembalikan logo bawaan</button>':'')
-      +'<span style="font-size:11px;color:var(--txt3)">Logo saat ini: <b>'+({default:'bawaan',custom:'unggahan (perangkat ini)',none:'tanpa logo'})[lm]+'</b>. Logo unggahan hanya tersimpan di perangkat ini.</span></div></details>'
+      +'<div class="toolbar" style="margin:10px 0 0;align-items:center;gap:8px;flex-wrap:wrap">'
+      +'<button class="btn sm'+(lm==='default'?'':' sec')+'" onclick="jcfLogoReset()">🟩 Logo warna</button>'
+      +'<button class="btn sm'+(lm==='mono'?'':' sec')+'" onclick="jcfLogoMono()">⬛ Logo hitam</button>'
+      +'<button class="btn sm'+(lm==='custom'?'':' sec')+'" onclick="jcfLogoPick()">🖼️ '+(lm==='custom'?'Ganti file logo':'Unggah logo sendiri')+'</button>'
+      +'<button class="btn sm'+(lm==='none'?'':' sec')+'" onclick="jcfLogoDel()">Tanpa logo (teks)</button>'
+      +'<span style="font-size:11px;color:var(--txt3)">Logo saat ini: <b>'+({default:'bawaan warna',mono:'bawaan hitam-putih',custom:'unggahan (perangkat ini)',none:'tanpa logo'})[lm]+'</b>. Dipakai juga di Form Job Set Up (Excel &amp; Foto). Pilihan logo tersimpan per perangkat.</span></div></details>'
     +'<div id="jcfPrev" class="jcf-prev"></div>'
     +'<div style="font-size:11px;color:var(--txt3);margin-top:8px">Kolom QTY & KONDISI dikosongkan untuk diisi saat pengecekan fisik. CHANGE terisi otomatis dari Roaster Plan (mis. <b>Roaster 1-4</b>, atau <b>Roaster</b> untuk part non-section). Man Power & Ø Bottle diisi di form Plan JC.</div>'
     +'</div>';
@@ -7547,7 +7576,7 @@ function jcfFillSheet(ws,m,logoId){
     const x=ws.getCell(r1,c1); const val=jcfXlVal(cell.v,st); if(val!=null) x.value=val;
     x.font=cell.fs?Object.assign(jcfXlFont(st),{size:cell.fs}):jcfXlFont(st);
     x.alignment={horizontal:st.al||'left',vertical:st.va==='top'?'top':'middle',wrapText:!!st.wrap||(Array.isArray(cell.v)&&cell.v.some(s=>s.br||s.pre!=null))};
-    if(cell.s==='chg') x.alignment.shrinkToFit=true;
+    if(cell.s==='chg'||cell.s==='chgt') x.alignment.shrinkToFit=true;
     if(st.bx){ for(let r=r1;r<=r2;r++) for(let c=c1;c<=c2;c++){ const b={top:T,left:T,bottom:T,right:T}; if(st.nb==='r') delete b.right; if(st.nb==='l') delete b.left; ws.getCell(r,c).border=b; } }
     if(Array.isArray(cell.v)&&cell.v[0]&&cell.v[0].brace&&ws._jcfWb){ try{
       const B=cell.v[0].brace, hmm=B.h, wmm=m.cols[c1-1]; const img=jcfBracePng(wmm,hmm,B.f);
@@ -7590,6 +7619,185 @@ async function jcfExportXLSX(){ const st=window._jcf; if(!st||!st.plans.length) 
     if(st.src!=='blank') jaMarkPrinted(st.plans);
     toast('✓ Excel Form Prepare JC: '+st.plans.length+' sheet');
   }catch(e){ console.error('jcfExportXLSX:',e); toast('Export Excel gagal',1); } }
+
+/* ============ FORM JOB SET UP IS MAINTENANCE — export Excel 7 / 14 hari ============
+   Satu baris per plan JC, dikelompokkan per tanggal. Warna sel (dibanding JC sebelumnya di mesin yang sama):
+   hijau = GANTI · biru = ROSTER (roaster plan) · putih = TIDAK GANTI · kuning = TRIAL · merah = POSTPONED (ditunda).
+   M.C PROCESS hijau = process / CD berubah. KET = roaster per section, part roaster tanpa kolom, & catatan khusus plan. */
+const JSU_COLS=[
+  {h:'ORIFICE\n(ø)', re:/^orifice/i, w:9},
+  {h:'SCOOP', g:'DELIVERY', re:/^scoop$/i, w:8},
+  {h:'TROUGHT', g:'DELIVERY', re:/^(through|trough|trought)$/i, w:9},
+  {h:'DEFLECTOR', g:'DELIVERY', re:/^deflector/i, w:10},
+  {h:'BLANK', g:'HOLDER', re:/holder\s*blank/i, w:8},
+  {h:'MOLD', g:'HOLDER', re:/holder\s*mou?ld/i, w:8},
+  {h:'N/R', g:'ARM', re:/neck\s*ring\s*arm/i, w:9},
+  {h:'BAFFLE', g:'ARM', re:/^baffle\s*arm/i, w:9},
+  {h:'FUNNEL', g:'ARM', re:/^funnel\s*arm/i, w:8},
+  {h:'B/H', g:'ARM', re:/^blow\s*head\s*arm/i, w:10},
+  {h:'T/O HEAD', re:/^(take\s*out|t\s*\/\s*o)\s*head/i, w:10},
+  {h:'FINGER PUSHER', g:'WARE HANDLING', re:/^finger\s*pusher/i, w:9},
+  {h:'FINGER W/T', g:'WARE HANDLING', re:/finger\s*ware\s*transfer|finger\s*w\s*\/\s*t/i, w:9},
+  {h:'PUSH BAR', g:'WARE HANDLING', re:/^push\s*bar/i, w:9}];
+const JSU_FILL={trial:'FFFFFF00',ganti:'FF92D050',roster:'FF00B0F0',postponed:'FFFF0000'};
+const JSU_BULAN=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+function jsuPartKey(col,p){ const all=[]; Object.keys(CFG.jcAreas||{}).forEach(a=>(CFG.jcAreas[a]||[]).forEach(x=>{ if(all.indexOf(x)<0) all.push(x); }));
+  Object.keys((p&&p.specs)||{}).forEach(x=>{ if(all.indexOf(x)<0) all.push(x); });
+  return all.find(x=>col.re.test(String(x).trim()))||null; }
+function jsuVal(v){ const s=String(v==null?'':v).trim(); if(!s) return '';
+  let m=s.match(/^(\d+(?:[.,]\d+)?)\s*(?:["”″]|inch|in)?\s*(?:straight|str)\b/i); if(m) return m[1]+'" STR';
+  m=s.match(/^(\d+(?:[.,]\d+)?)\s*(?:["”″]|inch|in)?\s*(?:offset|off)\b/i); if(m) return m[1]+'" OFF';
+  if(/^finish\s*cool/i.test(s)) return 'FIN. COOL';
+  if(/^std\.?$/i.test(s)) return 'STD';
+  return s; }
+function jsuMc(p){ const mc=String(p.machine||p.line||'').trim().replace(/^C(?=\d)/i,''), pr=String(p.process||'').trim();
+  const pa=/^b\s*&\s*b$/i.test(pr)?'B/B':/^p\s*&\s*b$/i.test(pr)?'P/B':pr; return (mc+' '+pa).trim(); }
+function jsuTrial(p){ return !!(p.trial||/trial/i.test(p.notes||'')); }
+function jsuDateLong(s){ const d=parseD(s); return d.getDate()+' '+JSU_BULAN[d.getMonth()]+' '+d.getFullYear(); }
+/* catatan plan tanpa statistik otomatis dari schedule (BPS, run, BPM, eff, pcs, ton) */
+function jsuNoteSegs(notes){ return String(notes||'').split(/\s*·\s*|\n+/).map(x=>x.trim())
+  .filter(x=>x&&!/^(BPS\b|run\s|\d+\s*sec\b|\d+\s*BPM\b|eff\s|\d+\s*rb\s*pcs|total\s|WT schedule)/i.test(x)); }
+function jsuPlans(start,days){ const t1=ymd(new Date(parseD(start).getTime()+(days-1)*86400000));
+  return (JCPLANS||[]).filter(p=>p&&p.jcDate&&p.jcDate>=start&&p.jcDate<=t1)
+    .sort((a,b)=>a.jcDate.localeCompare(b.jcDate)||String(a.machine||a.line||'').localeCompare(String(b.machine||b.line||''),undefined,{numeric:true})); }
+/* model sel form (dipakai Excel & foto). r/c mulai 1; r2/c2 = merge; bd:0 = tanpa border; ov:1 = teks boleh meluber (tanpa wrap) */
+function jsuModel(start,days){
+  const endS=ymd(new Date(parseD(start).getTime()+(days-1)*86400000)), plans=jsuPlans(start,days);
+  if(!plans.length) return {start:start,endS:endS,plans:plans};
+  const NC=3+JSU_COLS.length, cols=[21,11,24].concat(JSU_COLS.map(c=>c.w)), rowH={}, cells=[];
+  const put=(r,c,v,o)=>{ cells.push(Object.assign({r:r,c:c,v:v==null?'':String(v)},o||{})); };
+  /* kop */
+  rowH[1]=50; put(1,1,'',{logo:1}); put(1,2,'',{c2:3}); put(1,4,'JOB SET UP IS MAINTENANCE',{c2:NC,b:1,sz:16});
+  /* header 2 baris */
+  rowH[2]=18; rowH[3]=26;
+  [[1,'DATE'],[2,'M.C PROCESS'],[3,'JOB-SET']].forEach(a=>put(2,a[0],a[1],{r2:3,b:1}));
+  const grp=[]; JSU_COLS.forEach((col,i)=>{ const cc=4+i;
+    if(!col.g){ put(2,cc,col.h,{r2:3,b:1}); return; }
+    put(3,cc,col.h,{sz:9});
+    const L=grp[grp.length-1]; if(L&&L.g===col.g&&L.c2===cc-1) L.c2=cc; else grp.push({g:col.g,c1:cc,c2:cc}); });
+  grp.forEach(g=>put(2,g.c1,g.g,{c2:g.c2,b:1}));
+  /* isi: satu baris per plan, tanggal digabung */
+  let r=4, i=0; const ket=[];
+  while(i<plans.length){ const d=plans[i].jcDate; let j=i; while(j+1<plans.length&&plans[j+1].jcDate===d) j++;
+    put(r,1,jsuDateLong(d),{r2:r+(j-i),b:1});
+    for(let k=i;k<=j;k++){ const p=plans[k], prev=jcfPrev(p), ro=jcfRoaster(p);
+      const hasSpec=Object.keys(p.specs||{}).some(x=>String(p.specs[x]==null?'':p.specs[x]).trim()!=='');   /* spec kosong → tidak dibandingkan (bukan "lepas semua") */
+      rowH[r]=34;
+      const procChg=!!prev&&!!(p.process||p.cd)&&(jcfKey(prev.process)!==jcfKey(p.process)||jcfCdKey(prev.cd)!==jcfCdKey(p.cd));
+      put(r,2,jsuMc(p),{b:1,fill:procChg?JSU_FILL.ganti:null});
+      put(r,3,[p.typeJob,p.description||p.bottleSize].filter(Boolean).join(' - '),{fill:p.postponed?JSU_FILL.postponed:(jsuTrial(p)?JSU_FILL.trial:null)});
+      JSU_COLS.forEach((col,ci)=>{ const key=jsuPartKey(col,p), v=key?jsuVal((p.specs||{})[key]):'';
+        const st=(key&&hasSpec)?jcfKet(p,prev,key):'', chg=(st==='Ganti'||st==='Pasang'||st==='Lepas'), rost=!!(key&&ro.map[key]);
+        put(r,4+ci,v,{fill:chg?JSU_FILL.ganti:(rost?JSU_FILL.roster:null)}); });
+      const seg=[]; if(p.postponed) seg.push('DITUNDA'); if(jsuTrial(p)) seg.push('TRIAL');
+      const bySec={}; (p.roasterPlan||[]).forEach(x=>{ if(!x||!x.part) return; const sx=jaSecTxt(x.sections||[])||'semua section'; (bySec[sx]=bySec[sx]||[]).push(x.part); });
+      Object.keys(bySec).forEach(sx=>seg.push('Roaster '+sx+': '+bySec[sx].join(', ')));
+      if(!prev) seg.push('JC pertama tercatat di mesin ini (tanpa pembanding)');
+      if(!hasSpec&&!/isi\s*spec/i.test(p.notes||'')) seg.push('spec belum diisi');
+      jsuNoteSegs(p.notes).forEach(x=>seg.push(x));
+      if(seg.length) ket.push(fmtD(parseD(p.jcDate)).slice(0,5)+'  '+(p.machine||p.line||'')+' #'+(p.typeJob||'-')+' — '+seg.join(' · '));
+      r++; }
+    i=j+1; }
+  /* KET */
+  const kr=r, kl=ket.reduce((n,t)=>n+Math.max(1,Math.ceil(t.length/165)),0);
+  rowH[kr]=Math.max(22,13.5*Math.max(1,kl)+6);
+  put(kr,1,'KET :',{b:1}); put(kr,2,ket.join('\n'),{c2:NC,sz:9.5,al:'left',va:'top',grow:1});
+  /* legenda warna */
+  let lr=kr+2;
+  [['TRIAL',JSU_FILL.trial],['GANTI',JSU_FILL.ganti],['ROSTER',JSU_FILL.roster],['TIDAK GANTI',null],['POSTPONED',JSU_FILL.postponed]].forEach(a=>{
+    rowH[lr]=15; put(lr,2,'',{fill:a[1]}); put(lr,3,': '+a[0],{al:'left',bd:0,ov:1}); lr++; });
+  rowH[lr]=15; put(lr,2,'M.C PROCESS hijau = process / CD berubah · pembanding = JC sebelumnya di mesin yang sama · periode '+fmtD(parseD(start))+' – '+fmtD(parseD(endS)),{al:'left',bd:0,ov:1,it:1,sz:9,col:'FF555555'});
+  return {start:start,endS:endS,plans:plans,NC:NC,cols:cols,rowH:rowH,cells:cells,last:lr}; }
+
+async function jsuExport(days,fmt){
+  const inp=document.getElementById('jsuStart'); const start=(inp&&/^\d{4}-\d\d-\d\d$/.test(inp.value))?inp.value:ymd(TODAY);
+  const m=jsuModel(start,days);
+  if(!m.plans.length){ toast('Tidak ada plan JC pada '+fmtD(parseD(m.start))+' – '+fmtD(parseD(m.endS)),1); return; }
+  const name='Job_Set_Up_IS_'+m.start+'_sd_'+m.endS;
+  if(fmt==='png'){ try{ await jsuSavePng(await jsuCanvas(m),name+'.png'); }catch(e){ console.error('jsuPng:',e); toast('Export foto gagal: '+(e&&e.message||e),1); } return; }
+  try{ await ensureLib('lib-exceljs','ExcelJS');
+    const wb=new ExcelJS.Workbook(); wb.creator='IS Machine PM'; wb.created=new Date();
+    const LAST=String.fromCharCode(64+m.NC);
+    const ws=wb.addWorksheet('Job Set Up',{views:[{showGridLines:false,state:'frozen',ySplit:3}],
+      pageSetup:{paperSize:9,orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0,horizontalCentered:true,
+                 margins:{left:0.3,right:0.3,top:0.35,bottom:0.35,header:0,footer:0}}});
+    ws.pageSetup.printTitlesRow='2:3';
+    ws.columns=m.cols.map(w=>({width:w}));
+    Object.keys(m.rowH).forEach(r=>{ ws.getRow(+r).height=m.rowH[r]; });
+    const T={style:'thin',color:{argb:'FF000000'}}, BOX={top:T,left:T,bottom:T,right:T};
+    m.cells.forEach(c=>{ const r2=c.r2||c.r, c2=c.c2||c.c; if(r2>c.r||c2>c.c) ws.mergeCells(c.r,c.c,r2,c2);
+      const x=ws.getCell(c.r,c.c); if(c.v!=='') x.value=c.v;
+      x.font={name:'Calibri',size:c.sz||10,bold:!!c.b,italic:!!c.it,color:{argb:c.col||'FF000000'}};
+      x.alignment=c.ov?{horizontal:'left',vertical:'middle'}:{horizontal:c.al||'center',vertical:c.va||'middle',wrapText:true};
+      if(c.fill) x.fill={type:'pattern',pattern:'solid',fgColor:{argb:c.fill}};
+      if(c.bd!==0) for(let rr=c.r;rr<=r2;rr++) for(let cc=c.c;cc<=c2;cc++) ws.getCell(rr,cc).border=BOX; });
+    const logo=jcfLogo();
+    if(logo&&logo.d&&logo.w&&logo.h){ try{ const id=wb.addImage({base64:logo.d,extension:/^data:image\/jpe?g/i.test(logo.d)?'jpeg':'png'});
+        const k=Math.min(140/logo.w,56/logo.h); ws.addImage(id,{tl:{col:0.12,row:0.08},ext:{width:Math.round(logo.w*k),height:Math.round(logo.h*k)},editAs:'oneCell'}); }catch(e){} }
+    else { const kp=jcfKop(), x=ws.getCell(1,1); x.value=[kp.company,kp.division].filter(Boolean).join('\n'); x.font={name:'Calibri',size:9,bold:true}; }
+    ws.pageSetup.printArea='A1:'+LAST+m.last;
+    const buf=await wb.xlsx.writeBuffer();
+    dl(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),name+'.xlsx');
+    toast('✓ Form Job Set Up: '+m.plans.length+' JC · '+days+' hari');
+  }catch(e){ console.error('jsuExport:',e); toast('Export Excel gagal: '+(e&&e.message||e),1); } }
+
+/* foto (PNG) — digambar langsung di canvas dari model yang sama, tajam untuk dibagikan ke WA */
+const JSU_FONT='Calibri,Carlito,"Segoe UI",Roboto,Arial,sans-serif';
+function jsuWrap(g,txt,maxW){ const out=[];
+  String(txt).split('\n').forEach(par=>{ let line='';
+    par.split(' ').forEach(w=>{ const t=line?line+' '+w:w;
+      if(g.measureText(t).width<=maxW||!line&&g.measureText(w).width<=maxW){ line=t; return; }
+      if(line) out.push(line);
+      if(g.measureText(w).width>maxW){ let s=''; for(const ch of w){ if(s&&g.measureText(s+ch).width>maxW){ out.push(s); s=ch; } else s+=ch; } line=s; }
+      else line=w; });
+    out.push(line); });
+  return out; }
+async function jsuCanvas(m){
+  const S=2, PT=4/3*S, colW=m.cols.map(w=>Math.round((w*7+5)*S));
+  const fnt=(c,sz)=>(c.it?'italic ':'')+(c.b?'bold ':'')+(sz*PT).toFixed(1)+'px '+JSU_FONT;
+  const g0=document.createElement('canvas').getContext('2d');
+  const W=colW.reduce((a,b)=>a+b,0), rows=[]; for(let r=1;r<=m.last;r++) rows[r]=Math.round((m.rowH[r]||15)*PT);
+  const span=(a,b,arr)=>{ let t=0; for(let i=a;i<=b;i++) t+=arr[i]||0; return t; };
+  /* baris KET tumbuh sesuai teks yang ter-wrap */
+  m.cells.forEach(c=>{ if(!c.grow) return; g0.font=fnt(c,c.sz||10); const w=span(c.c-1,(c.c2||c.c)-1,colW)-12*S;
+    rows[c.r]=Math.max(Math.round(22*PT),Math.ceil(jsuWrap(g0,c.v,w).length*(c.sz||10)*PT*1.25+12*S)); });
+  const pad=16*S, H=span(1,m.last,rows)+pad*2, cv=document.createElement('canvas'); cv.width=W+pad*2; cv.height=H;
+  const g=cv.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,cv.width,cv.height); g.textBaseline='middle';
+  const X=[pad]; colW.forEach((w,i)=>X.push(X[i]+w)); const Y=[0,pad]; for(let r=1;r<=m.last;r++) Y.push(Y[r]+rows[r]);
+  const box=c=>{ const r2=c.r2||c.r, c2=c.c2||c.c; return {x:X[c.c-1],y:Y[c.r],w:X[c2]-X[c.c-1],h:Y[r2+1]-Y[c.r]}; };
+  const argb=a=>'#'+String(a).slice(-6);
+  m.cells.forEach(c=>{ if(!c.fill) return; const b=box(c); g.fillStyle=argb(c.fill); g.fillRect(b.x,b.y,b.w,b.h); });
+  /* logo / kop */
+  const lc=m.cells.find(c=>c.logo), logo=jcfLogo();
+  if(lc){ const b=box(lc);
+    if(logo&&logo.d&&logo.w&&logo.h){ try{ const img=await new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=logo.d; });
+        const k=Math.min((b.w-12*S)/logo.w,(b.h-10*S)/logo.h), iw=logo.w*k, ih=logo.h*k; g.drawImage(img,b.x+6*S,b.y+(b.h-ih)/2,iw,ih); }catch(e){} }
+    else { const kp=jcfKop(); lc.v=[kp.company,kp.division].filter(Boolean).join('\n'); lc.b=1; lc.sz=9; } }
+  /* teks */
+  m.cells.forEach(c=>{ if(!c.v) return; const b=box(c), al=c.al||'center', va=c.va||'middle';
+    g.fillStyle=c.col?argb(c.col):'#000'; g.textAlign=al==='left'?'left':'center';
+    const tx=al==='left'?b.x+6*S:b.x+b.w/2;
+    if(c.ov){ g.font=fnt(c,c.sz||10); g.fillText(c.v,tx,b.y+b.h/2); return; }
+    let sz=c.sz||10, lines, lh;
+    for(;;){ g.font=fnt(c,sz); lines=jsuWrap(g,c.v,b.w-8*S); lh=sz*PT*1.25; if(lines.length*lh<=b.h-4*S||sz<=6) break; sz-=0.5; }
+    let y=va==='top'?b.y+5*S+lh/2:b.y+b.h/2-(lines.length-1)*lh/2;
+    g.save(); g.beginPath(); g.rect(b.x,b.y,b.w,b.h); g.clip();
+    lines.forEach(t=>{ g.fillText(t,tx,y); y+=lh; }); g.restore(); });
+  /* garis */
+  g.strokeStyle='#000'; g.lineWidth=Math.max(1,Math.round(S*0.75));
+  const o=g.lineWidth%2?0.5:0;
+  m.cells.forEach(c=>{ if(c.bd===0) return; const b=box(c); g.strokeRect(Math.round(b.x)+o,Math.round(b.y)+o,Math.round(b.w),Math.round(b.h)); });
+  return cv; }
+async function jsuSavePng(cv,name){
+  const blob=await new Promise(res=>cv.toBlob(res,'image/png')); if(!blob) throw new Error('gambar tidak bisa dibuat');
+  try{ const f=new File([blob],name,{type:'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[f]})&&window.matchMedia&&matchMedia('(pointer:coarse)').matches){
+      await navigator.share({files:[f],title:'Job Set Up IS Maintenance'}); toast('✓ Foto siap dibagikan'); return; } }
+  catch(e){ if(e&&e.name==='AbortError') return; }
+  dl(blob,name); }
+function jsuDays(){ try{ return +(localStorage.getItem('pm_jsu_days')||7)===14?14:7; }catch(e){ return 7; } }
+function jsuSetDays(n,btn){ try{ localStorage.setItem('pm_jsu_days',String(n)); }catch(e){}
+  const w=btn&&btn.parentNode; if(w) w.querySelectorAll('button').forEach(b=>{ const on=+b.dataset.d===n; b.classList.toggle('sec',!on); b.setAttribute('aria-pressed',on); }); }
 
 /* ---- roaster plan → real records integration ---- */
 // Reconcile DB roaster records to match an APPLIED plan (handles add / remove / machine&date change)
@@ -8113,7 +8321,6 @@ function transitionDiff(from,to){const out=[];
     out.push({area,part,oldV:o,newV:n,status,consumable:isConsumable(part)});
   });});
   return out;}
-function setCmp(which,val){ if(which==='m'){window._cmpM=val;window._cmpFrom=null;window._cmpTo=null;} else if(which==='from')window._cmpFrom=+val; else if(which==='to')window._cmpTo=+val; render(); }
 function currentPlan(machine){const t=ymd(TODAY);return JCPLANS.filter(p=>(p.machine||p.line)===machine&&!p.trial&&(p.jcDate||'')<=t).slice().sort((a,b)=>(b.jcDate||'').localeCompare(a.jcDate||''))[0]||null;}
 function nextPlan(machine){const t=ymd(TODAY);return JCPLANS.filter(p=>(p.machine||p.line)===machine&&!p.trial&&(p.jcDate||'')>t).slice().sort((a,b)=>(a.jcDate||'').localeCompare(b.jcDate||''))[0]||null;}
 function actTxt(d){ if(d.status==='same')return '✅ Tetap'; if(d.status==='add')return '➕ Pasang baru'+(d.consumable?' (consumable)':''); if(d.status==='remove')return d.consumable?'➖ Lepas (consumable)':'➖ Lepas → cleaning → balik stok'; return d.consumable?'🔁 Replace — use NEW (consumable)':'🔁 Ganti — lama→cleaning, pasang baru'; }
@@ -8573,27 +8780,6 @@ function applyTransitionStock(fromId,toId){
   acts.forEach(d=>{ if((d.status==='change'||d.status==='add')&&d.newV){adjustStock(d.part,d.newV,-1);inst++;}
     if((d.status==='change'||d.status==='remove')&&!d.consumable&&d.oldV){adjustStock(d.part,d.oldV,1,'eks-JC '+(toP.jcDate||'')+' perlu cleaning');ret++;}});
   saveAll(); toast(`✓ Stok diperbarui: ${inst} dipasang, ${ret} reusable balik siklus`); render();
-}
-function cmpCardHTML(){
-  const cm=window._cmpM||window._planM||CFG.machines[0]; window._cmpM=cm;
-  const plans=JCPLANS.filter(p=>(p.machine||p.line)===cm).slice().sort((a,b)=>(b.jcDate||'').localeCompare(a.jcDate||''));
-  const plabel=p=>`${p.jcDate?fmtD(parseD(p.jcDate)):'(tanpa tgl)'}${p.typeJob?' · #'+p.typeJob:''}${p.description?' · '+p.description:''}`;
-  const mSel=`<div class="fg" style="gap:5px"><label>Machine</label><select onchange="setCmp('m',this.value)">${CFG.machines.map(mm=>`<option ${mm===cm?'selected':''}>${mm}</option>`).join('')}</select></div>`;
-  if(plans.length<2){ return `<div class="card" style="margin-bottom:16px"><h3>🔄 Compare Jobchange Transitions</h3>
-      <div class="toolbar" style="margin-top:0">${mSel}</div>
-      <div class="note" style="margin:6px 0 0">Need at least 2 jobchange plans on this machine to compare (currently ${plans.length}). Create a plan for the next JC, then compare here.</div></div>`; }
-  let toId=window._cmpTo, fromId=window._cmpFrom;
-  if(toId==null||!plans.some(p=>p.id===toId)) toId=plans[0].id;
-  if(fromId==null||!plans.some(p=>p.id===fromId)) fromId=plans[1].id;
-  const fromP=plans.find(p=>p.id===fromId), toP=plans.find(p=>p.id===toId);
-  return `<div class="card" style="margin-bottom:16px"><h3>🔄 Compare Jobchange Transitions<span class="tag">${cm}</span></h3>
-    <div class="toolbar" style="margin-top:0;flex-wrap:wrap">${mSel}
-      <div class="fg" style="gap:5px"><label>From (currently installed)</label><select onchange="setCmp('from',this.value)">${plans.map(p=>`<option value="${p.id}" ${p.id===fromId?'selected':''}>${plabel(p)}</option>`).join('')}</select></div>
-      <div class="fg" style="gap:5px"><label>To (new JC)</label><select onchange="setCmp('to',this.value)">${plans.map(p=>`<option value="${p.id}" ${p.id===toId?'selected':''}>${plabel(p)}</option>`).join('')}</select></div>
-    </div>
-    ${transitionTableHTML(fromP,toP,true)}
-    <div class="note" style="margin-top:12px">A <b>consumable</b> part (e.g. Orifice/clay) that changes size must use a new one. A <b>reusable</b> part that is removed enters the <b>cleaning/repair → back to stock</b> cycle. The consumable list is configured in Settings.</div>
-  </div>`;
 }
 function installedSpecHTML(machine){
   const plan=currentPlan(machine);
@@ -9712,11 +9898,11 @@ const AUDIT_ACT={add:'Tambah',edit:'Ubah',del:'Hapus'};
 const AUDIT_FLD={date:'Tanggal',machine:'Mesin',section:'Section',part:'Part',reason:'Reason',pic:'Shift',
   qty:'Qty',unit:'Satuan',location:'Lokasi',note:'Catatan',size:'Ukuran',area:'Area',
   jcDate:'Tanggal JC',shift:'Shift',process:'Process',cd:'CD',typeJob:'Type Job',description:'Deskripsi',
-  weight:'Berat',diameter:'Ø Botol',notes:'Catatan',trial:'Trial',roaster:'Roaster plan',perbaikan:'Perbaikan',variabel:'Variabel'};
+  weight:'Berat',diameter:'Ø Botol',notes:'Catatan',trial:'Trial',postponed:'Ditunda',roaster:'Roaster plan',perbaikan:'Perbaikan',variabel:'Variabel'};
 const AUDIT_KEYS={
   record:['date','machine','section','part','reason','pic'],
   stock:['part','size','qty','unit','location','note'],
-  jcplan:['machine','jcDate','shift','process','cd','typeJob','description','weight','diameter','trial','notes'],
+  jcplan:['machine','jcDate','shift','process','cd','typeJob','description','weight','diameter','trial','postponed','notes'],
   jccheck:['date','machine','typeJob','cd','process','weight','perbaikan','variabel','notes']
 };
 function auditMax(){ const n=parseInt(CFG.auditMax,10); return (isFinite(n)&&n>=50)?n:AUDIT_MAX_DEFAULT; }
@@ -10536,7 +10722,7 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
   .form.plan-top .fg:first-child{ grid-column:1 / -1; }
   .form.plan-top input{ width:100%; min-width:0; }
 
-  /* dropdown dengan opsi panjang (mis. From/To di Compare Jobchange Transitions:
+  /* dropdown dengan opsi panjang (mis. "tgl · #type · description" di pilihan plan JC:
      "tgl · #type · description") dulu selebar teks opsinya → halaman melebar.
      Sekarang dropdown & field maksimal selebar layar; teks panjang terpotong di dalam kotak. */
   select{ max-width:100%; text-overflow:ellipsis; }
