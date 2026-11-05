@@ -7354,12 +7354,20 @@ function jcfBracePath(f){ const t=jcfBraceTip(f);
   return 'M1,1 C5,1 5,3 5,8 L5,'+(t-6)+' C5,'+(t-2)+' 6.5,'+t+' 9.5,'+t+' C6.5,'+t+' 5,'+(t+2)+' 5,'+(t+6)+' L5,92 C5,97 5,99 1,99'; }
 /* Kelompok kurung kurawal: baris part dalam 1 area dengan teks sama digabung jadi satu kurung,
    termasuk bila di antaranya ada baris kosong (tidak ada yang beda). Baris dengan teks lain memutus grup.
-   max = panjang kurung maksimal (baris); grup yang lebih panjang tidak dikurung → teks ditulis di tiap baris masing-masing. */
+   max = panjang kurung maksimal (baris); grup yang lebih panjang dipecah jadi beberapa kurung ≤ max baris. */
 const JCF_BRACE_MAX=3;   /* kolom CHANGE & KETERANGAN: kurung maks 3 baris */
 function jcfGroups(body,arr,max){ const grp={}, inn={};
-  for(let i=0;i<body.length;i++){ if(body[i].k!=='part'||!arr[i]) continue; let j=i;
-    for(let k=i+1;k<body.length&&body[k].k==='part'&&body[k].a===body[i].a;k++){ if(!arr[k]) continue; if(arr[k]!==arr[i]) break; j=k; }
-    if(j>i&&(!max||j-i+1<=max)){ grp[i]=j-i+1; for(let x=i;x<=j;x++) inn[x]=i; }
+  const put=(s0,e)=>{ if(e>s0){ grp[s0]=e-s0+1; for(let x=s0;x<=e;x++) inn[x]=s0; } };
+  for(let i=0;i<body.length;i++){ if(body[i].k!=='part'||!arr[i]) continue; let j=i; const P=[i];
+    for(let k=i+1;k<body.length&&body[k].k==='part'&&body[k].a===body[i].a;k++){ if(!arr[k]) continue; if(arr[k]!==arr[i]) break; j=k; P.push(k); }
+    if(!max||j-i+1<=max) put(i,j);
+    else {   /* lebih panjang dari max → dipecah jadi beberapa kurung (masing-masing ≤ max baris):
+                kurung sesedikit mungkin, hindari baris tunggal, panjang serata mungkin (mis. 11 baris → 3+3+3+2, 4 → 2+2) */
+      const m=P.length, best=[{c:0,s:0,q:0,cut:[]}];
+      for(let e=1;e<=m;e++){ for(let b=e-1;b>=0;b--){ const span=P[e-1]-P[b]+1; if(span>max) break; const pb=best[b];
+          const c={c:pb.c+1,s:pb.s+(e-1===b?1:0),q:pb.q+span*span,cut:pb.cut.concat([[P[b],P[e-1]]])}, cur=best[e];
+          if(!cur||c.c<cur.c||(c.c===cur.c&&(c.s<cur.s||(c.s===cur.s&&c.q<cur.q)))) best[e]=c; } }
+      best[m].cut.forEach(se=>put(se[0],se[1])); }
     i=j; }
   return {grp:grp,inn:inn}; }
 /* ---- MODEL GRID ---- */
