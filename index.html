@@ -7353,11 +7353,13 @@ function jcfBraceTip(f){ return Math.max(14,Math.min(86,(+f||0.5)*100)); }
 function jcfBracePath(f){ const t=jcfBraceTip(f);
   return 'M1,1 C5,1 5,3 5,8 L5,'+(t-6)+' C5,'+(t-2)+' 6.5,'+t+' 9.5,'+t+' C6.5,'+t+' 5,'+(t+2)+' 5,'+(t+6)+' L5,92 C5,97 5,99 1,99'; }
 /* Kelompok kurung kurawal: baris part dalam 1 area dengan teks sama digabung jadi satu kurung,
-   termasuk bila di antaranya ada baris kosong (tidak ada yang beda). Baris dengan teks lain memutus grup. */
-function jcfGroups(body,arr){ const grp={}, inn={};
+   termasuk bila di antaranya ada baris kosong (tidak ada yang beda). Baris dengan teks lain memutus grup.
+   max = panjang kurung maksimal (baris); grup yang lebih panjang tidak dikurung → teks ditulis di tiap baris masing-masing. */
+const JCF_BRACE_MAX=3;   /* kolom CHANGE & KETERANGAN: kurung maks 3 baris */
+function jcfGroups(body,arr,max){ const grp={}, inn={};
   for(let i=0;i<body.length;i++){ if(body[i].k!=='part'||!arr[i]) continue; let j=i;
     for(let k=i+1;k<body.length&&body[k].k==='part'&&body[k].a===body[i].a;k++){ if(!arr[k]) continue; if(arr[k]!==arr[i]) break; j=k; }
-    if(j>i){ grp[i]=j-i+1; for(let x=i;x<=j;x++) inn[x]=i; }
+    if(j>i&&(!max||j-i+1<=max)){ grp[i]=j-i+1; for(let x=i;x<=j;x++) inn[x]=i; }
     i=j; }
   return {grp:grp,inn:inn}; }
 /* ---- MODEL GRID ---- */
@@ -7407,7 +7409,7 @@ function jcfModel(p,opt){
   /* nilai per baris → kelompok kurung kurawal (lihat jcfGroups); teks grup ditulis sekali di baris tengah */
   const ketA=body.map(b=>b.k==='part'?jcfKet(p,prev,b.pt):'');
   const chgA=body.map(b=>b.k==='part'?(roM.map[b.pt]||''):'');
-  const KG=jcfGroups(body,ketA), CG=jcfGroups(body,chgA);
+  const KG=jcfGroups(body,ketA,JCF_BRACE_MAX), CG=jcfGroups(body,chgA,JCF_BRACE_MAX);
   const brPair=(G,arr,bi,cb,ct,st,fit)=>{ const mk=t=>{ const o={c:ct,s:st,v:t||''}; if(t&&fit) o.fs=jcfFitFs(t,fit,7); return o; };
     if(bi==null) return [{c:cb,s:'kb'},mk('')];
     const s0=G.inn[bi];
