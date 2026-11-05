@@ -3379,10 +3379,11 @@ async function syncCycle(why){
       if(Sync.cycleErr||Sync.deferred) break;
       if(!Sync.needDiff && !Sync.conflicts.length) break;
     }
-    if(!Sync.cycleErr){ Cloud.status='connected'; Cloud.connected=true; Cloud.err=''; }
+    if(!Sync.cycleErr){ Cloud.status='connected'; Cloud.connected=true; Cloud.err=''; if(Sync.attached) Sync.okOnce=true; }
   }catch(e){ console.warn('sync:',e); syncNetErr(e); }
   finally{
     Sync.running=false; syncSaveShadowSoon(); syncPaint();
+    if(Sync.okOnce&&!Sync._cdMig&&!CFG._jcCdFix&&isAdminUI()){ Sync._cdMig=true; setTimeout(jcCdMaybeMigrate,60); }   /* sekali: part ikut CD */
     if(Sync.again){ Sync.again=false; syncSchedule(400); }
   }
 }
@@ -6503,6 +6504,39 @@ function loadJobByType(){ const c=window._jcEdit; const t=String(c.typeJob||'').
   renderJCForm(); toast('✓ Type Job '+t+(src.cd?(' · CD '+src.cd):'')+' dimuat dari '+(src.jcDate?('job '+fmtD(parseD(src.jcDate))):'Master JC')+' — atur tanggal & roaster'); return true; }
 
 /* ================= MASTER JC — pustaka job-type → spec (tanpa tanggal) ================= */
+/* ===== Part yang ukurannya IKUT CD (bukan "Std") =====
+   Baffle Arm · Funnel Arm · Take Out Head = CD itu sendiri (5" → 5", 4¼" → 4¼", 6¼" → 6¼")
+   Finger Pusher : 4¼" → 4,375" · 5" → 5,25" · 6¼" → 6,5"
+   Diisi otomatis bila kosong / "Std" / berisi ukuran-otomatis CD lain (mis. CD diganti 5" → 6¼").
+   Nilai khusus (Flask, "-", Pendek, dll.) TIDAK diubah. */
+const JC_CD_PARTS={'Baffle Arm':'cd','Funnel Arm':'cd','Take Out Head':'cd','Finger Pusher':'fp'};
+const JC_FP_BY_CD={'41/4':'4,375"','5':'5,25"','61/4':'6,5"'};   /* kunci = jcfCdKey(CD) */
+function jcCdAuto(part,cd){ const t=JC_CD_PARTS[part], k=jcfCdKey(cd); if(!t||!k) return '';
+  return t==='cd'?String(cd).trim():(JC_FP_BY_CD[k]||''); }
+function jcCdAutoish(part,v){ const x=String(v==null?'':v).trim(); if(!x||/^(std\.?|standar[dt]?)$/i.test(x)) return true;
+  const t=JC_CD_PARTS[part], k=jcfCdKey(x);
+  if(t==='cd') return (CFG.cds||[]).concat(['4¼"','5"','6¼"']).some(c=>jcfCdKey(c)===k);
+  return Object.keys(JC_FP_BY_CD).some(c=>jcfCdKey(JC_FP_BY_CD[c])===k); }
+function jcHasOtherSpecs(o){ const sp=(o&&o.specs)||{}; return Object.keys(sp).some(k=>!JC_CD_PARTS[k]&&String(sp[k]==null?'':sp[k]).trim()!==''); }
+/* o = {cd, specs} (Master atau Plan JC). force=false → hanya bila spec lain sudah terisi (plan tanpa spec dibiarkan kosong). */
+function jcApplyCdParts(o,force){ if(!o||!String(o.cd||'').trim()) return 0; if(!force&&!jcHasOtherSpecs(o)) return 0;
+  o.specs=o.specs||{}; let n=0;
+  Object.keys(JC_CD_PARTS).forEach(part=>{ const want=jcCdAuto(part,o.cd); if(!want) return; const cur=o.specs[part];
+    if(cur!==want&&jcCdAutoish(part,cur)){ o.specs[part]=want; n++; } });
+  return n; }
+/* form terbuka: CD diketik → isi 4 kolom part di layar tanpa render ulang (fokus tetap di kolom CD) */
+function jcCdSyncForm(o,boxId,force){ if(!jcApplyCdParts(o,force)) return;
+  Object.keys(JC_CD_PARTS).forEach(part=>{ const el=document.querySelector('#'+boxId+' input[data-k="'+CSS.escape(part)+'"]');
+    if(el&&el!==document.activeElement&&el.value!==(o.specs[part]||'')) el.value=o.specs[part]||''; }); }
+/* sekali jalan: rapikan Master JC & semua Plan JC yang sudah ada (Admin, setelah data cloud termuat) */
+function jcCdMaybeMigrate(){ try{
+    if(CFG._jcCdFix) return; if(!isAdminUI()) return;
+    const dup=jcmDedupeIds();   /* sekalian: ID Master JC kembar dibuat unik (edit/hapus/impor Excel jadi tepat sasaran) */
+    let m=0,pl=0; (CFG.jcMaster||[]).forEach(x=>{ if(jcApplyCdParts(x,false)) m++; }); (JCPLANS||[]).forEach(x=>{ if(jcApplyCdParts(x,false)) pl++; });
+    CFG._jcCdFix=1; saveAll(); if(dup) console.info('Master JC: '+dup+' ID kembar diperbaiki');
+    if(m||pl){ toast('🔧 Baffle / Funnel / Take Out Head / Finger Pusher disesuaikan dengan CD: '+m+' Master · '+pl+' Plan JC'); try{ render(); }catch(e){} }
+  }catch(e){ console.error('jcCdMaybeMigrate',e); } }
+
 function jcmList(){ return (CFG.jcMaster||[]); }
 function jcmFiltered(){
   const q=(window._jcmSearch||'').trim().toLowerCase();
@@ -6668,7 +6702,7 @@ function renderJCMasterForm(){
   const areaHTML=Object.keys(CFG.jcAreas).map(area=>{
     const rows=CFG.jcAreas[area].map(part=>{
       const cur=(c.specs[part]||'');
-      return `<div class="jcrow"><label title="${esc(part)}">${part}</label><input value="${esc(cur)}" oninput="jcmSpec(this.getAttribute('data-k'),this.value)" data-k="${esc(part)}" placeholder="size / spec"></div>`;
+      return `<div class="jcrow"><label title="${esc(part)}">${part}</label><input value="${esc(cur)}" oninput="jcmSpec(this.getAttribute('data-k'),this.value)" data-k="${esc(part)}" placeholder="${JC_CD_PARTS[part]?'otomatis ikut CD':'size / spec'}"></div>`;
     }).join('');
     return `<div class="card" style="padding:14px;margin-bottom:12px"><h3>${areaIcon(area)} ${area} <span class="tag">${CFG.jcAreas[area].length} item</span></h3><div class="jcgrid">${rows}</div></div>`;
   }).join('');
@@ -6679,7 +6713,7 @@ function renderJCMasterForm(){
     <div class="form" style="grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px">
       <div class="fg"><label>Type Job (bottle no.)</label><input value="${esc(c.typeJob)}" oninput="window._jcmEdit.typeJob=this.value" placeholder="mis. 1024"></div>
       <div class="fg"><label>Process</label><select onchange="window._jcmEdit.process=this.value">${CFG.processes.map(pr=>`<option ${pr===c.process?'selected':''}>${pr}</option>`).join('')}</select></div>
-      <div class="fg"><label>CD / Center Distance</label><input list="dlCDm" value="${esc(c.cd)}" oninput="window._jcmEdit.cd=this.value" placeholder='mis. 5"'><datalist id="dlCDm">${CFG.cds.map(x=>`<option>${x}</option>`).join('')}</datalist></div>
+      <div class="fg"><label>CD / Center Distance</label><input list="dlCDm" value="${esc(c.cd)}" oninput="window._jcmEdit.cd=this.value;jcCdSyncForm(window._jcmEdit,'jcmbox',true)" placeholder='mis. 5"'><datalist id="dlCDm">${CFG.cds.map(x=>`<option>${x}</option>`).join('')}</datalist></div>
       <div class="fg"><label>Weight (g)</label><input value="${esc(c.weight)}" oninput="window._jcmEdit.weight=this.value" placeholder="mis. 380"></div>
       <div class="fg" style="grid-column:span 3"><label>Description (bottle type)</label><input value="${esc(c.description)}" oninput="window._jcmEdit.description=this.value" placeholder="mis. Beer 620 ml amber"></div>
       <div class="fg"><label>Ø Bottle / Jar</label><input value="${esc(c.diameter||'')}" oninput="window._jcmEdit.diameter=this.value" placeholder="mis. 65 mm"></div>
@@ -6692,11 +6726,12 @@ function renderJCMasterForm(){
 function closeJCMaster(){ const el=document.getElementById('jcmmodal'); if(el)el.classList.remove('show'); }
 function saveJCMaster(){ const c=window._jcmEdit; const t=String(c.typeJob||'').trim();
   if(!t){ toast('Type Job wajib diisi',1); return; }
+  jcApplyCdParts(c,true);   /* Baffle / Funnel / Take Out Head / Finger Pusher ikut CD */
   const cdv=String(c.cd||'').trim().toLowerCase();
   const dup=jcmList().find(m=>m.id!==c.id && String(m.typeJob||'').trim().toLowerCase()===t.toLowerCase() && String(m.cd||'').trim().toLowerCase()===cdv);
   if(dup){ toast('Type Job "'+t+'"'+(c.cd?(' CD "'+c.cd+'"'):'')+' sudah ada di Master',1); return; }
   CFG.jcMaster=CFG.jcMaster||[];
-  if(c.id==null){ c.id=Date.now(); CFG.jcMaster.push(c); } else { const i=CFG.jcMaster.findIndex(x=>x.id===c.id); if(i>=0)CFG.jcMaster[i]=c; }
+  if(c.id==null){ c.id=jcmId(); CFG.jcMaster.push(c); } else { const i=CFG.jcMaster.findIndex(x=>x.id===c.id); if(i>=0)CFG.jcMaster[i]=c; }
   saveAll(); closeJCMaster(); toast('✓ Master job type tersimpan'); render(); }
 function delJCMaster(id){ const m=jcmList().find(x=>x.id===id); if(!confirm('Hapus job type "'+((m&&m.typeJob)||'')+'" dari Master JC?'))return;
   CFG.jcMaster=jcmList().filter(x=>x.id!==id); saveAll(); toast('Master job type dihapus'); render(); }
@@ -6786,14 +6821,16 @@ function jcmValText(row,i){
   }
   return jcmCellText(row,i).replace(/\u00A0/g,' ').trim();
 }
-function jcmId(){ return Date.now()+Math.floor(Math.random()*1000); }
+/* ID Master JC selalu unik (dulu Date.now()+acak bisa bentrok saat impor banyak baris → ID kembar) */
+function jcmId(){ const used=new Set((CFG.jcMaster||[]).map(m=>m&&m.id)); let id=Date.now(); while(used.has(id)) id++; return id; }
+function jcmDedupeIds(){ const seen=new Set(); let n=0; (CFG.jcMaster||[]).forEach(m=>{ if(!m) return; if(m.id==null||m.id===''||seen.has(m.id)){ m.id=jcmId(); n++; } seen.add(m.id); }); return n; }
 
 async function exportJCMasterXLSX(){ try{
   await ensureLib('lib-exceljs','ExcelJS');
   const wb=new ExcelJS.Workbook(); const cols=jcmExcelCols(); const parts=jcParts();
   const ws=wb.addWorksheet('Master JC'); ws.columns=cols;
   let _sq=0, _fix=false;
-  (CFG.jcMaster||[]).forEach(m=>{ if(!m.id){ m.id=jcmId()+(_sq++); _fix=true; } });
+  if(jcmDedupeIds()) _fix=true;
   if(_fix) await saveAll();
   (CFG.jcMaster||[]).slice().sort((a,b)=>String(a.typeJob||'').localeCompare(String(b.typeJob||''),undefined,{numeric:true}))
     .forEach(m=>{
@@ -6861,6 +6898,7 @@ async function importJCMasterXLSX(inp){ const f=inp&&inp.files&&inp.files[0]; if
     }
   });
 
+  try{ jcmDedupeIds(); }catch(e){}
   const list=CFG.jcMaster=CFG.jcMaster||[]; const ops=[]; let skipped=0; const seen={};
   ws.eachRow({includeEmpty:false},(row,rn)=>{
     if(rn===1)return;
@@ -6920,16 +6958,17 @@ async function importJCMasterXLSX(inp){ const f=inp&&inp.files&&inp.files[0]; if
       target.typeJob=r.typeJob; target.process=r.process; target.cd=r.cd; target.weight=r.weight;
       target.description=r.description; target.notes=r.notes; target.specs=sp;
       if(iDia) target.diameter=r.diameter||'';
-      if(target.id==null||target.id==='')target.id=jcmId()+seq;
+      if(target.id==null||target.id==='')target.id=jcmId();
       changed++;
     }else{
-      const r2={...r,id:jcmId()+seq};
+      const r2={...r,id:jcmId()};
       Object.keys(r2.specs).forEach(k=>{ if(r2.specs[k]==='')delete r2.specs[k]; });
       list.push(r2); changed++;
     }
     seq++;
   });
 
+  try{ (CFG.jcMaster||[]).forEach(x=>jcApplyCdParts(x,false)); }catch(e){}   /* part ikut CD */
   await saveAll();
   window._jcmSearch=''; window._jcmProc='';
   const si=document.getElementById('jcmSearchInput'); if(si)si.value='';
@@ -6988,7 +7027,7 @@ function renderJCForm(){
         <datalist id="dlJob">${pastJobs(c.id).map(p=>`<option value="${esc(p.typeJob)}">${esc(p.typeJob)}${p.cd?' · CD '+esc(p.cd):''}${p.description?' — '+esc(p.description):''}</option>`).join('')}</datalist>
         ${pastJobs(c.id).length?`<a class="jcf-load" onclick="loadJobByType()">🔍 Muat dari Master JC / job lama (${pastJobs(c.id).length})</a>`:''}</div>
       <div class="fg jcf-desc"><label>Description <span class="lx">(bottle type)</span></label><input value="${esc(c.description)}" oninput="window._jcEdit.description=this.value" placeholder="mis. Beer 620 ml amber"></div>
-      <div class="fg"><label>CD <span class="lx">/ Center Distance</span></label><input list="dlCD" value="${esc(c.cd)}" oninput="window._jcEdit.cd=this.value" onchange="loadJobByType()" placeholder='5"'><datalist id="dlCD">${CFG.cds.map(x=>`<option>${x}</option>`).join('')}</datalist></div>
+      <div class="fg"><label>CD <span class="lx">/ Center Distance</span></label><input list="dlCD" value="${esc(c.cd)}" oninput="window._jcEdit.cd=this.value;jcCdSyncForm(window._jcEdit,'jcbox',false)" onchange="loadJobByType()" placeholder='5"'><datalist id="dlCD">${CFG.cds.map(x=>`<option>${x}</option>`).join('')}</datalist></div>
       <div class="fg"><label>Weight (g)</label><input value="${esc(c.weight)}" inputmode="decimal" oninput="window._jcEdit.weight=this.value" placeholder="380"></div>
       <div class="fg"><label>Ø Bottle<span class="lx"> / Jar</span></label><input value="${esc(c.diameter||'')}" oninput="window._jcEdit.diameter=this.value" placeholder="65 mm"></div>
     </div></div>
@@ -7191,6 +7230,7 @@ function jcRvSave(print){ const c=window._jcEdit; if(!c) return;
   jcRvClose(); jcSavePlanNow(); const id=c.id;
   if(print&&id!=null){ setTimeout(()=>jcfOpen([id]),60); } }
 function jcSavePlanNow(){const c=window._jcEdit; if(!c.machine||!c.jcDate){toast('Machine & JC date are required',1);return;}
+  jcApplyCdParts(c,false);
   const _ref=(c.machine||'-')+' · '+(c.jcDate||'-');
   if(c.id==null){c.id=Date.now();JCPLANS.push(c);auditLog('add','jcplan',_ref,null,auditSnap('jcplan',c));}
   else{const i=JCPLANS.findIndex(x=>x.id===c.id);const _b=i>=0?auditSnap('jcplan',JCPLANS[i]):null;if(i>=0)JCPLANS[i]=c;auditLog('edit','jcplan',_ref,_b,auditSnap('jcplan',c));}
@@ -10328,7 +10368,8 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
     if(!(cc&&cc.enabled&&cc.url) && CLOUD_DEFAULT && CLOUD_DEFAULT.url){ cc={ url:CLOUD_DEFAULT.url, room:CLOUD_DEFAULT.room||'pmdata', secret:CLOUD_DEFAULT.secret||'', poll:12, enabled:true }; cloudCfgSet(cc); }
     // URL di dalam file = sumber kebenaran: bila beda dgn yang tersimpan, pakai URL file (deploy ulang cukup update file)
     else if(cc && CLOUD_DEFAULT && CLOUD_DEFAULT.url && cc.url!==CLOUD_DEFAULT.url){ cc.url=CLOUD_DEFAULT.url; cc.enabled=true; Cloud.lastRev=null; cloudCfgSet(cc); }
-    if(cc && cc.enabled && cc.url){ gsConnect(cc); }   // sinkron v3: login PIN → sinkron per record (input lokal yang belum terkirim ikut terkirim)
+    if(cc && cc.enabled && cc.url){ gsConnect(cc); }
+    else { setTimeout(jcCdMaybeMigrate,300); }   /* tanpa cloud: rapikan langsung */   // sinkron v3: login PIN → sinkron per record (input lokal yang belum terkirim ikut terkirim)
   }catch(e){}
   document.addEventListener('input',e=>{if(['i_part','i_date','i_reason','i_reason_sel','i_section','i_machine'].includes(e.target.id))previewLive();});
   // re-apply desktop side-nav / mobile bottom-nav on resize
