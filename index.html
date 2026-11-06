@@ -2898,7 +2898,7 @@ const Cloud = { enabled:false, connected:false, url:'', room:'pmdata', secret:''
   dirty:false, pending:null, pendingSince:0, confirmedToken:null };
 const SYNC_ARR = { db:()=>DB, jc:()=>JCPLANS, stock:()=>STOCK, jccheck:()=>JCCHECKS };
 const SYNC_ADMIN_COLS = { cfg:1, img:1 };                                  // hanya Admin yang boleh mengirim
-const CFG_LOCAL_KEYS = { theme:1, uiScale:1, fontScale:1, bottomNav:1, lastMod:1 };     // preferensi per perangkat — tidak disinkron
+const CFG_LOCAL_KEYS = { theme:1, uiScale:1, uiScaleAuto:1, uiScaleAdj:1, fontScale:1, bottomNav:1, lastMod:1 };     // preferensi per perangkat — tidak disinkron
 const Sync = { tok:'', role:null, adminTok:'', adminTimer:null, sid:'', lastRev:0, map:null, dt:{}, loadedRoom:'', attached:false,
   running:false, again:false, needDiff:true, userEdit:false, conflicts:[], forbidden:{}, mode:'', blocked:'', init:true, deferred:false,
   cycleErr:false, nOut:0, nCfgLocal:0, cfgDirtyPrev:'', lastOk:0, lastPing:0, skew:0, legacy:false, timer:null, saveT:null,
@@ -4188,9 +4188,7 @@ function setMpRate(gk,v){ CFG.mpRate=Object.assign({},CFG.mpRate||{}); const n=p
   if(n>0) CFG.mpRate[gk]=Math.round(n*100)/100; else delete CFG.mpRate[gk]; saveAll();
   toast('Kecepatan '+gk+': '+(n>0?mpNum2(CFG.mpRate[gk])+' variabel/jam/orang':'belum diatur')); render(); }
 /* variabel yang berubah di JC ini dibanding JC sebelumnya di mesin yang sama (ganti / pasang / lepas) */
-function mpPrevPlan(p){ const m=p.machine||p.line, d=p.jcDate||'', id=+p.id||0;
-  return (JCPLANS||[]).filter(q=>q&&q!==p&&(q.machine||q.line)===m&&!q.trial&&((q.jcDate||'')<d||((q.jcDate||'')===d&&(+q.id||0)<id)))
-    .sort((a,b)=>(b.jcDate||'').localeCompare(a.jcDate||'')||((+b.id||0)-(+a.id||0)))[0]||null; }
+function mpPrevPlan(p){ return jcBaseOf(p); }   /* aturan pembanding yang sama dgn form JC (trial dulu, tanpa trial/ditunda) */
 /* JC pertama di suatu mesin: kondisi sebelumnya tidak diketahui → variabel tidak dihitung (prev:false) */
 function mpPlanVars(p){ const prev=mpPrevPlan(p); if(!prev) return {by:{},prev:false,tot:0}; const d=transitionDiff(prev,p).filter(x=>x.status!=='same'); const by={}; d.forEach(x=>{ by[x.area]=(by[x.area]||0)+1; }); return {by,prev:true,tot:d.length}; }
 function mpGroupVars(V,g){ return g.areas.reduce((a,ar)=>a+(V.by[ar]||0),0); }
@@ -4323,18 +4321,31 @@ function setJccCfg(k,v){ const n=parseFloat(v); if(!isFinite(n)||n<=0){ toast('N
 function setTheme(t){ CFG.theme=t; saveAll(); applyTheme(); render(); tickClock(); }
 /* ============ DISPLAY SCALE (ZOOM) — perkecil/perbesar seluruh tampilan ============ */
 function clampScale(n){ n=Math.round((+n||100)/5)*5; if(n<50)n=50; if(n>200)n=200; return n; }
-function applyScale(){ var n=clampScale(CFG.uiScale||100);
+/* ---- UKURAN TAMPILAN OTOMATIS — selalu menyesuaikan perangkat (tanpa tombol) ----
+   Patokan desain 1600×800 px (ukuran jendela browser, sudah termasuk skala Windows & zoom browser) = 100%.
+   skala = min(lebar ÷ 1600, tinggi ÷ 800) × 100, dibulatkan 5%, batas 90–130%. HP & tablet (≤1000 px) = 100%.
+   Dihitung ulang saat jendela diubah ukurannya / dipindah ke monitor lain / layar diputar.
+   (Setelan lama uiScale / uiScaleAuto / uiScaleAdj diabaikan.) */
+const SCALE_REF={w:1600,h:800,min:90,max:130};
+function autoScaleCalc(){ const w=window.innerWidth||1280, h=window.innerHeight||800;
+  if(w<=1000) return 100;   /* HP & tablet: tata letaknya sudah khusus */
+  const r=Math.min(w/SCALE_REF.w, h/SCALE_REF.h)*100;
+  return Math.max(SCALE_REF.min,Math.min(SCALE_REF.max,Math.round(r/5)*5)); }
+function effScale(){ return clampScale(autoScaleCalc()); }
+function scaleInfoHTML(){ const w=window.innerWidth||0, h=window.innerHeight||0;
+  return '🖥️ Perangkat ini: layar '+w+'×'+h+' → <b>'+effScale()+'%</b>'+(w<=1000?' (HP / tablet selalu 100%)':''); }
+function applyScale(){ var n=effScale();
   try{ document.documentElement.style.zoom = (n/100); }catch(e){}
   // beri tahu CSS faktor zoom agar layout satu-layar (dashboard desktop) bisa mengisi penuh tinggi walau di-scale
   try{ document.documentElement.style.setProperty('--uizoom', (n/100)); }catch(e){}
-  var v=document.getElementById('scaleVal'); if(v) v.textContent=n+'%';
-  var sl=document.getElementById('scaleRange'); if(sl && +sl.value!==n) sl.value=n;
-  document.querySelectorAll('.scalepresets .themebtn[data-scale]').forEach(function(b){ b.classList.toggle('on', +b.getAttribute('data-scale')===n); });
+  var tg=document.getElementById('scaleTag'); if(tg) tg.textContent='Otomatis · '+n+'%';
+  var inf=document.getElementById('scaleInfo'); if(inf) inf.innerHTML=scaleInfoHTML();
 }
-function previewScale(n){ n=clampScale(n); CFG.uiScale=n; applyScale(); }   // live saat slider digeser (belum disimpan)
-function setScale(n){ CFG.uiScale=clampScale(n); applyScale(); saveAll(); }  // simpan permanen
-function nudgeScale(d){ setScale((CFG.uiScale||100)+d); }
-function resetScale(){ setScale(100); }
+/* jendela berubah ukuran / pindah monitor / layar diputar → hitung ulang */
+(function(){ let t=null, own=false; window.addEventListener('resize',function(){ if(own) return; clearTimeout(t);
+  t=setTimeout(function(){ const cur=Math.round((parseFloat(document.documentElement.style.zoom)||1)*100);
+    if(cur!==effScale()){ applyScale(); own=true; try{ window.dispatchEvent(new Event('resize')); }finally{ own=false; } }   /* grafik & tabel lain ikut menyesuaikan */
+    else { const inf=document.getElementById('scaleInfo'); if(inf) inf.innerHTML=scaleInfoHTML(); } },220); }); })();
 /* ============ UKURAN HURUF DASAR 120% (rasio tetap, ikut Display Scale) ============
    Ukuran huruf asli di aplikasi memakai px tetap dan terasa kecil, jadi semua huruf dibesarkan 1,2×
    secara permanen; Display Scale (zoom) lalu memperbesar/memperkecil semuanya dengan rasio yang sama.
@@ -4353,6 +4364,16 @@ function _fsRules(list,f){ for(let i=0;i<list.length;i++){ const r=list[i];
       if(o){ const nv=_fsVal(o,f), pr=r.style.getPropertyPriority('font-size'); if(r.style.getPropertyValue('font-size')!==nv) r.style.setProperty('font-size',nv,pr); } }
     if(r.cssRules&&r.cssRules.length) _fsRules(r.cssRules,f); } }   // @media / @supports / nesting
 function _fsAllRules(f){ Array.prototype.forEach.call(document.styleSheets,sh=>{ let rl=null; try{ rl=sh.cssRules; }catch(e){ return; } if(rl) _fsRules(rl,f); }); }
+/* Ukuran berbasis tinggi layar (vh) ikut di-zoom oleh Display Scale → di skala 120% elemen "100vh" jadi 120% tinggi layar
+   (dashboard bisa digulir 200-an px, popup lebih tinggi dari layar). Semua nilai vh yang belum dikompensasi ditulis ulang
+   menjadi calc(Nvh / var(--uizoom)) — sekali per aturan; nilai yang sudah memakai --uizoom dibiarkan. */
+const _VH_RE=/(-?\d*\.?\d+)(d|s|l)?vh\b/g;
+function _vhRules(list){ for(let i=0;i<list.length;i++){ const r=list[i];
+    if(r.style&&r.style.length){ const st=r.style; for(let k=0;k<st.length;k++){ const pr=st[k], v=st.getPropertyValue(pr);
+        if(v&&v.indexOf('vh')>=0&&v.indexOf('uizoom')<0&&_VH_RE.test(v)){ _VH_RE.lastIndex=0; st.setProperty(pr,v.replace(_VH_RE,'calc($1$2vh / var(--uizoom, 1))'),st.getPropertyPriority(pr)); }
+        _VH_RE.lastIndex=0; } }
+    if(r.cssRules&&r.cssRules.length) _vhRules(r.cssRules); } }
+function _vhFixAll(){ Array.prototype.forEach.call(document.styleSheets,sh=>{ let rl=null; try{ rl=sh.cssRules; }catch(e){ return; } if(rl) try{ _vhRules(rl); }catch(e){} }); }
 function _fsInline(root,f){ if(!root||root.nodeType!==1) return;
   const list=root.querySelectorAll?Array.prototype.slice.call(root.querySelectorAll('[style*="font-size"]')):[];
   if(root.getAttribute&&/font-size/.test(root.getAttribute('style')||'')) list.push(root);
@@ -4365,7 +4386,7 @@ function _fsObserve(on){
       ms.forEach(m=>m.addedNodes.forEach(n=>{ if(n.nodeType!==1) return;
         if(n.tagName==='STYLE'||n.tagName==='LINK'||(n.querySelector&&n.querySelector('style'))) css=true;
         _fsInline(n,f); }));
-      if(css) _fsAllRules(f); });
+      if(css){ _fsAllRules(f); _vhFixAll(); } });
     _fsObs.observe(document.documentElement,{childList:true,subtree:true});
   } else if(!on&&_fsObs){ _fsObs.disconnect(); _fsObs=null; } }
 function _fsChart(cfg){ const f=fontFactor();
@@ -4385,6 +4406,7 @@ function fsMag(el){ const f=fontFactor(); if(f===1||!el) return;
 function applyFontScale(){ const f=fontFactor();
   try{ if(CFG&&Object.prototype.hasOwnProperty.call(CFG,'fontScale')) delete CFG.fontScale; }catch(e){}   // sisa pengaturan "Ukuran Teks" lama
   if(f!==1||_fsApplied!==1){ _fsAllRules(f); _fsInline(document.body,f); _fsApplied=f; }
+  try{ _vhFixAll(); }catch(e){}   /* vh tidak ikut membesar oleh Display Scale */
   _fsObserve(f!==1);
   try{ document.documentElement.style.setProperty('--fontscale',f); }catch(e){} }
 /* ============ FULLSCREEN (mode layar penuh / kiosk) ============ */
@@ -4682,7 +4704,7 @@ function renderMachineModal(){
   if(charts.mm){try{charts.mm.destroy()}catch(e){}} if(charts.mmc){try{charts.mmc.destroy()}catch(e){}}
   const lt=document.body.classList.contains('light'); const tc=lt?'#475569':'#9fb3cf'; const gc=lt?'#e2e8f0':'#1e2d45';
   charts.mm=mkChart(document.getElementById('mmStat'),{type:'bar',data:{labels:['Overdue','Urgent','Warning','OK'],datasets:[{data:[sc.OVERDUE,sc.URGENT,sc.WARNING,sc.OK],backgroundColor:['#ff5a5a','#ff8c3b','#ffd23f','#3fd77a'],borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:tc},grid:{display:false}},y:{ticks:{color:tc},grid:{color:gc},beginAtZero:true}}}});
-  charts.mmc=mkChart(document.getElementById('mmCat'),{type:'doughnut',data:{labels:rgList().map(g=>g.name),datasets:[{data:rgList().map(g=>cat.byId[g.id]||0),backgroundColor:rgList().map(g=>g.color||'#888'),borderWidth:0}]},plugins:(typeof ChartDataLabels!=='undefined'?[ChartDataLabels]:[]),options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:tc,font:{family:'Archivo'}}},datalabels:{color:'#0d0d0f',font:{weight:'bold',size:12},formatter:(v,ctx)=>{const arr=ctx.chart.data.datasets[0].data;const t=arr.reduce((a,b)=>a+(+b||0),0);return (t&&v)?Math.round(v/t*100)+'%':'';}}},cutout:'58%'}});
+  charts.mmc=mkChart(document.getElementById('mmCat'),{type:'doughnut',data:{labels:rgList().map(g=>g.name),datasets:[{data:rgList().map(g=>cat.byId[g.id]||0),backgroundColor:rgList().map(g=>g.color||'#888'),borderWidth:0}]},plugins:(typeof ChartDataLabels!=='undefined'?[ChartDataLabels]:[]),options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:tc,font:{family:'Archivo'}}},datalabels:{color:'#0d0d0f',font:{weight:'bold',size:12},display:ctx=>{ const arr=ctx.chart.data.datasets[0].data; const t=arr.reduce((a,b)=>a+(+b||0),0); return t>0&&(+arr[ctx.dataIndex]||0)/t>=0.08; },formatter:(v,ctx)=>{const arr=ctx.chart.data.datasets[0].data;const t=arr.reduce((a,b)=>a+(+b||0),0);return (t&&v)?Math.round(v/t*100)+'%':'';}}},cutout:'58%'}});
   if(document.getElementById('jccTrend')&&window._jccTrendKey){ jccTrendDraw(sel,window._jccTrendKey); }
   requestAnimationFrame(mxFit);
 }
@@ -4831,13 +4853,12 @@ function upcomingJCList(horizon){ horizon=(horizon!=null?horizon:(CFG.jcAlertDay
   return (JCPLANS||[]).filter(p=>p&&p.jcDate)
     .map(p=>({p,rem:daysBetween(TODAY,parseD(p.jcDate))}))
     .filter(x=>x.rem>=0 && x.rem<=horizon && !x.p.postponed)
-    .sort((a,b)=>(a.p.jcDate||'').localeCompare(b.p.jcDate||'')||String(a.p.machine||'').localeCompare(String(b.p.machine||'')));
+    .sort((a,b)=>jcListCmp(a.p,b.p));
 }
 function jcStatusTag(p){
   const machine=p.machine||p.line;
-  // baseline = plan terbaru SEBELUM plan ini (samakan dgn 'Sekarang' di popup)
-  const base=(JCPLANS||[]).filter(q=>q&&(q.machine||q.line)===machine&&q.id!==p.id&&(q.jcDate||'')<=(p.jcDate||''))
-    .sort((a,b)=>(b.jcDate||'').localeCompare(a.jcDate||'')||((b.id||0)-(a.id||0)))[0]||null;
+  // baseline = plan SEBELUM plan ini menurut urutan JC (sama dgn Form Prepare JC)
+  const base=jcBaseOf(p);
   const diff=(typeof transitionDiff==='function')?transitionDiff(base,p):[];
   const changed=diff.filter(d=>d.status!=='same');
   const roaster=Array.isArray(p.roasterPlan)&&p.roasterPlan.length>0;
@@ -5208,9 +5229,7 @@ function jxList(){ const horizon=(CFG.jcSummaryDays!=null?CFG.jcSummaryDays:14);
   if(F.line && F.line!=='all') list=list.filter(x=>String((x.p.machine||x.p.line)||'').split('.')[0]===String(F.line));
   if(F.brand && F.brand!=='all') list=list.filter(x=>brandOf(x.p.machine||x.p.line)===F.brand);
   return list; }
-function jxBase(p){ const machine=p.machine||p.line;
-  return (JCPLANS||[]).filter(q=>q&&(q.machine||q.line)===machine&&!q.postponed&&q.id!==p.id&&(q.jcDate||'')<=(p.jcDate||''))
-    .sort((a,b)=>(b.jcDate||'').localeCompare(a.jcDate||'')||((b.id||0)-(a.id||0)))[0]||null; }
+function jxBase(p){ return jcBaseOf(p); }   /* = pembanding Form Prepare JC (trial & JC sehari tidak saling timpa) */
 /* item persiapan per plan: part ganti/pasang (+ stok) lalu roaster — urutan tetap (dipakai indeks centang) */
 function jxItems(p){ const kit=(p.prep&&p.prep.kit)||{}; const diff=transitionDiff(jxBase(p),p); const out=[];
   diff.filter(d=>(d.status==='change'||d.status==='add')&&d.newV).forEach(d=>{ const sf=stockFor(d.part,d.newV); const k=d.part+'|'+d.newV;
@@ -5288,44 +5307,73 @@ function jxViewHTML(mode,list,horizon){ const D=jxData(list);
       <span class="jcsum-hint">${mode==='card'?`${nReady} siap · ${nPr} form dicetak · centang = part sudah disiapkan`:'Gabungan semua JC · urut paling cepat dibutuhkan · centang = sudah disiapkan'}</span></div>
     <div class="jx-body">${mode==='card'?jxCardsHTML(D):jxPartsHTML(D)}</div></div>`; }
 (function(){ let last=jxDesk(), t=null; window.addEventListener('resize',function(){ clearTimeout(t); t=setTimeout(function(){ const d=jxDesk();
-  if(d!==last){ last=d; try{ if(typeof current!=='undefined'&&current==='dash'&&dashView()==='jc') render(); }catch(e){} } },160); }); })();
+  if(d!==last){ last=d; try{ if(typeof current!=='undefined'&&current==='dash') render(); }catch(e){} } },160); }); })();   /* desktop ⇄ HP: tata letak dashboard berbeda */
 
-/* ===== Planning JC — Timeline 14 hari (Gantt per mesin) ===== */
-function jtlPlans(){ const t0=ymd(TODAY); const end=new Date(TODAY.getTime()+14*86400000); const t1=ymd(end);
-  return (JCPLANS||[]).filter(p=>p&&p.jcDate&&p.jcDate>=t0&&p.jcDate<=t1).map(p=>{ let n=0; try{ n=transitionDiff(jxBase(p),p).filter(d=>(d.status==='change'||d.status==='add')&&d.newV).length; }catch(e){}
-    return {p,rem:daysBetween(TODAY,parseD(p.jcDate)),n,ro:Array.isArray(p.roasterPlan)&&p.roasterPlan.length>0,ready:jaReady(p),printed:jaPrinted(p),trial:!!(p.trial||/trial/i.test(p.notes||''))}; }); }
-function jtlSectionHTML(){ const n=jtlPlans().length;
-  return `<div class="sectiontitle">🗓️ Timeline JC 14 Hari <span style="font-size:11px;color:var(--txt3);font-weight:600">— ${n} JC · tap kotak untuk buka plan</span></div>
-  <div class="card jtl-card" style="margin-bottom:16px"><div class="jtl-ch" id="jtlCh"></div>
-    <div class="jtl-leg"><span><i style="background:var(--red)"></i>Belum siap (≤1 hari)</span><span><i style="background:var(--orange)"></i>Belum siap</span><span><i style="background:var(--blue)"></i>Form dicetak</span><span><i style="background:var(--green)"></i>Siap</span><span><i style="background:var(--green);border-radius:50%;width:8px;height:8px"></i>ada roaster</span><span><i style="background:transparent;outline:2px dashed var(--yellow);outline-offset:-2px"></i>trial</span><span><i style="background:var(--accent);width:2px;border-radius:0"></i>hari ini</span></div>
-    <div class="jtl-hint">Angka di kotak = jumlah part yang diganti dibanding JC sebelumnya di mesin itu.</div>
-    <div class="jtl-exp"><span class="jtl-exp-t">📄 Form Job Set Up IS Maintenance</span>
-      <label>mulai <input type="date" id="jsuStart" value="${ymd(TODAY)}"></label>
-      <span class="jsu-days">${[7,14].map(n=>`<button class="btn sm${jsuDays()===n?'':' sec'}" data-d="${n}" aria-pressed="${jsuDays()===n}" onclick="jsuSetDays(${n},this)">${n} hari</button>`).join('')}</span>
-      <span class="jtl-exp-b"><button class="btn sec sm" onclick="jsuExport(jsuDays())">⬇️ Excel</button><button class="btn sec sm" onclick="jsuExport(jsuDays(),'png')">🖼️ Foto</button></span></div></div>`; }
+/* ===== Planning JC — Timeline 7 / 14 hari (Gantt per mesin) =====
+   Periode = tanggal "mulai" + 7 / 14 hari. Periode yang sama dipakai Form Job Set Up (Excel / Foto).
+   Tombol ‹ › menggeser satu periode; "Hari ini" kembali ke hari ini. Hari sama di mesin sama: 🧪 trial di atas. */
+function jtlStart(){ const v=window._jtlStart; return (typeof v==='string'&&/^\d{4}-\d\d-\d\d$/.test(v))?v:ymd(TODAY); }
+function jtlAdd(s,n){ const d=new Date(parseD(s).getTime()); d.setDate(d.getDate()+n); return ymd(d); }
+function jtlEnd(){ return jtlAdd(jtlStart(),jsuDays()-1); }
+function jtlRangeTxt(){ const M=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'], a=parseD(jtlStart()), b=parseD(jtlEnd());
+  const sy=a.getFullYear()===b.getFullYear(), sm=sy&&a.getMonth()===b.getMonth();
+  return a.getDate()+(sm?'':' '+M[a.getMonth()]+(sy?'':' '+a.getFullYear()))+' – '+b.getDate()+' '+M[b.getMonth()]+' '+b.getFullYear(); }
+function jtlPlans(){ const t0=jtlStart(), t1=jtlEnd(), s0=parseD(t0);
+  return (JCPLANS||[]).filter(p=>p&&p.jcDate&&p.jcDate>=t0&&p.jcDate<=t1).sort(jcOrderCmp).map(p=>{ let n=0; try{ n=transitionDiff(jxBase(p),p).filter(d=>(d.status==='change'||d.status==='add')&&d.newV).length; }catch(e){}
+    return {p,off:daysBetween(s0,parseD(p.jcDate)),rem:daysBetween(TODAY,parseD(p.jcDate)),n,ro:Array.isArray(p.roasterPlan)&&p.roasterPlan.length>0,ready:jaReady(p),printed:jaPrinted(p),trial:!!(p.trial||/trial/i.test(p.notes||''))}; }); }
+function jtlHeadHTML(){ return `🗓️ Timeline JC ${jsuDays()} Hari <span class="jtl-rng">${jtlRangeTxt()}</span> <span class="jtl-sub">— ${jtlPlans().length} JC · tap kotak untuk buka plan</span>`; }
+function jtlSectionHTML(){ const D=jsuDays(), st=jtlStart();
+  return `<div class="sectiontitle" id="jtlHead">${jtlHeadHTML()}</div>
+  <div class="card jtl-card" style="margin-bottom:16px">
+    <div class="jtl-ctl"><span class="jtl-nav">
+        <button type="button" class="btn sec sm jtl-arw" id="jtlPrev" onclick="jtlShift(-1)" title="Mundur ${D} hari" aria-label="Periode sebelumnya">‹</button>
+        <label class="jtl-start"><span>mulai</span><input type="date" id="jsuStart" value="${st}" onchange="jtlSetStart(this.value)" aria-label="Tanggal mulai timeline"></label>
+        <button type="button" class="btn sec sm jtl-arw" id="jtlNext" onclick="jtlShift(1)" title="Maju ${D} hari" aria-label="Periode berikutnya">›</button>
+        <button type="button" class="btn sec sm" id="jtlToday" onclick="jtlSetStart('')"${st===ymd(TODAY)?' disabled':''}>Hari ini</button></span>
+      <span class="jsu-days" role="group" aria-label="Jumlah hari">${[7,14].map(n=>`<button type="button" class="btn sm${D===n?'':' sec'}" data-d="${n}" aria-pressed="${D===n}" onclick="jsuSetDays(${n},this)">${n} hari</button>`).join('')}</span></div>
+    <div class="jtl-ch" id="jtlCh"></div>
+    <div class="jtl-leg"><span><i style="background:var(--red)"></i>Belum siap (≤1 hari)</span><span><i style="background:var(--orange)"></i>Belum siap</span><span><i style="background:var(--blue)"></i>Form dicetak</span><span><i style="background:var(--green)"></i>Siap</span><span><i style="background:var(--txt3)"></i>Sudah lewat</span><span><i style="background:var(--green);border-radius:50%;width:8px;height:8px"></i>ada roaster</span><span><i style="background:transparent;outline:2px dashed var(--yellow);outline-offset:-2px"></i>trial (hari sama: di atas, dikerjakan lebih dulu)</span><span><i style="background:var(--accent);width:2px;border-radius:0"></i>hari ini</span></div>
+    <div class="jtl-hint">Angka di kotak = jumlah part yang diganti dibanding JC sebelumnya di mesin itu (trial tidak dipakai sebagai pembanding).</div>
+    <div class="jtl-exp"><span class="jtl-exp-t">📄 Form Job Set Up IS Maintenance <small id="jtlExpRng">· ${jtlRangeTxt()}</small></span>
+      <span class="jtl-exp-b"><button type="button" class="btn sec sm" onclick="jsuExport(jsuDays())">⬇️ Excel</button><button type="button" class="btn sec sm" onclick="jsuExport(jsuDays(),'png')">🖼️ Foto</button></span></div></div>`; }
+/* ganti periode tanpa render ulang seluruh halaman (filter & scroll tabel lain tetap) */
+function jtlRefresh(){ const D=jsuDays(), st=jtlStart();
+  const h=document.getElementById('jtlHead'); if(h) h.innerHTML=jtlHeadHTML();
+  const i=document.getElementById('jsuStart'); if(i&&i.value!==st) i.value=st;
+  const t=document.getElementById('jtlToday'); if(t) t.disabled=(st===ymd(TODAY));
+  const r=document.getElementById('jtlExpRng'); if(r) r.textContent='· '+jtlRangeTxt();
+  const a=document.getElementById('jtlPrev'), b=document.getElementById('jtlNext'); if(a) a.title='Mundur '+D+' hari'; if(b) b.title='Maju '+D+' hari';
+  document.querySelectorAll('.jtl-ctl .jsu-days button').forEach(x=>{ const on=+x.dataset.d===D; x.classList.toggle('sec',!on); x.setAttribute('aria-pressed',on); });
+  jtlDraw(); }
+function jtlSetStart(v){ window._jtlStart=(typeof v==='string'&&/^\d{4}-\d\d-\d\d$/.test(v))?v:''; jtlRefresh(); }
+function jtlShift(dir){ window._jtlStart=jtlAdd(jtlStart(),dir*jsuDays()); jtlRefresh(); }
 function jtlDraw(){ const el=document.getElementById('jtlCh'); if(!el) return; const W0=Math.floor(el.clientWidth); if(W0<160) return; const W=fsW(W0);
-  const P=jtlPlans(), machs=CFG.machines.slice(), days=15, narrow=W<520, LW=Math.round((narrow?46:66)*anaFS()), dw=(W-LW)/days, RH=narrow?28:32, top=34;
-  const BL=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']; let g='';
-  for(let d=0;d<days;d++){ const dt=new Date(TODAY.getTime()+d*86400000), x=LW+d*dw;
+  el.__w=W0;   /* lebar kartu berubah (scrollbar muncul, sidebar, zoom) → gambar ulang supaya pas kanan-kiri */
+  try{ if(window.ResizeObserver){ if(!window._jtlRO) window._jtlRO=new ResizeObserver(()=>{ const e=document.getElementById('jtlCh'); if(e&&Math.floor(e.clientWidth)!==e.__w) jtlDraw(); });
+    window._jtlRO.disconnect(); window._jtlRO.observe(el); } }catch(e){}
+  const P=jtlPlans(), machs=CFG.machines.slice(), days=jsuDays(), s0=parseD(jtlStart()), tOff=daysBetween(s0,TODAY),
+    narrow=W<520, LW=Math.round((narrow?46:66)*anaFS()), dw=(W-LW)/days, RH=narrow?28:32, top=34;
+  const BL=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'], step=dw>=24?1:2; let g='';
+  for(let d=0;d<days;d++){ const dt=new Date(s0.getTime()); dt.setDate(dt.getDate()+d); const x=LW+d*dw, isT=(d===tOff);
     if(dt.getDay()===0) g+=`<rect x="${x.toFixed(1)}" y="${top}" width="${dw.toFixed(1)}" height="${machs.length*RH}" style="fill:var(--panel2)"/>`;
-    if(dw>=24||d%2===0) g+=`<text x="${(x+dw/2).toFixed(1)}" y="${top-7}" text-anchor="middle" style="font-size:10px;fill:${d===0?'var(--txt)':'var(--txt3)'};font-weight:${d===0?800:500}">${dt.getDate()}</text>`;
-    if(d===0||dt.getDate()===1) g+=`<text x="${(x+2).toFixed(1)}" y="${top-21}" style="font-size:10px;fill:var(--txt2);font-weight:700">${BL[dt.getMonth()]}</text>`; }
+    if(d%step===0||isT) g+=`<text x="${(x+dw/2).toFixed(1)}" y="${top-7}" text-anchor="middle" style="font-size:10px;fill:${isT?'var(--txt)':'var(--txt3)'};font-weight:${isT?800:500}">${dt.getDate()}</text>`;
+    if(d===0||dt.getDate()===1) g+=`<text x="${(x+2).toFixed(1)}" y="${top-21}" style="font-size:10px;fill:var(--txt2);font-weight:700">${BL[dt.getMonth()]}${d===0||dt.getMonth()===0?' '+dt.getFullYear():''}</text>`; }
   machs.forEach((m,i)=>{ const y=top+i*RH; g+=`<line x1="0" x2="${W}" y1="${y+RH}" y2="${y+RH}" style="stroke:var(--line)"/><text x="0" y="${y+RH/2+4}" style="font-size:12px;fill:var(--txt);font-weight:700;font-family:'Spline Sans Mono',monospace">${esc(m)}</text>`;
     const mine=P.filter(o=>(o.p.machine||o.p.line)===m);
-    mine.forEach(o=>{ const same=mine.filter(q=>q.rem===o.rem), k=same.indexOf(o), hh=(RH-8)/same.length, xx=LW+o.rem*dw+1.5, w=Math.max(6,dw-3), yy=y+4+k*hh;
-      const col=o.ready?'var(--green)':o.printed?'var(--blue)':(o.rem<=1?'var(--red)':'var(--orange)');
-      const lbl=(w>=64?o.n+' · #'+(o.p.typeJob||'—'):String(o.n));
-      const tip=`${m} · ${fmtD(parseD(o.p.jcDate))} · #${o.p.typeJob||'—'}${o.p.description?' · '+o.p.description:''} · ganti ${o.n} part${o.ro?' · roaster':''} · ${o.ready?'siap':o.printed?'form dicetak':'belum siap'}${o.trial?' · TRIAL':''}`;
+    mine.forEach(o=>{ const same=mine.filter(q=>q.off===o.off), k=same.indexOf(o), hh=(RH-8)/same.length, xx=LW+o.off*dw+1.5, w=Math.max(6,dw-3), yy=y+4+k*hh;
+      const col=o.rem<0?'var(--txt3)':o.ready?'var(--green)':o.printed?'var(--blue)':(o.rem<=1?'var(--red)':'var(--orange)');
+      const lbl=(w>=64?(o.trial?'🧪 ':'')+o.n+' · #'+(o.p.typeJob||'—'):String(o.n));
+      const tip=`${m} · ${fmtD(parseD(o.p.jcDate))} · #${o.p.typeJob||'—'}${o.p.description?' · '+o.p.description:''} · ganti ${o.n} part${o.ro?' · roaster':''} · ${o.rem<0?'sudah lewat':o.ready?'siap':o.printed?'form dicetak':'belum siap'}${o.trial?' · TRIAL (dikerjakan lebih dulu)':''}${o.p.postponed?' · DITUNDA':''}`;
       g+=`<g class="jtl-hit" data-id="${o.p.id}"><rect x="${xx.toFixed(1)}" y="${yy.toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(6,hh-(same.length>1?2:0)).toFixed(1)}" rx="5" style="fill:${col}${o.trial?';stroke:var(--yellow);stroke-width:2;stroke-dasharray:3 2':''}"/>`
         +(hh>=14?`<text x="${(xx+w/2).toFixed(1)}" y="${(yy+hh/2+4).toFixed(1)}" text-anchor="middle" style="font-size:11px;font-weight:800;fill:#111;pointer-events:none">${esc(lbl)}</text>`:'')
         +(o.ro?`<circle cx="${(xx+w-2).toFixed(1)}" cy="${(yy+1).toFixed(1)}" r="4.5" style="fill:var(--green);stroke:var(--panel);stroke-width:2"/>`:'')+`<title>${esc(tip)}</title></g>`; }); });
-  g+=`<line x1="${(LW+dw/2).toFixed(1)}" x2="${(LW+dw/2).toFixed(1)}" y1="${top-3}" y2="${top+machs.length*RH}" style="stroke:var(--accent);stroke-width:2;pointer-events:none"/>`;
+  if(tOff>=0&&tOff<days) g+=`<line x1="${(LW+tOff*dw+dw/2).toFixed(1)}" x2="${(LW+tOff*dw+dw/2).toFixed(1)}" y1="${top-3}" y2="${top+machs.length*RH}" style="stroke:var(--accent);stroke-width:2;pointer-events:none"/>`;
   const H=top+machs.length*RH+4;
   el.innerHTML=`<svg class="jtl-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg>`; fsMag(el);
   el.onclick=function(ev){ const h=ev.target.closest&&ev.target.closest('.jtl-hit'); if(!h) return; const id=+h.getAttribute('data-id'); if(!isNaN(id)) openJCPlan(id); }; }
 (function(){ let t=null; window.addEventListener('resize',function(){ clearTimeout(t); t=setTimeout(function(){ try{ if(typeof current!=='undefined'&&current==='plan') jtlDraw(); }catch(e){} },150); }); })();
 
-function jcSummaryHTML(){
+function jcSummaryHTML(forceMode){
   const horizon=(CFG.jcSummaryDays!=null?CFG.jcSummaryDays:14);
   let list=upcomingJCList(horizon);
   // hormati filter line/brand dashboard
@@ -5344,15 +5392,14 @@ function jcSummaryHTML(){
       </div></div>`;
   }
   /* cara baca: Per JC (kartu) · Per part (daftar siapkan) · Matriks (bawah) */
-  const _jxM=jxModeGet(); if(_jxM!=='matrix') return jxViewHTML(_jxM,list,horizon);
+  const _jxM=forceMode||jxModeGet(); if(_jxM!=='matrix') return jxViewHTML(_jxM,list,horizon);
 
   // ===== MATRIX: baris = part (per area), kolom = JobChange (mesin · tanggal) =====
   // Tiap kolom = 1 plan jobchange. Tiap sel = HANYA variabel BARU; warna menandai ganti / roaster / tetap.
   const cols=list.map(({p,rem})=>{
     const machine=p.machine||p.line;
     // baseline = plan terbaru SEBELUM plan ini di mesin yg sama → untuk deteksi pergantian
-    const base=(JCPLANS||[]).filter(q=>q&&(q.machine||q.line)===machine&&q.id!==p.id&&(q.jcDate||'')<=(p.jcDate||''))
-      .sort((a,b)=>(b.jcDate||'').localeCompare(a.jcDate||'')||((b.id||0)-(a.id||0)))[0]||null;
+    const base=jcBaseOf(p);
     const diff=(typeof transitionDiff==='function')?transitionDiff(base,p):[];
     const dmap={}; diff.forEach(d=>{ dmap[d.part]=d; });
     const roSet=new Set((Array.isArray(p.roasterPlan)?p.roasterPlan:[]).map(r=>String((r&&r.part)||'').toLowerCase()).filter(Boolean));
@@ -5646,7 +5693,14 @@ const SUM_BL=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov',
 function sumDraw(){ const S=window._SUM; if(!S||dashView()==='jc') return;
   document.querySelectorAll('#main [data-sum]').forEach(el=>{ const k=el.dataset.sum, fn={marker:sumMarker,lolli:sumLolli,heat:sumHeat,col:sumCol}[k]; if(!fn) return;
     const W=Math.floor(el.clientWidth); if(W<120) return;
-    try{ el.innerHTML=fn(fsW(W),S); fsMag(el); }catch(e){ console.error('sumDraw '+k,e); el.innerHTML='<div class="ana-empty">Gagal menggambar chart.</div>'; }
+    try{ el.innerHTML=fn(fsW(W),S); fsMag(el);
+      /* kartu bertinggi tetap (dashboard 1 layar): grafik lebih tinggi dari ruangnya → digambar ulang lebih rapat;
+         masih tidak muat → digulir di dalam kotaknya (tidak lagi menimpa legenda di bawahnya) */
+      el.style.overflowY='';
+      if(el.clientHeight>0&&el.scrollHeight>el.clientHeight+2){
+        if(k!=='heat'&&el.clientHeight>40){ el.innerHTML=fn(fsW(W),S,Math.floor(el.clientHeight/fontFactor())-2); fsMag(el); }
+        if(el.scrollHeight>el.clientHeight+2) el.style.overflowY='auto'; } }   /* ruang sangat sempit → digulir di dalam kartunya */
+    catch(e){ console.error('sumDraw '+k,e); el.innerHTML='<div class="ana-empty">Gagal menggambar chart.</div>'; }
     el.onclick=function(ev){ const h=ev.target.closest&&ev.target.closest('[data-si]'); if(!h||!el.contains(h)) return; ev.stopPropagation(); sumTap(k,h.getAttribute('data-si')); }; }); }
 (function(){ let t=null; window.addEventListener('resize',function(){ clearTimeout(t); t=setTimeout(function(){ try{ if(typeof current!=='undefined'&&current==='dash'&&dashView()!=='jc') sumDraw(); }catch(e){} },150); }); })();
 function sumTap(k,v){ const S=window._SUM; if(!S) return;
@@ -5658,18 +5712,22 @@ function sumTap(k,v){ const S=window._SUM; if(!S) return;
     anaPopOpen({title:'📈 Penggantian '+SUM_BL[d.getMonth()]+' '+d.getFullYear(),sub:'Sesuai filter dashboard',file:'Penggantian_'+SUM_BL[d.getMonth()]+'_'+d.getFullYear(),sheet:SUM_BL[d.getMonth()],
       sum:[['Total',recs.length],['Terjadwal',pl],['Trouble',recs.length-pl,'var(--red)'],['% terjadwal',recs.length?Math.round(pl/recs.length*100)+'%':'—',recs.length&&pl/recs.length*100<S.T?'var(--orange)':'var(--green)']],
       cols:anaCols(C),rows:recs.map(x=>anaRecRow(x,C)),note:'Tap baris → detail mesin & riwayat section.'}); } }
-function sumMarker(W,S){ const pc=S.mon.filter(o=>o.n).map(o=>o.pct), sx=v=>Math.max(0,Math.min(100,v))/100*W; let g='';
-  g+=`<rect x="0" y="18" width="${W}" height="10" rx="5" style="fill:var(--panel2)"/>`;
+function sumMarker(W,S,maxH){ const pc=S.mon.filter(o=>o.n).map(o=>o.pct), sx=v=>Math.max(0,Math.min(100,v))/100*W; let g='';
+  /* maxH (opsional) = tinggi tersedia → jarak vertikal dirapatkan (54 → min 40) supaya label 0 / target / 100% tidak terpotong / tertimpa */
+  const H=maxH?Math.max(42,Math.min(54,Math.floor(maxH))):54, by=14+Math.round((H-42)*4/12), cy=by+5, lb=H-7;   /* lb: baseline label bawah, sisakan ruang huruf turun */
+  g+=`<rect x="0" y="${by}" width="${W}" height="10" rx="5" style="fill:var(--panel2)"/>`;
   if(pc.length){ const mn=Math.min(...pc), mx=Math.max(...pc);
-    g+=`<rect x="${sx(mn)}" y="18" width="${Math.max(8,sx(mx)-sx(mn))}" height="10" rx="5" style="fill:var(--blue);opacity:.35"/>`;
-    pc.forEach(v=>g+=`<circle cx="${sx(v)}" cy="23" r="2.6" style="fill:var(--blue)"/>`);
+    g+=`<rect x="${sx(mn)}" y="${by}" width="${Math.max(8,sx(mx)-sx(mn))}" height="10" rx="5" style="fill:var(--blue);opacity:.35"/>`;
+    pc.forEach(v=>g+=`<circle cx="${sx(v)}" cy="${cy}" r="2.6" style="fill:var(--blue)"/>`);
     g+=anaT(W,9,'rentang bulanan '+mn+'–'+mx+'%',{a:'end',fs:10.5,c:'var(--txt2)'}); }
-  if(S.tot) g+=`<circle cx="${sx(S.pct)}" cy="23" r="7.5" style="fill:${S.rc};stroke:var(--panel);stroke-width:2.5"/>`;
-  g+=`<line x1="${sx(S.T)}" x2="${sx(S.T)}" y1="10" y2="36" style="stroke:var(--txt);stroke-width:2"/>`+anaT(sx(S.T),50,'target '+S.T+'%',{a:'middle',fs:10.5,c:'var(--txt2)'})+anaT(0,50,'0',{fs:10})+anaT(W,50,'100%',{a:'end',fs:10});
-  return `<svg class="ana-svg" width="${W}" height="54" viewBox="0 0 ${W} 54">${g}</svg>`; }
-function sumLolli(W,S){ const rows=S.life; if(!rows.length) return '<div class="ana-empty">Belum ada interval lifetime (butuh ≥2 penggantian pada mesin · section · part yang sama).</div>';
-  const narrow=W<420, LW=Math.round((narrow?96:120)*anaFS()), RW=Math.round(48*anaFS()), BW=Math.max(60,W-LW-RW), RH=narrow?28:30, top=12, mx=Math.min(250,Math.max(120,...rows.map(r=>r.ach+8))), sx=v=>LW+BW*Math.max(0,Math.min(v,mx))/mx; let g='';
-  [0,50,100].forEach(v=>{ g+=`<line x1="${sx(v)}" x2="${sx(v)}" y1="${top-4}" y2="${top+rows.length*RH}" style="stroke:var(--line);stroke-width:1"/>`+anaT(sx(v),top+rows.length*RH+13,v+'%',{a:'middle',fs:10}); });
+  if(S.tot) g+=`<circle cx="${sx(S.pct)}" cy="${cy}" r="7.5" style="fill:${S.rc};stroke:var(--panel);stroke-width:2.5"/>`;
+  g+=`<line x1="${sx(S.T)}" x2="${sx(S.T)}" y1="10" y2="${lb-11}" style="stroke:var(--txt);stroke-width:2"/>`+anaT(sx(S.T),lb,'target '+S.T+'%',{a:'middle',fs:10.5,c:'var(--txt2)'})+anaT(0,lb,'0',{fs:10})+anaT(W,lb,'100%',{a:'end',fs:10});
+  return `<svg class="ana-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg>`; }
+function sumLolli(W,S,maxH){ const rows=S.life; if(!rows.length) return '<div class="ana-empty">Belum ada interval lifetime (butuh ≥2 penggantian pada mesin · section · part yang sama).</div>';
+  /* maxH (opsional) = tinggi yang tersedia di kartu → jarak baris dirapatkan supaya label sumbu tidak menimpa legenda */
+  const RH0=(W<420)?28:30, RH=maxH?Math.max(18,Math.min(RH0,Math.floor((maxH-14-16)/rows.length))):RH0;
+  const narrow=W<420, LW=Math.round((narrow?96:120)*anaFS()), RW=Math.round(48*anaFS()), BW=Math.max(60,W-LW-RW), top=15, mx=Math.min(250,Math.max(120,...rows.map(r=>r.ach+8))), sx=v=>LW+BW*Math.max(0,Math.min(v,mx))/mx; let g='';
+  const axL=anaAxisPick(sx); [0,50,100].forEach(v=>{ g+=`<line x1="${sx(v)}" x2="${sx(v)}" y1="${top-4}" y2="${top+rows.length*RH}" style="stroke:var(--line);stroke-width:1"/>`+(axL.indexOf(v)>=0?anaT(sx(v),top+rows.length*RH+13,v+'%',{a:'middle',fs:10}):''); });
   g+=`<line x1="${sx(S.T)}" x2="${sx(S.T)}" y1="${top-6}" y2="${top+rows.length*RH}" style="stroke:var(--txt);stroke-width:1.5;stroke-dasharray:4 3"/>`+anaT(sx(S.T),top-6,'target '+S.T+'%',{a:'middle',fs:9.5,c:'var(--txt2)',fw:700});
   rows.forEach((r,i)=>{ const y=top+i*RH+RH/2, col=r.ach<S.T*0.7?'var(--red)':r.ach<S.T?'var(--orange)':'var(--green)';
     g+=`<g data-si="${i}" class="ana-hit"><rect class="ana-hl" x="-6" y="${y-RH/2+2}" width="${W+12}" height="${RH-4}" rx="5" fill="transparent"/>`+anaT(0,y+4,anaClip(r.p,LW-6,12),{fs:12,c:'var(--txt)',fw:700})
@@ -5687,15 +5745,16 @@ function sumHeat(W,S){ const rows=S.heat; if(!rows.length) return '<div class="a
     inner+=`<rect x="${bx.toFixed(1)}" y="${y+cH/2-4}" width="${bw.toFixed(1)}" height="8" rx="3" style="fill:${i===0&&r.tot?'var(--accent)':'var(--txt3)'}"/>`+anaT(bx+bw+4,y+cH/2+4,r.tot,{fs:11,fw:800,c:'var(--txt)',cls:'ana-num'});
     g+=`<g data-si="${esc(r.mc)}" class="ana-hit"><rect class="ana-hl" x="-6" y="${y-1}" width="${W+12}" height="${cH+2}" rx="4" fill="transparent"/>${inner}<title>${esc(r.mc+': '+r.tot+' penggantian (6 bulan) · tap → detail mesin')}</title></g>`; });
   const H=16+rows.length*(cH+gap); return `<svg class="ana-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg>`; }
-function sumCol(W,S){ const padL=32, cw=(W-padL)/6, bw=Math.min(30,cw*.55), H=W<420?110:130, y=v=>H-v/100*H; let g='';
+function sumCol(W,S,maxH){ const padL=32, cw=(W-padL)/6, bw=Math.min(30,cw*.55), T0=8, H0=W<420?110:130,
+    H=maxH?Math.max(40,Math.min(H0,Math.floor(maxH)-34-T0)):H0, y=v=>T0+H-v/100*H; let g='';   /* T0: ruang label "100%" di atas (dulu terpotong) */
   [0,50,100].forEach(v=>g+=`<line x1="${padL}" x2="${W}" y1="${y(v)}" y2="${y(v)}" style="stroke:var(--line)"/>`+anaT(padL-6,y(v)+3,v+'%',{a:'end',fs:10}));
-  S.mon.forEach((o,i)=>{ const x=padL+i*cw+(cw-bw)/2; let inner=`<rect class="ana-hl" x="${(padL+i*cw+2).toFixed(1)}" y="-4" width="${(cw-4).toFixed(1)}" height="${H+40}" rx="5" fill="transparent"/>`;
-    if(o.n){ inner+=`<rect x="${x.toFixed(1)}" y="${y(o.pct).toFixed(1)}" width="${bw.toFixed(1)}" height="${(H-y(o.pct)).toFixed(1)}" rx="4" style="fill:var(--blue)"/>`;
-      if(o.pct<100) inner+=`<rect x="${x.toFixed(1)}" y="0" width="${bw.toFixed(1)}" height="${Math.max(0,y(o.pct)-2).toFixed(1)}" rx="4" style="fill:var(--red)"/>`; }
-    inner+=anaT(x+bw/2,H+15,SUM_BL[S.months[i].getMonth()],{a:'middle',fs:10.5})+anaT(x+bw/2,H+30,o.n?o.pct+'%':'—',{a:'middle',fs:11,fw:800,c:o.n&&o.pct<S.T?'var(--orange)':'var(--txt)',cls:'ana-num'});
+  S.mon.forEach((o,i)=>{ const x=padL+i*cw+(cw-bw)/2; let inner=`<rect class="ana-hl" x="${(padL+i*cw+2).toFixed(1)}" y="${T0-4}" width="${(cw-4).toFixed(1)}" height="${H+40}" rx="5" fill="transparent"/>`;
+    if(o.n){ inner+=`<rect x="${x.toFixed(1)}" y="${y(o.pct).toFixed(1)}" width="${bw.toFixed(1)}" height="${(T0+H-y(o.pct)).toFixed(1)}" rx="4" style="fill:var(--blue)"/>`;
+      if(o.pct<100) inner+=`<rect x="${x.toFixed(1)}" y="${T0}" width="${bw.toFixed(1)}" height="${Math.max(0,y(o.pct)-2-T0).toFixed(1)}" rx="4" style="fill:var(--red)"/>`; }
+    inner+=anaT(x+bw/2,T0+H+15,SUM_BL[S.months[i].getMonth()],{a:'middle',fs:10.5})+anaT(x+bw/2,T0+H+30,o.n?o.pct+'%':'—',{a:'middle',fs:11,fw:800,c:o.n&&o.pct<S.T?'var(--orange)':'var(--txt)',cls:'ana-num'});
     g+=`<g data-si="${i}" class="ana-hit">${inner}<title>${esc(SUM_BL[S.months[i].getMonth()]+': '+o.pl+' terjadwal · '+o.tr+' trouble'+(o.n?' · '+o.pct+'% terjadwal':'')+' · tap → daftar')}</title></g>`; });
   g+=`<line x1="${padL}" x2="${W}" y1="${y(S.T)}" y2="${y(S.T)}" style="stroke:var(--txt);stroke-width:1.5;stroke-dasharray:4 3;pointer-events:none"/>`;
-  return `<svg class="ana-svg" width="${W}" height="${H+34}" viewBox="0 0 ${W} ${H+34}">${g}</svg>`; }
+  return `<svg class="ana-svg" width="${W}" height="${T0+H+34}" viewBox="0 0 ${W} ${T0+H+34}">${g}</svg>`; }
 
 function vDash(){
   const m=dashScopeMon(monitoring());
@@ -5785,20 +5844,21 @@ function vDash(){
   const _dv=dashView();
   const jcCount=upcomingJCList(CFG.jcSummaryDays!=null?CFG.jcSummaryDays:14).length;
   const _anim=window._dvAnim||''; window._dvAnim='';
-  return `<h2 class="title"><span class="dvt-desk">Summary</span><span class="dvt-mob">${_dv==='jc'?'Summary JC':'Summary'}</span> ${cloudIcon('update '+fmtD(TODAY)+' · '+DB.length+' record · '+m.length+' kombinasi part')}
+  const _desk=isDesktop(), _one=_desk&&_dv!=='jc';   /* desktop: satu dashboard (tanpa pilihan Charts / Summary JC) */
+  return `<h2 class="title${_desk?' dash-one-h':''}"><span class="dvt-desk">${_desk&&_dv==='jc'?'Summary JC':'Summary'}</span><span class="dvt-mob">${_dv==='jc'?'Summary JC':'Summary'}</span> ${cloudIcon('update '+fmtD(TODAY)+' · '+DB.length+' record · '+m.length+' kombinasi part')}
     <span class="dv-dots" title="Geser kiri / kanan untuk pindah Summary ⇄ Summary JC"><i class="${_dv==='charts'?'on':''}" onclick="dvGo('charts')"></i><i class="${_dv==='jc'?'on':''}" onclick="dvGo('jc')">${jcCount&&_dv!=='jc'?'<b>'+jcCount+'</b>':''}</i></span>
     <span class="dashview-toggle">
       <button class="dvt-btn${_dv==='charts'?' on':''}" onclick="setDashView('charts')" title="Tampilan grafik & machine status">📊 Charts</button>
       <button class="dvt-btn${_dv==='jc'?' on':''}" onclick="setDashView('jc')" title="Ringkasan JobChange terdekat & persiapan part">🔧 Summary JC${jcCount?'<span class="dvt-badge">'+jcCount+'</span>':''}</button>
-    </span></h2>
-  <div class="dashpage ${_anim}">
+    </span>${_desk&&_dv==='jc'?'<button type="button" class="dash-back" onclick="setDashView(\'charts\')" title="Kembali ke dashboard">← Dashboard</button>':''}</h2>
+  <div class="dashpage ${_anim}${_one?' dash-one':''}">
   ${dashFilterBar(en.length, m.length)}
-  <div class="sum-andon">
+  ${_one?'<div class="dpm"><div class="dpm-l">'+sumStripHTML(c):_desk?sumStripHTML(c):`<div class="sum-andon">
     ${andonT('OVERDUE',c.OVERDUE,'Lewat jadwal','var(--red)','#fff')}
     ${andonT('URGENT',c.URGENT,'Sisa ≤ lifetime ÷ '+(CFG.urgentDiv||4),'var(--orange)','#fff')}
     ${andonT('WARNING',c.WARNING,'Sisa ≤ lifetime ÷ '+(CFG.warnDiv||2),'var(--yellow)','#151517')}
     ${andonT('OK',c.OK,'Aman','var(--green)','#151517')}
-  </div>
+  </div>`}
   ${_dv==='jc' ? jcSummaryHTML() : `<div class="dashsplit${_dA?' ds-sheet':''}">
     <div class="dashleft sum-left${_dA?' sum6':''}">
       <div class="card sum-card"><h3>📦 Replacement Category${infoIcon(pmInfo)}<span class="tag" style="border-color:${pmRC};color:${pmRC}">target ≥ ${PM_TARGET}%</span></h3>
@@ -5821,10 +5881,33 @@ function vDash(){
       <div class="mgroups">${mgroupsHTML}</div>
       <div class="ana-leg ms-leg"><span><i style="background:var(--red)"></i>Overdue</span><span><i style="background:var(--orange)"></i>Urgent</span><span><i style="background:transparent;box-shadow:inset 0 0 0 2px var(--yellow)"></i>Warning</span><span><i style="background:var(--line2)"></i>OK</span><span><i style="background:var(--panel2);outline:1px solid var(--line2);outline-offset:-1px"></i>belum ada data</span></div>
     </div>
-  </div>`}
+  </div>`}${_one?'</div>'+phoneJcHTML()+'</div>':''}
   </div>
   <button class="fab" onclick="openFabMenu()" title="Add data">+</button>`;
 }
+
+/* ===== DASHBOARD SATU LAYAR (desktop ≥1001px) =====
+   kiri  : strip status Overdue → OK (+ bar proporsi) + 6 kartu grafik
+   kanan : panel berbentuk HP berisi Summary JC versi Matriks, latar kontras (tema terang → HP hitam, tema gelap → HP putih)
+   Tombol ⤢ di panel → Summary JC layar penuh (dengan tombol ← Dashboard). HP / tablet: tetap seperti sebelumnya. */
+function dashOne(){ return isDesktop()&&dashView()!=='jc'; }
+function phoneJcHTML(){ const H=CFG.jcSummaryDays!=null?CFG.jcSummaryDays:14; let n=0, mx='';
+  try{ n=upcomingJCList(H).length; mx=jcSummaryHTML('matrix'); }catch(e){ console.error('phoneJc',e); mx='<div class="jcsum-empty">Gagal memuat matriks JC.</div>'; }
+  const lt=!document.body.classList.contains('light');   /* tema gelap → HP terang (kontras) */
+  return `<aside class="dpm-r"><div class="pm-phone${lt?' pm-lt':''}" role="region" aria-label="Summary JC — matriks persiapan"><div class="pm-scr">
+      <div class="pm-hd"><div><small>Summary JC</small><h3>Matriks persiapan</h3></div><button type="button" class="pm-open" onclick="setDashView('jc')" title="Buka Summary JC layar penuh (Per JC · Per part · Matriks)" aria-label="Buka Summary JC layar penuh">⤢</button></div>
+      <div class="pm-sub"><b>${n}</b> JobChange · <b>${H}</b> hari ke depan</div>
+      ${mx}
+      <div class="pm-home"><i></i></div></div></div></aside>`; }
+/* strip status: 4 badge + bar proporsi; tap badge → daftar part status tsb */
+function sumStripHTML(c){ const T=[['OVERDUE','Overdue','Lewat jadwal','var(--red)'],['URGENT','Urgent','Sisa ≤ lifetime ÷ '+(CFG.urgentDiv||4),'var(--orange)'],
+    ['WARNING','Warning','Sisa ≤ lifetime ÷ '+(CFG.warnDiv||2),'var(--yellow)'],['OK','OK','Aman','var(--green)']];
+  const val=k=>Math.max(0,+(c&&c[k])||0), sum=T.reduce((a,t)=>a+val(t[0]),0), tot=Math.max(1,sum);
+  const it=t=>{ const v=val(t[0]), lit=t[0]!=='OK'&&v>0;
+    return `<button type="button" class="sbd-i${lit?' lit':''}" style="--c:${t[3]}" onclick="openAlertList('${t[0]}')" title="${t[1]}: ${v} kombinasi part (${t[2]}) — tap → daftar part"><i class="sbd-dot"></i><span class="sbd-l">${t[1]}</span><b class="sbd-v">${v}</b><small class="sbd-s">${sum?Math.round(v/tot*100)+'%':''}</small></button>`; };
+  return `<div class="sbd" role="group" aria-label="Status part"><div class="sbd-row">${T.map(it).join('')}</div>`
+    +`<div class="sbd-bar">${sum?T.map(t=>val(t[0])?`<i style="flex:${val(t[0])} 1 0;background:${t[3]}" title="${t[1]} ${val(t[0])}"></i>`:'').join(''):'<i style="flex:1 1 0;background:var(--line2)"></i>'}</div></div>`; }
+
 /* draws % labels OUTSIDE a pie with leader lines + arrowheads */
 const pieOutLabels={
   id:'pieOutLabels',
@@ -6132,15 +6215,17 @@ function vPlan(){
   const withinN=cov.filter(r=>r.last&&r.rem>=0).length, overdueN=cov.filter(r=>r.last&&r.rem<0).length, neverN=cov.filter(r=>!r.last).length;
   const totalSec=cov.length; const pctCov=totalSec?Math.round(withinN/totalSec*100):0;
   after.push(jpFitScroll); after.push(jtlDraw); window._jpMobLast=jpMob();
-  return `<h2 class="title">📅 Jobchange Planning</h2><div class="sub">Roaster reminders across sections, JC spec preparation, & part needs.</div>
+  /* desktop lebar: timeline selebar layar, kartu lain 2 kolom (kiri | kanan) per baris — lihat CSS .jp-page / .jp-grid */
+  return `<div class="jp-page"><h2 class="title">📅 Jobchange Planning</h2><div class="sub">Roaster reminders across sections, JC spec preparation, & part needs.</div>
 
   ${jtlSectionHTML()}
 
-  <div class="sectiontitle">🧰 Persiapan Spec Jobchange <span style="font-size:11px;color:var(--txt3);font-weight:600">— hanya JC yang akan dilaksanakan; lewat tanggal otomatis hilang dari list</span></div>
-  <div id="jpPlanBox">${jpPlanBoxHTML()}</div>
+  <div class="jp-grid">
+  <section class="jp-cell jp-c-plan"><div class="sectiontitle">🧰 Persiapan Spec Jobchange <span style="font-size:11px;color:var(--txt3);font-weight:600">— hanya JC yang akan dilaksanakan; lewat tanggal otomatis hilang dari list</span></div>
+  <div id="jpPlanBox" class="jp-body">${jpPlanBoxHTML()}</div></section>
 
-  <div class="sectiontitle">♻️ Roaster Coverage per Section <span style="font-size:11px;color:var(--txt3);font-weight:600">— target: all sections roastered within ${lt} days</span></div>
-  <div class="card" style="margin-bottom:16px">
+  <section class="jp-cell jp-c-rcov"><div class="sectiontitle">♻️ Roaster Coverage per Section <span style="font-size:11px;color:var(--txt3);font-weight:600">— target: all sections roastered within ${lt} days</span></div>
+  <div class="card jp-body" style="margin-bottom:16px">
     <div class="toolbar" style="margin-top:0">
       <div class="fg" style="gap:5px"><label>Machine</label><select onchange="window._planM=this.value;render()">${CFG.machines.map(mm=>`<option ${mm===pm?'selected':''}>${mm}</option>`).join('')}</select></div>
       <div class="fg" style="gap:5px"><label>Part (roaster)</label><select onchange="window._planPart=this.value;render()">${CFG.parts.map(p=>`<option ${p===pp?'selected':''}>${p}</option>`).join('')}</select></div>
@@ -6163,14 +6248,15 @@ function vPlan(){
     </tbody></table></div>
     </div>
     <div class="note" style="margin-top:12px">💡 Roaster can cover 2–4 sections at once. Prioritize sections that are <b>never replaced</b> & <b>past their window</b> so all ${totalSec} sections are covered within ${lt} days. Log a roaster via the + button (reason: <b>Roaster</b>).</div>
-  </div>
+  </div></section>
 
-  <div class="sectiontitle">⏱️ Part Due ≤30 Hari</div>
-  <div id="jpDueBox">${jpDueBoxHTML(m)}</div>
-  <div class="sectiontitle">📦 Part Requirement Summary (Procurement)</div>
-  <div class="tblwrap"><table class="jp-req"><thead><tr><th>Part</th><th>Qty Needed</th><th>Recommended Min Stock</th><th>Unit</th></tr></thead><tbody>
+  <section class="jp-cell jp-c-due"><div class="sectiontitle">⏱️ Part Due ≤30 Hari</div>
+  <div id="jpDueBox" class="jp-body">${jpDueBoxHTML(m)}</div></section>
+  <section class="jp-cell jp-c-req"><div class="sectiontitle">📦 Part Requirement Summary (Procurement)</div>
+  <div class="jp-body"><div class="tblwrap"><table class="jp-req"><thead><tr><th>Part</th><th>Qty Needed</th><th>Recommended Min Stock</th><th>Unit</th></tr></thead><tbody>
   ${CFG.parts.map(p=>{const q=partNeed[p]||0;return `<tr><td><b>${p}</b></td><td>${q}</td><td>${Math.max(q,5)}</td><td>pcs</td></tr>`}).join('')}
-  </tbody></table></div>`;
+  </tbody></table></div></div></section>
+  </div></div>`;
 }
 /* ===== Planning JC: sekat per minggu + filter (desktop) & scroll ±10 baris (desktop + HP) =====
    Hanya tampilan: data, aksi tombol & pilihan (centang) tidak berubah. Di HP (≤680px) sekat & filter
@@ -6226,10 +6312,21 @@ function jpFitScroll(){ const mob=jpMob(); const z=parseFloat(document.documentE
   if(window._jpMobLast!==jpMob()) render(); else jpFitScroll(); },150); }); })();
 
 /* ---- 🧰 Persiapan Spec Jobchange ---- */
+/* kolom Action: status (Log Roaster / logged / Catat) satu kelompok, tombol Form · Edit · Salin · Hapus satu kelompok
+   dengan jarak seragam — tidak lagi berdempetan / turun baris satu-satu. Di kolom sempit tombol jadi ikon (label di tooltip). */
+function jpActHTML(p){
+  const ro=jcRoHasSect(p)?(p.roasterApplied?'<span class="pill pRoaster" title="Roaster sudah tercatat">♻️ logged</span>'
+    :'<button class="btn sm" style="background:var(--teal);color:#03201f" onclick="applyRoasterPlan('+p.id+')" title="Catat roaster plan ini sebagai record nyata pada tgl JC">📌 Log Roaster</button>'):'';
+  const st=(ro+String(jcVarBadge(p)||'')).trim();
+  return '<div class="jp-act">'+(st?'<span class="jp-st">'+st+'</span>':'')
+    +'<span class="jp-ic"><button class="btn sec sm jp-ib" onclick="jcfOpen(['+p.id+'])" title="Cetak / export Form Prepare JC" aria-label="Form">🖨️<span class="jp-bl">Form</span></button>'
+    +'<button class="btn sec sm jp-ib" onclick="openJCPlan('+p.id+')" title="Lihat / edit plan" aria-label="Edit">👁️<span class="jp-bl">Edit</span></button>'
+    +'<button class="btn sec sm jp-ib" onclick="dupJCPlan('+p.id+')" title="Salin untuk job berikutnya" aria-label="Salin">⧉</button>'
+    +'<button class="ico-btn jp-ib" onclick="delJCPlan('+p.id+')" title="Hapus plan" aria-label="Hapus">✕</button></span></div>'; }
 function jpPlanBoxHTML(){
     const today=ymd(TODAY); const showPast=!!window._jcShowPast; const mob=jpMob();
-    const upcoming=JCPLANS.filter(p=>(p.jcDate||'')>=today).sort((a,b)=>(a.jcDate||'').localeCompare(b.jcDate||''));
-    const past=JCPLANS.filter(p=>(p.jcDate||'')<today).sort((a,b)=>(b.jcDate||'').localeCompare(a.jcDate||''));
+    const upcoming=JCPLANS.filter(p=>(p.jcDate||'')>=today).sort(jcListCmp);   /* hari & mesin sama → 🧪 trial di atas */
+    const past=JCPLANS.filter(p=>(p.jcDate||'')<today).sort((a,b)=>(b.jcDate||'').localeCompare(a.jcDate||'')||jcListCmp(a,b));
     const list=showPast?past:upcoming;
     const keyOf=p=>p.jcDate?jpWkKey(parseD(p.jcDate)):''; const mcOf=p=>p.machine||p.line||'';
     let shown=list;
@@ -6239,10 +6336,10 @@ function jpPlanBoxHTML(){
     const rowHTML=p=>{const filled=Object.values(p.specs||{}).filter(v=>v&&String(v).trim()).length;const rem=p.jcDate?daysBetween(TODAY,parseD(p.jcDate)):null;
       const when=p.jcDate?(rem===0?'<b style="color:var(--accent2)">hari ini</b>':rem>0?rem+'h lagi':Math.abs(rem)+'h lalu'):'';
       return `<tr class="${jcpSelSet().has(p.id)?'jcp-on':''}"><td class="jcp-c" onclick="event.stopPropagation()"><input type="checkbox" class="rowchk jcpchk" value="${p.id}" ${jcpSelSet().has(p.id)?'checked':''} onchange="jcpToggle(${p.id},this.checked)"></td><td><b>${p.machine||p.line||'—'}</b>${p.trial?' <span class="pill" style="background:rgba(245,166,35,.15);color:var(--accent2)">🧪 TRIAL</span>':''}${p.postponed?' <span class="pill" style="background:rgba(255,90,90,.15);color:var(--red)">⏸ DITUNDA</span>':''}</td><td class="mono">${p.jcDate?fmtD(parseD(p.jcDate)):'—'}<div style="font-size:10px;color:var(--txt3)">${when}</div>${jaChips(p)}</td><td>${p.shift||'—'}</td><td>${p.process||'—'}</td><td class="mono">${p.cd||'—'}</td>
-      <td class="mono"><b>${p.typeJob||'—'}</b></td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.description||p.bottleSize||'—'}</td><td class="mono">${p.weight?p.weight+' gr':'—'}</td>
+      <td class="mono"><b>${p.typeJob||'—'}</b></td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.description||p.bottleSize||'')}">${p.description||p.bottleSize||'—'}</td><td class="mono">${p.weight?p.weight+' gr':'—'}</td>
       <td class="mono">${filled}/${tot}</td>
       <td>${jccPlanBadge(p)}</td>
-      <td style="white-space:nowrap">${jcRoHasSect(p)?(p.roasterApplied?'<span class="pill pRoaster" title="Roaster already logged">♻️ logged</span>':'<button class="btn sm" style="background:var(--teal);color:#03201f" onclick="applyRoasterPlan('+p.id+')" title="Catat roaster plan ini sebagai record nyata pada tgl JC">📌 Log Roaster</button>'):''}${jcVarBadge(p)} <button class="btn sec sm" onclick="jcfOpen([${p.id}])" title="Cetak / export Form Prepare JC">🖨️ Form</button> <button class="btn sec sm" onclick="openJCPlan(${p.id})">👁️ Edit</button> <button class="btn sec sm" onclick="dupJCPlan(${p.id})" title="Salin untuk job berikutnya">⧉</button> <button class="ico-btn" onclick="delJCPlan(${p.id})" title="Delete">✕</button></td></tr>`;};
+      <td class="jp-actc">${jpActHTML(p)}</td></tr>`;};
     jcpPrune();
     const nSel=jcpSelSet().size;
     const toolbar=`<div class="toolbar"><button class="btn" onclick="openJCPlan()">➕ Create JC Plan</button>
@@ -7044,7 +7141,7 @@ function renderJCForm(){
       <div id="jcRoaster"></div>
     </div>
     <div class="toolbar" style="margin:2px 0 10px;align-items:center;gap:10px;flex-wrap:wrap">
-      <span style="font-size:12px;color:var(--txt2)">🔩 Variabel / spesifikasi part ${prevP?`· acuan JC sebelumnya: <b>${prevP.jcDate?fmtD(parseD(prevP.jcDate)):''}${prevP.typeJob?' · #'+esc(prevP.typeJob):''}</b>`:'· belum ada JC sebelumnya di mesin ini'}</span>
+      <span style="font-size:12px;color:var(--txt2)">🔩 Variabel / spesifikasi part ${prevP?`· acuan JC sebelumnya: <b>${prevP.jcDate?fmtD(parseD(prevP.jcDate)):''}${prevP.typeJob?' · #'+esc(prevP.typeJob):''}</b>`:'· belum ada JC sebelumnya di mesin ini'}${jcSameDayNote(c)}</span>
       ${prevP?`<button class="btn sec sm" onclick="jcUseAllSame()" title="Isi semua field dengan nilai JC sebelumnya">↩ Samakan semua dgn sebelumnya</button>`:''}
     </div>
     ${areaHTML}
@@ -7110,9 +7207,36 @@ function jcRoEditRow(i){const c=window._jcEdit;const r=c.roasterPlan[i];if(!r)re
   window._jcRoEdit=i; window._jcRoPart=r.part; window._jcRoSecs=(r.sections||[]).slice(); renderJCRoaster();}
 function jcRoCancelEdit(){window._jcRoEdit=null; window._jcRoSecs=[]; renderJCRoaster();}
 function jcRoDelRow(i){const c=window._jcEdit;c.roasterPlan.splice(i,1);if(window._jcRoEdit===i){window._jcRoEdit=null;window._jcRoSecs=[];}renderJCRoaster();}
-function jcPrevPlan(c){ c=c||window._jcEdit; if(!c) return null; const machine=c.machine||c.line;
-  return (JCPLANS||[]).filter(q=>q&&(q.machine||q.line)===machine&&!q.trial&&!q.postponed&&q.id!==c.id&&(q.jcDate||'')<=(c.jcDate||''))
-    .sort((a,b)=>(b.jcDate||'').localeCompare(a.jcDate||'')||((b.id||0)-(a.id||0)))[0]||null; }
+/* ===== URUTAN JC & PEMBANDING — satu aturan untuk semua tampilan =====
+   Di satu mesin: tanggal → 🧪 TRIAL lebih dulu (dijadwalkan paling awal di hari itu) → shift → urutan dibuat.
+   Pembanding = JC terakhir SEBELUM plan ini menurut urutan tsb (bukan trial, tidak ditunda).
+   → trial dibandingkan dengan jadwal sebelum hari itu; JC reguler di hari yang sama tetap dibandingkan dengan
+     JC reguler sebelumnya. Trial & JC di hari yang sama tidak lagi saling jadi pembanding (dulu Sama/Ganti saling timpa).
+   Dipakai: form edit plan, cek sebelum simpan, Form Prepare JC, Form Job Set Up, timeline, persiapan, matriks, man power. */
+function jcIdKey(p){ const n=+(p&&p.id); return (p&&p.id!=null&&isFinite(n)&&n>=0)?n:Infinity; }   /* plan belum disimpan = paling akhir */
+function jcShiftRank(s){ const L=(CFG&&CFG.shifts)||[]; const i=L.indexOf(s); return i<0?L.length:i; }
+function jcOrderCmp(a,b){ const ia=jcIdKey(a), ib=jcIdKey(b);
+  return String(a.jcDate||'').localeCompare(String(b.jcDate||''))||((b.trial?1:0)-(a.trial?1:0))
+    ||(jcShiftRank(a.shift)-jcShiftRank(b.shift))||(ia===ib?0:ia<ib?-1:1); }
+function jcBaseOf(p){ if(!p) return null; const m=p.machine||p.line; if(!m||!p.jcDate) return null; let best=null;
+  (JCPLANS||[]).forEach(q=>{ if(!q||q===p||(p.id!=null&&q.id===p.id)||q.trial||q.postponed||!q.jcDate||(q.machine||q.line)!==m) return;
+    if(jcOrderCmp(q,p)<0&&(!best||jcOrderCmp(q,best)>0)) best=q; });
+  return best; }
+/* daftar lintas mesin: tanggal → mesin → urutan JC (trial dulu) */
+function jcListCmp(a,b){ return String(a.jcDate||'').localeCompare(String(b.jcDate||''))
+  ||String(a.machine||a.line||'').localeCompare(String(b.machine||b.line||''),undefined,{numeric:true})||jcOrderCmp(a,b); }
+/* plan lain di mesin & tanggal yang sama (mis. trial + JC) disinkron ulang setelah record satu plan dihapus / dipindah,
+   supaya record yang juga dibutuhkan plan lain tidak ikut hilang */
+function jcSibResync(machine,date,exceptId){ if(!machine||!date) return;
+  (JCPLANS||[]).forEach(p=>{ if(!p||p.id===exceptId||(p.machine||p.line)!==machine||p.jcDate!==date) return;
+    try{ if(p.varApplied) syncJCVarPlan(p); if(p.roasterApplied) syncRoasterPlan(p); }catch(e){ console.error('jcSibResync',e); } }); }
+function jcPrevPlan(c){ c=c||window._jcEdit; if(!c) return null; return jcBaseOf(c); }
+/* keterangan di form edit bila ada trial / JC lain di mesin & tanggal yang sama */
+function jcSameDayNote(c){ if(!c||!c.jcDate) return ''; const m=c.machine||c.line;
+  const o=(JCPLANS||[]).filter(q=>q&&q.id!==c.id&&(q.machine||q.line)===m&&q.jcDate===c.jcDate&&!q.postponed); if(!o.length) return '';
+  const t=o.filter(q=>q.trial), j=o.filter(q=>!q.trial), L=a=>a.map(q=>'#'+esc(q.typeJob||'-')).join(', ');
+  return '<span class="jc-sameday">'+(c.trial?'🧪 Trial ini dijadwalkan <b>lebih dulu</b>'+(j.length?' dari JC '+L(j):'')+' di hari yang sama'
+    :(t.length?'🧪 Trial '+L(t)+' di hari ini dikerjakan lebih dulu — <b>bukan</b> pembanding JC ini':'Ada JC lain di hari ini ('+L(j)+') — urutan: shift lalu urutan dibuat'))+'</span>'; }
 function jcPrevSpec(part){ const p=jcPrevPlan(window._jcEdit); return p&&p.specs?String(p.specs[part]||''):''; }
 function jcUseSame(part){ const c=window._jcEdit; const v=jcPrevSpec(part);
   if(v===''||v==null){ toast('Tidak ada nilai sebelumnya untuk '+part,1); return; }
@@ -7153,9 +7277,12 @@ function jcRvRender(){ const box=document.getElementById('jcrvbox'); if(!box) re
   const warn=[];
   /* 1. jadwal & riwayat mesin */
   const tl=(JCPLANS||[]).filter(p=>(p.machine||p.line)===mc&&p.id!==d.id&&p.jcDate).slice();
-  const same=tl.filter(p=>p.jcDate===d.jcDate); if(same.length) warn.push('Sudah ada '+same.length+' JC lain di '+esc(mc)+' pada tanggal yang sama ('+same.map(p=>'#'+esc(p.typeJob||'-')).join(', ')+').');
-  const before=tl.filter(p=>p.jcDate<=d.jcDate).sort((a,b)=>b.jcDate.localeCompare(a.jcDate)).slice(0,3).reverse();
-  const after=tl.filter(p=>p.jcDate>d.jcDate).sort((a,b)=>a.jcDate.localeCompare(b.jcDate)).slice(0,3);
+  const same=tl.filter(p=>p.jcDate===d.jcDate);
+  if(same.length){ const seq=same.concat([d]).sort(jcOrderCmp).map(p=>(p.trial?'🧪 ':'')+'#'+esc(p.typeJob||'-')+(p===d?' <b>(JC ini)</b>':'')).join(' → ');
+    warn.push('Sudah ada '+same.length+' JC lain di '+esc(mc)+' pada tanggal yang sama. Urutan hari itu: '+seq+' — 🧪 trial selalu dijadwalkan lebih dulu; trial tidak dipakai sebagai pembanding JC.'); }
+  /* urutan riwayat = urutan JC (hari sama: trial dulu) → sama dgn pembanding di bawah */
+  const before=tl.filter(p=>jcOrderCmp(p,d)<0).sort((a,b)=>jcOrderCmp(b,a)).slice(0,3).reverse();
+  const after=tl.filter(p=>jcOrderCmp(p,d)>0).sort(jcOrderCmp).slice(0,3);
   const near=tl.filter(p=>p.jcDate!==d.jcDate&&Math.abs(daysBetween(jd,parseD(p.jcDate)))<=7);
   const tr=(p,me)=>{ const g=daysBetween(jd,parseD(p.jcDate)); return '<div class="rv-tl'+(me?' me':'')+'"><span class="rv-d">'+(jcDayName(p.jcDate)||'').slice(0,3)+' '+fmtD(parseD(p.jcDate))+'</span>'
     +'<span class="rv-j">#'+esc(p.typeJob||'-')+' · '+esc(p.description||p.bottleSize||'')+(p.trial?' · 🧪 trial':'')+'</span>'
@@ -7232,11 +7359,14 @@ function jcRvSave(print){ const c=window._jcEdit; if(!c) return;
 function jcSavePlanNow(){const c=window._jcEdit; if(!c.machine||!c.jcDate){toast('Machine & JC date are required',1);return;}
   jcApplyCdParts(c,false);
   const _ref=(c.machine||'-')+' · '+(c.jcDate||'-');
+  let _old=null;
   if(c.id==null){c.id=Date.now();JCPLANS.push(c);auditLog('add','jcplan',_ref,null,auditSnap('jcplan',c));}
-  else{const i=JCPLANS.findIndex(x=>x.id===c.id);const _b=i>=0?auditSnap('jcplan',JCPLANS[i]):null;if(i>=0)JCPLANS[i]=c;auditLog('edit','jcplan',_ref,_b,auditSnap('jcplan',c));}
+  else{const i=JCPLANS.findIndex(x=>x.id===c.id);const _b=i>=0?auditSnap('jcplan',JCPLANS[i]):null;if(i>=0){_old={m:JCPLANS[i].machine||JCPLANS[i].line,d:JCPLANS[i].jcDate};JCPLANS[i]=c;}auditLog('edit','jcplan',_ref,_b,auditSnap('jcplan',c));}
   let msg='✓ JC plan saved';
   if(c.varApplied){ syncJCVarPlan(c); }
   if(c.roasterApplied){ const res=syncRoasterPlan(c); if(res.added||res.removed) msg='✓ Plan saved · roaster synced ('+(res.added?'+'+res.added:'')+(res.added&&res.removed?', ':'')+(res.removed?'-'+res.removed:'')+')'; }
+  /* trial / JC lain di mesin & tanggal yang sama: record bersama jangan ikut hilang */
+  if(_old) jcSibResync(_old.m,_old.d,c.id); jcSibResync(c.machine||c.line,c.jcDate,c.id);
   saveAll(); closeJC(); toast(msg); render();}
 function dupJCPlan(id){const p=JCPLANS.find(x=>x.id===id);if(!p)return;const c=JSON.parse(JSON.stringify(p));c.id=null;c.jcDate=ymd(TODAY);c.postponed=false;c.roasterApplied=false;c.varApplied=false;(c.roasterPlan||[]).forEach(r=>delete r._jc);window._jcEdit=c;window._jcRoSecs=[];window._jcRoEdit=null;renderJCForm();document.getElementById('jcmodal').classList.add('show');toast('Copied — save as a new plan');}
 function closeJC(){const el=document.getElementById('jcmodal'); if(el)el.classList.remove('show');}
@@ -7244,7 +7374,7 @@ function delJCPlan(id){const p=JCPLANS.find(x=>x.id===id);if(!confirm('Delete pl
   if(p&&p.roasterApplied){ for(let i=DB.length-1;i>=0;i--){ if(DB[i]._jc===id) DB.splice(i,1); } }
   if(p&&p.varApplied){ for(let i=DB.length-1;i>=0;i--){ if(DB[i]._jcv===id) DB.splice(i,1); } }
   if(p) auditLog('del','jcplan',(p.machine||'-')+' · '+(p.jcDate||'-'),auditSnap('jcplan',p),null);
-  JCPLANS=JCPLANS.filter(x=>x.id!==id); saveAll(); buildNav(); toast('Plan deleted'); render();}
+  JCPLANS=JCPLANS.filter(x=>x.id!==id); if(p) jcSibResync(p.machine||p.line,p.jcDate,id); saveAll(); buildNav(); toast('Plan deleted'); render();}
 /* ---- Hapus banyak plan JC sekaligus (centang / pilih semua) ----
    Pilihan disimpan di window._jcpSel sehingga tetap terbawa saat berpindah daftar
    "akan datang" ↔ "yang lewat": pilih semua di keduanya lalu hapus sekali. */
@@ -7274,6 +7404,7 @@ function jcpDelSelected(){
     const p=plans.find(x=>(x.roasterApplied&&r._jc===x.id)||(x.varApplied&&r._jcv===x.id)); if(p) DB.splice(i,1); }
   plans.forEach(p=>{ try{ auditLog('del','jcplan',(p.machine||'-')+' · '+(p.jcDate||'-'),auditSnap('jcplan',p),null); }catch(e){} });
   JCPLANS=JCPLANS.filter(p=>!kill.has(p.id)); S.clear();
+  plans.forEach(p=>jcSibResync(p.machine||p.line,p.jcDate,p.id));
   saveAll(); buildNav(); toast(plans.length+' plan JC dihapus'+(linked?' · '+linked+' record terkait':'')); render(); }
 /* ================= FORM PREPARE JOB CHANGE — cetak & export Excel =================
    Meniru form kertas "FORM PEMERIKSAAN PERALATAN JOB CHANGE (PREPARE JOB CHANGE)".
@@ -7533,7 +7664,7 @@ function jcfMount(host,m){ const html='<style>'+jcfCSS()+'</style>'+jcfSheetHTML
   if(host.attachShadow){ const sr=host.shadowRoot||host.attachShadow({mode:'open'}); sr.innerHTML=html; } else host.innerHTML=html; }
 
 /* ---- buka pratinjau ---- */
-function jcfSortPlans(a){ return a.sort((x,y)=>(x.jcDate||'').localeCompare(y.jcDate||'')||String(x.machine||'').localeCompare(String(y.machine||''),undefined,{numeric:true})); }
+function jcfSortPlans(a){ return a.sort(jcListCmp); }
 function jcfOpen(ids){ const plans=jcfSortPlans((ids||[]).map(id=>(JCPLANS||[]).find(p=>p.id===id)).filter(Boolean));
   if(!plans.length){ toast('Plan JC tidak ditemukan',1); return; } window._jcf={plans:plans,src:'list'}; jcfShow(); }
 function jcfOpenSelected(){ jcfOpen([...jcpSelSet()]); }
@@ -7708,8 +7839,7 @@ function jsuDateLong(s){ const d=parseD(s); return d.getDate()+' '+JSU_BULAN[d.g
 function jsuNoteSegs(notes){ return String(notes||'').split(/\s*·\s*|\n+/).map(x=>x.trim())
   .filter(x=>x&&!/^(BPS\b|run\s|\d+\s*sec\b|\d+\s*BPM\b|eff\s|\d+\s*rb\s*pcs|total\s|WT schedule)/i.test(x)); }
 function jsuPlans(start,days){ const t1=ymd(new Date(parseD(start).getTime()+(days-1)*86400000));
-  return (JCPLANS||[]).filter(p=>p&&p.jcDate&&p.jcDate>=start&&p.jcDate<=t1)
-    .sort((a,b)=>a.jcDate.localeCompare(b.jcDate)||String(a.machine||a.line||'').localeCompare(String(b.machine||b.line||''),undefined,{numeric:true})); }
+  return (JCPLANS||[]).filter(p=>p&&p.jcDate&&p.jcDate>=start&&p.jcDate<=t1).sort(jcListCmp); }   /* mesin sama sehari → trial dulu */
 /* model sel form (dipakai Excel & foto). r/c mulai 1; r2/c2 = merge; bd:0 = tanpa border; ov:1 = teks boleh meluber (tanpa wrap) */
 function jsuModel(start,days){
   const endS=ymd(new Date(parseD(start).getTime()+(days-1)*86400000)), plans=jsuPlans(start,days);
@@ -7760,7 +7890,7 @@ function jsuModel(start,days){
   return {start:start,endS:endS,plans:plans,NC:NC,cols:cols,rowH:rowH,cells:cells,last:lr}; }
 
 async function jsuExport(days,fmt){
-  const inp=document.getElementById('jsuStart'); const start=(inp&&/^\d{4}-\d\d-\d\d$/.test(inp.value))?inp.value:ymd(TODAY);
+  const start=jtlStart();   /* = tanggal mulai timeline */
   const m=jsuModel(start,days);
   if(!m.plans.length){ toast('Tidak ada plan JC pada '+fmtD(parseD(m.start))+' – '+fmtD(parseD(m.endS)),1); return; }
   const name='Job_Set_Up_IS_'+m.start+'_sd_'+m.endS;
@@ -7845,9 +7975,11 @@ async function jsuSavePng(cv,name){
       await navigator.share({files:[f],title:'Job Set Up IS Maintenance'}); toast('✓ Foto siap dibagikan'); return; } }
   catch(e){ if(e&&e.name==='AbortError') return; }
   dl(blob,name); }
-function jsuDays(){ try{ return +(localStorage.getItem('pm_jsu_days')||7)===14?14:7; }catch(e){ return 7; } }
-function jsuSetDays(n,btn){ try{ localStorage.setItem('pm_jsu_days',String(n)); }catch(e){}
-  const w=btn&&btn.parentNode; if(w) w.querySelectorAll('button').forEach(b=>{ const on=+b.dataset.d===n; b.classList.toggle('sec',!on); b.setAttribute('aria-pressed',on); }); }
+/* jumlah hari timeline & Form Job Set Up (default 14 = isi kartu timeline sebelumnya); disimpan per perangkat */
+function jsuDays(){ try{ return +(localStorage.getItem('pm_jsu_days')||14)===7?7:14; }catch(e){ return 14; } }
+function jsuSetDays(n,btn){ n=(+n===7)?7:14; try{ localStorage.setItem('pm_jsu_days',String(n)); }catch(e){}
+  const w=btn&&btn.parentNode; if(w) w.querySelectorAll('button').forEach(b=>{ const on=+b.dataset.d===n; b.classList.toggle('sec',!on); b.setAttribute('aria-pressed',on); });
+  if(typeof jtlRefresh==='function') jtlRefresh(); }
 
 /* ---- roaster plan → real records integration ---- */
 // Reconcile DB roaster records to match an APPLIED plan (handles add / remove / machine&date change)
@@ -7875,17 +8007,9 @@ function syncRoasterPlan(plan){
    Jadi daftarnya muncul otomatis, tinggal dicentang / batal centang. */
 function jcVarChanges(plan){
   if(!plan) return {prev:null,list:[]};
-  const machine=plan.machine||plan.line;
-  const tl=jcTimeline(machine);
-  let i=-1;
-  if(plan.id!=null) i=tl.findIndex(p=>p.id===plan.id);
-  if(i<0){ // plan belum tersimpan: bandingkan dgn JC terakhir sebelum tanggalnya
-    const before=tl.filter(p=>String(p.jcDate||'')<String(plan.jcDate||''));
-    const prev=before.length?before[before.length-1]:null;
-    return {prev, list: prev?transitionDiff(prev,plan).filter(d=>d.status==='change'||d.status==='add'):[]};
-  }
-  if(i===0) return {prev:null,list:[]};                 // JC pertama, tidak ada pembanding
-  const prev=tl[i-1];
+  // pembanding sama persis dgn Form Prepare JC / Ket Sama-Ganti (trial dulu; trial & JC ditunda bukan pembanding)
+  const prev=jcBaseOf(plan);
+  if(!prev) return {prev:null,list:[]};                 // JC pertama, tidak ada pembanding
   return {prev, list: transitionDiff(prev,plan).filter(d=>d.status==='change'||d.status==='add')};
 }
 function jcVarSecs(plan){
@@ -7988,6 +8112,7 @@ function unapplyJCVar(){
   let removed=0;
   for(let i=DB.length-1;i>=0;i--){ if(DB[i]._jcv===c.id){ DB.splice(i,1); removed++; } }
   c.varApplied=false; const live=JCPLANS.find(x=>x.id===c.id); if(live)live.varApplied=false;
+  jcSibResync(c.machine||c.line,c.jcDate,c.id);   /* record yang juga dipakai trial / JC lain di hari itu dibuat ulang */
   if(removed) auditLog('del','record',(c.machine||c.line||'-')+' · '+(c.jcDate||'-'),
     {machine:(c.machine||c.line),date:c.jcDate,reason:'Job Change (variabel)'},null,
     removed+' record perubahan variabel dibatalkan');
@@ -8371,8 +8496,8 @@ function transitionDiff(from,to){const out=[];
     out.push({area,part,oldV:o,newV:n,status,consumable:isConsumable(part)});
   });});
   return out;}
-function currentPlan(machine){const t=ymd(TODAY);return JCPLANS.filter(p=>(p.machine||p.line)===machine&&!p.trial&&(p.jcDate||'')<=t).slice().sort((a,b)=>(b.jcDate||'').localeCompare(a.jcDate||''))[0]||null;}
-function nextPlan(machine){const t=ymd(TODAY);return JCPLANS.filter(p=>(p.machine||p.line)===machine&&!p.trial&&(p.jcDate||'')>t).slice().sort((a,b)=>(a.jcDate||'').localeCompare(b.jcDate||''))[0]||null;}
+function currentPlan(machine){const t=ymd(TODAY);return JCPLANS.filter(p=>(p.machine||p.line)===machine&&!p.trial&&(p.jcDate||'')<=t).slice().sort((a,b)=>jcOrderCmp(b,a))[0]||null;}
+function nextPlan(machine){const t=ymd(TODAY);return JCPLANS.filter(p=>(p.machine||p.line)===machine&&!p.trial&&(p.jcDate||'')>t).slice().sort(jcOrderCmp)[0]||null;}
 function actTxt(d){ if(d.status==='same')return '✅ Tetap'; if(d.status==='add')return '➕ Pasang baru'+(d.consumable?' (consumable)':''); if(d.status==='remove')return d.consumable?'➖ Lepas (consumable)':'➖ Lepas → cleaning → balik stok'; return d.consumable?'🔁 Replace — use NEW (consumable)':'🔁 Ganti — lama→cleaning, pasang baru'; }
 function transitionTableHTML(fromP,toP,showApply){
   const diff=transitionDiff(fromP,toP);
@@ -8409,11 +8534,10 @@ function specRowsHTML(plan){
   });
   return body;
 }
-function prevPlan(machine){const t=ymd(TODAY);const arr=JCPLANS.filter(p=>(p.machine||p.line)===machine&&!p.trial&&(p.jcDate||'')<=t).slice().sort((a,b)=>(b.jcDate||'').localeCompare(a.jcDate||''));return arr[1]||null;}
+function prevPlan(machine){const t=ymd(TODAY);const arr=JCPLANS.filter(p=>(p.machine||p.line)===machine&&!p.trial&&(p.jcDate||'')<=t).slice().sort((a,b)=>jcOrderCmp(b,a));return arr[1]||null;}
 /* ---------- RIWAYAT JC: geser jendela Lama/Sekarang/Baru ke belakang ---------- */
 function jcTimeline(machine){
-  return JCPLANS.filter(p=>(p.machine||p.line)===machine&&!p.trial).slice()
-    .sort((a,b)=>String(a.jcDate||'').localeCompare(String(b.jcDate||'')));
+  return JCPLANS.filter(p=>(p.machine||p.line)===machine&&!p.trial).slice().sort(jcOrderCmp);   /* hari sama → shift → urutan dibuat */
 }
 function specWindow(machine){
   const tl=jcTimeline(machine), t=ymd(TODAY);
@@ -8911,12 +9035,14 @@ function anaClip(s,px,fs){ s=String(s); const max=Math.max(3,Math.floor(px/((fs|
 function anaNum(v,d){ return v==null?'—':(d?(+v).toFixed(d):String(Math.round(v))); }
 
 /* ---------- 1 · lifetime per part — range plot ---------- */
+/* label sumbu 0% · 50% · 100%: yang terlalu rapat (grafik sempit, mis. HP) tidak ditulis supaya tidak saling menimpa */
+function anaAxisPick(sx){ const G=30, d0=sx(100)-sx(0); if(d0<G) return [100]; return (sx(50)-sx(0)>=G&&sx(100)-sx(50)>=G)?[0,50,100]:[0,100]; }
 function anaDrawLife(W){ const A=window._ANA, rows=A.life, T=anaTgt();
   if(!rows.length) return '<div class="ana-empty">Belum ada part di Settings.</div>';
   const narrow=W<460, LW=Math.round((narrow?92:130)*anaFS()), RW=Math.round((narrow?84:120)*anaFS()), BW=Math.max(60,W-LW-RW-8), RH=36, top=16;
   const mx=Math.min(250,Math.max(120,...rows.filter(r=>r.n).map(r=>r.mx/r.lt*100+8)));
   const sx=v=>LW+BW*Math.max(0,Math.min(v,mx))/mx; const H=top+rows.length*RH+18; let g='';
-  [0,50,100].forEach(v=>{ g+=`<line x1="${sx(v)}" x2="${sx(v)}" y1="${top-4}" y2="${top+rows.length*RH}" style="stroke:var(--line);stroke-width:1"/>`+anaT(sx(v),top+rows.length*RH+13,v+'%',{a:'middle',fs:10}); });
+  const axL=anaAxisPick(sx); [0,50,100].forEach(v=>{ g+=`<line x1="${sx(v)}" x2="${sx(v)}" y1="${top-4}" y2="${top+rows.length*RH}" style="stroke:var(--line);stroke-width:1"/>`+(axL.indexOf(v)>=0?anaT(sx(v),top+rows.length*RH+13,v+'%',{a:'middle',fs:10}):''); });
   g+=`<line x1="${sx(T)}" x2="${sx(T)}" y1="${top-6}" y2="${top+rows.length*RH}" style="stroke:var(--txt);stroke-width:1.5;stroke-dasharray:4 3"/>`+anaT(sx(T),top-8,'target '+T+'%',{a:'middle',fs:10,c:'var(--txt)',fw:600});
   rows.forEach((r,i)=>{ const y=top+i*RH, cy=y+RH/2; let inner=anaT(0,cy+4,anaClip(r.p,LW-6,12),{fs:12,c:'var(--txt)',fw:600});
     if(r.n){ const col=anaStCol(r.st), a=r.mn/r.lt*100, b=r.mx/r.lt*100;
@@ -8955,12 +9081,14 @@ function anaDrawMtbf(W){ const A=window._ANA, rows=A.mtbf;
 /* ---------- 3 · pareto — bar list + garis 80% ---------- */
 function anaDrawPareto(W){ const A=window._ANA, rows=A.par;
   if(!rows.length) return '<div class="empty" style="padding:26px 10px"><div class="big">✅</div><b>Belum ada trouble pada filter ini 🎉</b></div>';
-  const narrow=W<460, LW=Math.round((narrow?122:190)*anaFS()), RW=Math.round(78*anaFS()), BW=Math.max(40,W-LW-RW-6), RH=27, top=16, mxN=rows[0].n;
+  /* skala batang = penyebab terbanyak yang bernama; "Lainnya" (gabungan) bisa lebih besar → dipotong selebar area batang
+     (dulu batangnya menembus angka jumlah & kumulatif di kanan) */
+  const narrow=W<460, LW=Math.round((narrow?122:190)*anaFS()), RW=Math.round(78*anaFS()), BW=Math.max(40,W-LW-RW-6), RH=27, top=16, mxN=Math.max(1,...rows.filter(r=>!r.other).map(r=>r.n),rows.length===1?rows[0].n:0);
   const cut=rows.length>1?rows.findIndex(r=>r.cum>=80):-1, GAP=(cut>=0&&cut<rows.length-1)?26:0; let g='';
   g+=anaT(W-36,top-6,'jumlah',{a:'end',fs:10})+anaT(W,top-6,'kum.',{a:'end',fs:10});
   rows.forEach((r,i)=>{ const y=top+i*RH+(cut>=0&&i>cut?GAP:0), cy=y+RH/2, vital=cut<0||i<=cut;
     let inner=anaT(0,cy+4,anaClip(r.k,LW-8,12),{fs:12,c:vital?'var(--txt)':'var(--txt2)',fw:vital?600:400});
-    inner+=`<path d="${anaBar(LW,cy-6,Math.max(2,BW*r.n/mxN),12,false)}" style="fill:${vital?'var(--red)':'var(--txt3)'};opacity:${vital?1:.55}"/>`;
+    inner+=`<path d="${anaBar(LW,cy-6,Math.max(2,Math.min(BW,BW*r.n/mxN)),12,false)}" style="fill:${vital?'var(--red)':'var(--txt3)'};opacity:${vital?1:.55}"/>`;
     inner+=anaT(W-36,cy+4,r.n,{a:'end',fs:12,fw:700,c:'var(--txt)',cls:'ana-num'})+anaT(W,cy+4,r.cum+'%',{a:'end',fs:11,cls:'ana-num'});
     g+=anaHit(i,y+1,RH-2,W,`${r.k}: ${r.n} trouble (${r.pct}%) · kumulatif ${r.cum}% · tap untuk daftar kejadian`,inner);
     if(i===cut&&GAP){ const ly=y+RH+5; g+=`<line x1="0" x2="${W}" y1="${ly}" y2="${ly}" style="stroke:var(--txt2);stroke-width:1;stroke-dasharray:4 3"/>`+anaT(0,ly+15,'↑ '+(i+1)+' penyebab teratas = '+r.cum+'% dari semua trouble',{fs:10.5,c:'var(--txt2)',fw:600}); } });
@@ -8988,14 +9116,17 @@ function anaDrawReason(W){ const A=window._ANA, parts=CFG.parts, en=A.en;
   const narrow=W<460, LW=Math.round((narrow?86:130)*anaFS()), CWmin=narrow?28:40, P=rgList().filter(g=>g.planned);
   const totals={}; A.troubles.forEach(r=>{ const k=anaReasonKey(r); totals[k]=(totals[k]||0)+1; });
   const tk=Object.entries(totals).sort((a,b)=>b[1]-a[1]||anaCmp(a[0],b[0])).map(e=>e[0]);
-  const fit=Math.max(1,Math.floor((W-LW)/CWmin)-P.length); let nT=tk.length<=fit?tk.length:Math.max(1,fit-1);
+  const fit=Math.max(1,Math.floor((W-LW-30)/CWmin)-P.length); let nT=tk.length<=fit?tk.length:Math.max(1,fit-1);
   const cols=tk.slice(0,nT).map(k=>({type:'r',key:k,label:k}));
   if(tk.length>nT) cols.push({type:'rest',keys:tk.slice(nT),label:'lain'});
   P.forEach(gr=>cols.push({type:'g',gid:gr.id,label:gr.name,planned:true}));
   const val=(p,c)=>en.filter(r=>r.part===p&&anaMatchCol(r,c)).length;
   const M=parts.map(p=>cols.map(c=>val(p,c)));
   const maxT=Math.max(1,...M.flatMap(row=>row.filter((v,j)=>!cols[j].planned))), maxP=Math.max(1,...M.flatMap(row=>row.filter((v,j)=>cols[j].planned)));
-  const cw=(W-LW)/cols.length, ch=narrow?28:30, head=narrow?50:56, op=[.16,.32,.5,.72,1];
+  /* label kolom miring (−38°) di kolom terakhir menjorok ke kanan → sisakan ruang kanan supaya tidak terpotong tepi kartu */
+  const lastLab=cols.length?String(cols[cols.length-1].label||''):'', cw0=(W-LW)/Math.max(1,cols.length),
+    RP=Math.max(0,Math.ceil(Math.min(lastLab.length*6.4,narrow?62:88)*0.79-cw0/2+8));
+  const cw=(W-LW-RP)/cols.length, ch=narrow?28:30, head=narrow?50:56, op=[.16,.32,.5,.72,1];
   const lvl=(v,mx)=>v<=0?-1:Math.min(4,Math.floor(v/mx*4.999));
   let g=''; cols.forEach((c,j)=>{ const x=LW+j*cw+cw/2-2;
     g+=anaT(x,head-6,anaClip(c.label,narrow?62:88,10),{fs:10,c:c.planned?'var(--txt2)':'var(--txt3)',fw:c.planned?700:400,tr:`rotate(-38 ${x.toFixed(1)} ${head-6})`}); });
@@ -9559,28 +9690,13 @@ function vSet(){
     <div class="note" style="margin-top:12px"><b>Gelap</b> cocok untuk monitor display / ruang redup; <b>Terang</b> (warna sand) untuk ruangan terang. Keduanya memakai gaya timbul (soft UI). Pilihan tema tersimpan otomatis dan juga bisa diganti lewat tombol matahari / bulan di sidebar.</div>
   </div>
   ${pwaSettingsHTML()}
-  <div class="card" style="margin-top:14px"><h3>🔍 Display Scale (Zoom)<span class="tag">${CFG.uiScale||100}%</span></h3>
-    <div class="note" style="margin:0 0 12px">Perkecil / perbesar <b>seluruh</b> tampilan (teks, kartu, grafik) dengan rasio yang sama. Huruf dasar sudah dibesarkan 120%. Monitor dashboard yang dilihat dari jauh: <b>110–150%</b>; layar kecil yang ingin muat lebih banyak data: <b>80–90%</b>.</div>
-    <div class="scalebar">
-      <div class="scale-nudge"><button onclick="nudgeScale(-5)" title="Perkecil">−</button></div>
-      <input id="scaleRange" type="range" min="50" max="200" step="5" value="${CFG.uiScale||100}" oninput="previewScale(this.value)" onchange="setScale(this.value)" aria-label="Skala tampilan">
-      <div class="scale-nudge"><button onclick="nudgeScale(5)" title="Perbesar">+</button></div>
-      <div id="scaleVal" class="scaleval">${CFG.uiScale||100}%</div>
-    </div>
-    <div class="scalepresets">
-      <button class="themebtn ${(CFG.uiScale||100)==70?'on':''}" data-scale="70" onclick="setScale(70)">70%<span class="ps-sub">Padat</span></button>
-      <button class="themebtn ${(CFG.uiScale||100)==80?'on':''}" data-scale="80" onclick="setScale(80)">80%<span class="ps-sub">Lega</span></button>
-      <button class="themebtn ${(CFG.uiScale||100)==90?'on':''}" data-scale="90" onclick="setScale(90)">90%<span class="ps-sub">Sedang</span></button>
-      <button class="themebtn ${(CFG.uiScale||100)==100?'on':''}" data-scale="100" onclick="setScale(100)">100%<span class="ps-sub">Normal</span></button>
-      <button class="themebtn ${(CFG.uiScale||100)==110?'on':''}" data-scale="110" onclick="setScale(110)">110%<span class="ps-sub">Besar</span></button>
-      <button class="themebtn ${(CFG.uiScale||100)==125?'on':''}" data-scale="125" onclick="setScale(125)">125%<span class="ps-sub">Sangat besar</span></button>
-      <button class="themebtn ${(CFG.uiScale||100)==150?'on':''}" data-scale="150" onclick="setScale(150)">150%<span class="ps-sub">Layar jauh</span></button>
-    </div>
+  <div class="card" style="margin-top:14px"><h3>🔍 Ukuran Tampilan<span class="tag" id="scaleTag">Otomatis · ${effScale()}%</span></h3>
+    <div class="note" style="margin:0 0 10px">Ukuran tampilan <b>menyesuaikan perangkat secara otomatis</b> — dihitung dari ukuran layar / jendela browser supaya proporsional (laptop 1366 ≈ 90%, laptop 1920 dengan Windows 125% ≈ 95%, monitor 1920 ≈ 120%, monitor 2560 ≈ 130%, HP &amp; tablet 100%). Ikut berubah sendiri saat jendela diubah ukurannya, dipindah ke monitor lain, atau layar diputar. Tidak perlu diatur.</div>
+    <div class="note scale-info" id="scaleInfo" style="margin:0">${scaleInfoHTML()}</div>
     <div class="toolbar" style="margin:14px 0 0;flex-wrap:wrap;gap:10px">
       <button class="btn" onclick="toggleFullscreen()">⛶ Mode Layar Penuh</button>
-      <button class="btn sec" onclick="resetScale()">↺ Reset 100%</button>
     </div>
-    <div class="note" style="margin-top:12px"><b>Mode Layar Penuh</b> menyembunyikan toolbar browser — cocok untuk tampilan dinding workshop. Tekan <b>F</b> kapan saja untuk masuk/keluar, atau <b>Esc</b> untuk keluar. Skala &amp; pilihan tersimpan otomatis di perangkat ini.</div>
+    <div class="note" style="margin-top:12px"><b>Mode Layar Penuh</b> menyembunyikan toolbar browser — cocok untuk tampilan dinding workshop. Tekan <b>F</b> kapan saja untuk masuk/keluar, atau <b>Esc</b> untuk keluar.</div>
   </div>
   </div>
   <div class="setgroup">
@@ -10342,6 +10458,9 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
     // detail apa pun & hampir selalu transient — cukup catat ke console, JANGAN munculkan banner.
     var opaque = (!ev.filename) && (!ev.lineno) && (!ev.message || ev.message==='Script error.' || ev.message==='Script error');
     if(opaque){ try{ console.warn('Sinkron cloud / lintas-origin transient diabaikan (data aman).'); }catch(_){ } return; }
+    /* "ResizeObserver loop …" = pemberitahuan browser yang tidak berbahaya (muncul saat jendela / skala tampilan berubah).
+       Dulu ikut memunculkan banner merah yang menutupi header → diabaikan. */
+    if(/ResizeObserver loop/i.test(String(ev.message||''))) return;
     var detail=(ev.message||'Script error'); if(ev.lineno) detail+=' [baris '+ev.lineno+(ev.colno?':'+ev.colno:'')+']';
     try{ if(ev.error&&ev.error.stack) console.error(ev.error.stack); }catch(_){ }
     _showBootErr(detail);
@@ -10860,6 +10979,182 @@ td.jcp-c{ width:34px; }
   .jc-rec{ width:34px; height:34px; }
   .jc-rec input{ width:20px; height:20px; }
 }
+
+/* ============================================================
+   Planning JC — layout desktop lebar
+   • halaman memakai seluruh lebar layar (tanpa batas 1500px) → timeline selebar layar
+   • di bawahnya kartu 2 kolom per baris: Persiapan JC | Roaster Coverage, Part Due | Part Requirement
+   • kolom hanya dibagi bila lebar cukup (container query); kalau sempit tetap 1 kolom → tidak ada yang
+     terpotong / saling timpa. Isi tabel yang tetap lebih lebar dari kolom → digulir di dalam kartunya.
+   ============================================================ */
+#main:has(.jp-page){ max-width:none; }
+.jp-page{ container-type:inline-size; container-name:jppage; min-width:0; }
+.jp-cell{ min-width:0; }
+.jc-sameday{ display:block; margin-top:3px; font-size:11.5px; color:var(--accent2); }
+@media (min-width:681px){   /* tabel Persiapan: label TRIAL & tombol Action boleh turun baris HANYA bila ruang kurang */
+  .jp-c-plan .jp-scroll td:nth-child(2){ white-space:normal; }
+  .jp-c-plan .jp-scroll td:nth-child(2) .pill{ display:inline-block; white-space:nowrap; margin-top:2px; }
+}
+/* kolom Action Persiapan JC: dua kelompok tombol dengan jarak seragam */
+#jpPlanBox td.jp-actc{ white-space:normal; line-height:normal; }
+#jpPlanBox .jp-act{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; }
+#jpPlanBox .jp-act .jp-st, #jpPlanBox .jp-act .jp-ic{ display:inline-flex; flex-wrap:nowrap; align-items:center; gap:8px; }
+#jpPlanBox .jp-act .jp-st{ flex-wrap:wrap; }   /* Log Roaster + Catat boleh bertumpuk rapi bila kolom sempit */
+#jpPlanBox .jp-act .btn, #jpPlanBox .jp-act .pill{ flex:0 0 auto; margin:0; white-space:nowrap; }
+#jpPlanBox .jp-act .jp-ib{ display:inline-flex; align-items:center; justify-content:center; gap:5px; height:32px; min-width:32px; padding:0 11px; flex:0 0 auto; }
+#jpPlanBox .jp-act .ico-btn.jp-ib{ width:32px; padding:0; border-radius:999px !important; }
+@media (min-width:681px){   /* laptop / monitor: Form & Edit jadi ikon bulat seragam (label di tooltip) → kolom Action ringkas & rapi */
+  #jpPlanBox .jp-act .jp-bl{ display:none; }
+  #jpPlanBox .jp-act .jp-ib, #jpPlanBox .jp-act .ico-btn.jp-ib{ width:34px; height:34px; padding:0; }
+}
+/* 2 kolom mulai lebar halaman ±1460px (= saat dulu mulai ada sisa kiri-kanan). Kolom kanan 30% (420–760px), kiri sisanya. */
+@container jppage (min-width:1460px){
+  .jp-grid{ display:grid; grid-template-columns:minmax(0,1fr) clamp(420px,30%,760px); column-gap:22px; align-items:stretch; }
+  .jp-cell{ display:flex; flex-direction:column; }
+  .jp-cell > .sectiontitle{ flex:0 0 auto; }
+  .jp-cell > .jp-body{ flex:1 1 auto; display:flex; flex-direction:column; min-height:0; min-width:0; margin-bottom:18px !important; }
+  .jp-body > .tblwrap:last-child, .jp-body > .card:last-child{ flex:1 1 auto; }
+  .jp-body .jp-scroll{ margin-bottom:0 !important; }
+  .jp-body > .empty{ flex:1 1 auto; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  /* tabel di kolom dipadatkan (semua kolom tetap tampil): judul kolom boleh 2 baris, jarak sel lebih rapat */
+  .jp-grid .jp-scroll th, .jp-c-req th{ white-space:normal; line-height:1.15; vertical-align:bottom; font-size:9.5px; letter-spacing:.2px; }
+  .jp-grid .jp-scroll thead tr, .jp-c-req thead tr{ background:var(--bg2); }   /* tutup celah 1px antar judul kolom (lebar pecahan) */
+  .jp-c-plan .jp-scroll table{ font-size:11px; }
+  .jp-c-plan .jp-scroll th, .jp-c-plan .jp-scroll td{ padding-left:6px; padding-right:6px; }
+  .jp-c-plan .jp-scroll th:first-child, .jp-c-plan .jp-scroll td:first-child{ padding-left:10px; }
+  .jp-c-plan .jp-scroll tr.wk-sep td{ padding-left:10px; }
+  .jp-c-plan .jp-scroll td:nth-child(8){ max-width:105px !important; }               /* Description terpotong … (lengkap di Edit / tooltip) */
+  .jp-c-plan .jp-scroll td.jp-actc{ min-width:172px; }
+  .jp-c-plan .toolbar{ flex-wrap:wrap; }
+  .jp-c-due .jp-scroll th, .jp-c-due .jp-scroll td{ padding-left:8px; padding-right:8px; }
+  /* Roaster Coverage di kolom kanan: statistik 3 kotak sebaris di atas tabel */
+  .jp-c-rcov .rcov-grid{ grid-template-columns:minmax(0,1fr); gap:10px; }
+  .jp-c-rcov .rcov-grid .mini.rcov-mini{ grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-bottom:8px; }
+  .jp-c-rcov .rcov-tbl th{ white-space:normal; line-height:1.15; vertical-align:bottom; }
+  .jp-c-rcov .rcov-tbl{ font-size:11.5px; }
+  .jp-c-rcov .rcov-tbl th{ font-size:9px; letter-spacing:.2px; }
+  .jp-c-rcov .rcov-tbl th, .jp-c-rcov .rcov-tbl td{ padding:7px 5px; }
+  .jp-c-rcov .rcov-tbl th:first-child, .jp-c-rcov .rcov-tbl td:first-child{ padding-left:9px; }
+  .jp-c-rcov .rcov-tbl td.mono{ font-size:10.5px; }
+  .jp-c-rcov .rcov-tbl .pill{ padding:2px 6px; font-size:9px; letter-spacing:.1px; }
+  .jp-c-rcov .toolbar{ flex-wrap:wrap; }
+  .jp-c-req th, .jp-c-req td{ padding-left:10px; padding-right:10px; }
+}
+/* judul kiri & kanan sejajar walau salah satunya 2 baris (browser yang mendukung subgrid) */
+@supports (grid-template-rows:subgrid){
+  @container jppage (min-width:1460px){
+    .jp-grid{ grid-template-rows:auto auto auto auto; }
+    .jp-cell{ display:grid; grid-row:span 2; grid-template-rows:subgrid; row-gap:0; }
+    .jp-cell > .jp-body{ align-self:stretch; }
+  }
+}
+
+/* Timeline JC: kontrol periode (mulai · ‹ › · Hari ini · 7 / 14 hari) */
+.jtl-ctl{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 12px; margin:0 0 10px; }
+.jtl-nav{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.jtl-start{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--txt2); margin:0; }
+.jtl-start input[type=date]{ width:auto; padding:6px 8px; }
+.jtl-arw{ min-width:34px; justify-content:center; font-size:16px; line-height:1; font-weight:800; }
+.jtl-ctl .btn[disabled]{ opacity:.45; cursor:default; pointer-events:none; }
+.jtl-nav .btn{ flex:0 0 auto; white-space:nowrap; }
+.jtl-rng{ font-size:12px; font-weight:800; letter-spacing:.2px; color:var(--txt); text-transform:none; }
+.jtl-sub{ font-size:11px; color:var(--txt3); font-weight:600; }
+#jtlExpRng{ font-size:11.5px; font-weight:600; color:var(--txt3); }
+@media (max-width:680px){
+  #jtlHead{ flex-wrap:wrap; row-gap:2px; }
+  .jtl-ctl{ justify-content:flex-start; }
+  .jtl-nav{ flex:1 1 100%; flex-wrap:nowrap; }                 /* ‹ [tanggal] › Hari ini — satu baris */
+  .jtl-start{ flex:1 1 auto; min-width:0; }
+  .jtl-start > span{ display:none; }
+  .jtl-start input[type=date]{ width:100%; min-width:0; }
+}
+
+/* ============================================================
+   DASHBOARD SATU LAYAR (desktop): kiri strip status + 6 kartu, kanan panel HP matriks JC
+   ============================================================ */
+@media(min-width:1001px){
+  .dash-one-h .dashview-toggle, .dash-one-h .dv-dots{display:none!important}
+  .dash-back{margin-left:auto;border:0;border-radius:999px;padding:8px 16px;font:inherit;font-size:13px;font-weight:800;cursor:pointer;background:var(--mint,var(--accent));color:var(--mint-ink,#111);box-shadow:var(--neu-sm)}
+  .dpm{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) clamp(330px,23%,420px);gap:18px}
+  .dpm-l{min-width:0;min-height:0;display:flex;flex-direction:column;gap:12px}
+  .dpm-l>.dashsplit{flex:1 1 auto;min-height:0}
+  .dash-one .dashleft.sum-left.sum6{grid-template-rows:repeat(2,minmax(150px,1fr))}
+  .dash-one .sum6 .card{padding:12px 14px}
+  .dash-one .sum-card h3{margin-bottom:6px;font-size:12.5px;gap:6px;row-gap:2px}
+  .dash-one .sum-left > .sum-card:first-child h3 .tag{display:none}   /* target sudah tertulis di grafik penanda */
+  /* label panjang di judul kartu & ikon info disembunyikan → judul tidak terpotong; tombol ▦ Tabel & ↗ tetap */
+  .dash-one .sum-card h3 .tag:not(.dana-tb), .dash-one .sum-card h3 .info{display:none}
+  .dash-one .sum-card h3 .dana-tb, .dash-one .sum-card h3 .al-go{margin-left:auto;flex:0 0 auto;white-space:nowrap}
+  body.soft .dash-one .sum-hero .v, .dash-one .sum-hero .v{font-size:34px!important}
+  .dash-one .sum-mini{margin-top:6px;padding-top:6px}
+  .dash-one .sum-mini b{font-size:14px}
+  .dash-one .ana-sub{margin-bottom:4px}
+  /* grafik lifetime & terjadwal mengisi sisa tinggi kartu → digambar ulang pas (tidak menimpa legenda di layar sempit) */
+  .dash-one .sum6 .card [data-sum="lolli"], .dash-one .sum6 .card [data-sum="col"]{flex:1 1 auto;min-height:0}
+  /* strip status */
+  .sbd{flex:0 0 auto;background:var(--panel);border-radius:18px;box-shadow:var(--neu-sm);padding:8px 14px 9px;container-type:inline-size;container-name:sbd}
+  .sbd-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+  .sbd-i{font:inherit;cursor:pointer;display:flex;align-items:center;gap:8px;min-width:0;border:0;border-radius:10px;background:transparent;color:var(--txt);padding:2px 10px;text-align:left;transition:background .12s}
+  .sbd-i:hover{background:color-mix(in srgb,var(--c) 10%,transparent)}
+  .sbd-i:focus-visible{outline:2px solid var(--c);outline-offset:1px}
+  .sbd-i+.sbd-i{border-top-left-radius:0;border-bottom-left-radius:0;box-shadow:-1px 0 0 var(--line)}
+  .sbd-dot{width:9px;height:9px;border-radius:50%;background:var(--c);flex:0 0 auto}
+  .sbd-l{font-size:12px;font-weight:700;color:var(--txt2);white-space:nowrap}
+  .sbd-i.lit .sbd-l{color:var(--c)}
+  .sbd-v{font-size:21px;font-weight:800;letter-spacing:-.5px;color:var(--txt);line-height:1.1}
+  .sbd-s{font-size:10.5px;color:var(--txt3);font-weight:700;margin-left:auto;white-space:nowrap}
+  .sbd-bar{display:flex;height:6px;border-radius:999px;overflow:hidden;margin-top:7px;gap:2px}
+  .sbd-bar i{display:block;min-width:4px;border-radius:999px}
+  @container sbd (max-width:700px){ .sbd-s{display:none} .sbd-i{gap:6px;padding:2px 8px} .sbd-v{font-size:18px} .sbd-l{font-size:11px} }   /* strip sempit: persen disembunyikan (tetap di tooltip & bar) */
+  /* panel HP — tema terang: bingkai hitam · tema gelap: bingkai putih */
+  .dpm-r{min-height:0;display:flex;justify-content:center;align-items:stretch;padding:2px 0 4px}
+  .pm-phone{--pf:#0b0c0f;--ps:#141519;width:100%;max-width:420px;min-height:0;display:flex;border-radius:44px;padding:9px;background:var(--pf);
+    box-shadow:0 0 0 1.5px rgba(255,255,255,.06) inset,0 22px 50px rgba(0,0,0,.35),0 4px 12px rgba(0,0,0,.25);
+    --bg:#1c1d22;--bg2:#202127;--panel:#16171b;--panel2:#1f2026;--line:#2a2c33;--line2:#373a43;--txt:#eef0f3;--txt2:#b5bac4;--txt3:#8a909c;
+    --accent:#5fd3ad;--accent2:#5fd3ad;--red:#ff6b67;--orange:#f4a65e;--yellow:#e8c75c;--green:#5fd3ad;--blue:#5b93f0;--neu:none;--neu-sm:none;--neu-in:none;color:var(--txt)}
+  .pm-phone.pm-lt{--pf:#f4f1ea;--ps:#ffffff;box-shadow:0 0 0 1.5px rgba(0,0,0,.06) inset,0 22px 50px rgba(0,0,0,.55),0 4px 12px rgba(0,0,0,.35);
+    --bg:#f2efe9;--bg2:#ece8e0;--panel:#ffffff;--panel2:#f3f0ea;--line:#e4dfd5;--line2:#d3ccbf;--txt:#1d1c1a;--txt2:#4a4640;--txt3:#7a746b;
+    --accent:#1d8464;--accent2:#1d8464;--red:#d04e4b;--orange:#b06418;--yellow:#8f6f06;--green:#1d8464;--blue:#3b74da}
+  .pm-scr{flex:1 1 auto;min-width:0;min-height:0;display:flex;flex-direction:column;background:var(--ps);border-radius:36px;overflow:hidden;padding:0 10px}
+  .pm-hd{flex:0 0 auto;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;padding:18px 8px 0}
+  .pm-hd small{font-size:10.5px;font-weight:700;color:var(--txt3);letter-spacing:.3px}
+  .pm-hd h3{margin:0;font-size:19px;font-weight:800;letter-spacing:-.4px;text-transform:none;color:var(--txt);white-space:nowrap}
+  .pm-open{flex:0 0 auto;width:30px;height:30px;border-radius:50%;border:1.5px solid var(--line2);background:transparent;color:var(--txt);font-size:14px;cursor:pointer;display:grid;place-items:center;padding:0}
+  .pm-open:hover{background:var(--txt);color:var(--ps)}
+  .pm-sub{flex:0 0 auto;font-size:11px;color:var(--txt3);padding:2px 8px 8px} .pm-sub b{color:var(--txt);font-family:'Spline Sans Mono'}
+  .pm-phone .jcsum{flex:1 1 auto;min-height:0;padding:0!important;margin:0!important;gap:8px}
+  .pm-phone .jcsum-bar{background:transparent!important;box-shadow:none!important;border:0!important;padding:0 4px!important;gap:6px;font-size:11px}
+  .pm-phone .jx-seg, .pm-phone .jcsum-hint, .pm-phone .jcsum-stat{display:none!important}
+  .pm-phone .jcmx-legend{gap:5px} .pm-phone .jcmx-legend .lg{font-size:10px;padding:2px 8px;border-radius:999px}
+  .pm-phone.pm-lt .jcmx-legend .lg-ganti{color:#a8520e;background:rgba(237,140,59,.14);border-color:rgba(237,140,59,.45)}
+  .pm-phone.pm-lt .jcmx-legend .lg-roaster{color:#0d7f80;background:rgba(34,193,195,.14);border-color:rgba(34,193,195,.45)}
+  .pm-phone .jcmx-wrap{flex:1 1 auto;min-height:0;border:0!important;border-radius:18px!important;box-shadow:none!important;background:var(--panel)!important;overscroll-behavior:contain}
+  .pm-phone .jcmx{font-size:10.5px}
+  .pm-phone .jcmx .jcmx-corner{min-width:96px;padding:6px 8px;font-size:8.5px}
+  .pm-phone .jcmx .jcmx-part{min-width:96px;max-width:104px;padding:4px 8px;font-size:10.5px}
+  .pm-phone .jcmx-arearow .jcmx-areacell{padding:4px 8px;font-size:8.5px}
+  .pm-phone .jcmx-jc{min-width:58px;padding:5px 4px}
+  .pm-phone .jcmx-jc .m{font-size:13px;font-family:inherit;letter-spacing:-.2px} .pm-phone .jcmx-jc .rem{font-size:8.5px} .pm-phone .jcmx-jc .dt{display:none} .pm-phone .jcmx-jc .tj{font-size:9px;max-width:66px}
+  .pm-phone .jcmx-jc .ckmk{font-size:8.5px!important;margin-top:1px!important}
+  .pm-phone .jcmx-cell{padding:3px 5px;font-size:10.5px;font-family:inherit;letter-spacing:-.1px}   /* huruf biasa (lebih ramping) → lebih banyak kolom JC terlihat */
+  .pm-phone.pm-lt .jcmx-cell.c-ganti{color:#a8520e;background:rgba(237,140,59,.13)}
+  /* Summary JC layar penuh di tema terang: teks sel ganti / roaster lebih gelap supaya terbaca */
+  body.light .jcmx-cell.c-ganti{color:#a8520e} body.light .jcmx-cell.c-roaster{color:#0d7f80}
+  body.light .jcmx-legend .lg-ganti{color:#a8520e} body.light .jcmx-legend .lg-roaster{color:#0d7f80}
+  .pm-phone.pm-lt .jcmx-cell.c-roaster{color:#0d7f80;background:rgba(34,193,195,.13)}
+  .pm-phone .jcsum-empty{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18px;color:var(--txt2)}
+  .pm-phone .jcmx-wrap::-webkit-scrollbar{width:6px;height:6px} .pm-phone .jcmx-wrap::-webkit-scrollbar-thumb{background:var(--line2);border-radius:9px}
+  .pm-home{flex:0 0 auto;height:22px;display:grid;place-items:center} .pm-home i{width:120px;height:4.5px;border-radius:9px;background:var(--txt);opacity:.75}
+}
+/* layar pendek (laptop 768 + bar browser): kartu diringkas — subjudul & kotak "bulan ini" disembunyikan */
+@media(min-width:1001px) and (max-height:820px){
+  .dash-one .sum-mini, .dash-one .ana-sub{display:none}
+  .dash-one .dashleft.sum-left.sum6{grid-template-rows:repeat(2,minmax(120px,1fr));gap:10px}
+  .dash-one .sum-card h3{font-size:11.5px}
+  .dpm-l{gap:10px}
+  .sbd{padding:6px 12px 7px} .sbd-v{font-size:19px} .sbd-bar{margin-top:5px}
+}
+
 </style>
 <script>
 /* ============ TWEAKS — expressive controls that reshape the whole dashboard's feel ============ */
