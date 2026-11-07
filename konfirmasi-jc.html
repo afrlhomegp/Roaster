@@ -5931,7 +5931,8 @@ function sumStripHTML(c){ const T=[['OVERDUE','Overdue','Lewat jadwal','var(--re
    (tanggal, shift, variabel/part, roaster, man power & jam) sehingga semua perhitungan di
    IS Machine (Sama/Ganti JC berikutnya, status mesin, record Input Data, Man Power) memakai
    data aktual. Isian plan asli disimpan di p.plan0 untuk perbandingan "plan vs aktual".
-   Data per plan:  p.conf  = {st:'sesuai'|'berubah'|'tunda', at, by, note, rec}
+   Data per plan:  p.conf  = {st:'sesuai'|'berubah'|'tunda', at, by, note, rec, chk}
+                   p.conf.chk = pilihan rekap Sama/Ganti per part & roaster + tambahan perbaikan (lihat kfDiff)
                    p.plan0 = {jcDate, shift, specs, roasterPlan, manpower, mpHours}   (snapshot plan asli)
    Lanjut: ceklist tekanan (sheet Ceklist JC) untuk JC yang sama.
    ===================================================================== */
@@ -5946,15 +5947,25 @@ function kfPlanOf(p){ const o={}; KF_FIELDS.forEach(k=>{ o[k]=(p&&p.plan0&&Objec
 function kfSpecTxt(v){ return String(v==null?'':v).trim(); }
 function kfRoTxt(rows){ return (rows||[]).filter(r=>r&&r.part).map(r=>r.part+((r.sections||[]).length?' '+jcfSecRange(r.sections):'')).join(' · '); }
 function kfMpTxt(mp){ return jcfMpGroups().map(g=>mpSplit((mp||{})[g.key]).join(', ')).filter(Boolean).join(' · '); }
-/* daftar perbedaan plan → aktual */
-function kfDiff(p){ if(!p||!p.plan0) return []; const P=p.plan0, out=[];
+/* daftar perbedaan plan → aktual
+   p.conf.chk = pilihan rekap {specs:{part:{st:'sama'|'ganti',ket}}, ro:[{part,st,ket,sections}], add:[{part,sections,ns,ket}]}
+   (konfirmasi lama tanpa chk: perbedaan dihitung dari isian aktual vs plan) */
+function kfDiff(p){ if(!p||!p.plan0) return []; const P=p.plan0, out=[], C=(p.conf&&p.conf.chk)||null;
   const add=(k,l,a,b)=>{ if(String(a==null?'':a)!==String(b==null?'':b)) out.push({k,l,plan:a,act:b}); };
   add('date','Tanggal',P.jcDate?fmtD(parseD(P.jcDate)):'',p.jcDate?fmtD(parseD(p.jcDate)):'');
   add('shift','Shift',P.shift||'',p.shift||'');
   const parts=[]; Object.keys(CFG.jcAreas||{}).forEach(a=>(CFG.jcAreas[a]||[]).forEach(x=>{ if(parts.indexOf(x)<0) parts.push(x); }));
   Object.keys(P.specs||{}).concat(Object.keys(p.specs||{})).forEach(x=>{ if(parts.indexOf(x)<0) parts.push(x); });
-  parts.forEach(x=>{ const a=kfSpecTxt((P.specs||{})[x]), b=kfSpecTxt((p.specs||{})[x]); if(jcfKey(a)!==jcfKey(b)) out.push({k:'spec',l:x,plan:a||'—',act:b||'—'}); });
-  add('ro','Roaster',kfRoTxt(P.roasterPlan)||'—',kfRoTxt(p.roasterPlan)||'—');
+  parts.forEach(x=>{ const a=kfSpecTxt((P.specs||{})[x]), b=kfSpecTxt((p.specs||{})[x]), c=C&&C.specs&&C.specs[x], beda=jcfKey(a)!==jcfKey(b);
+    if(c&&c.st==='ganti') out.push({k:'spec',l:x,plan:a||'—',act:'Ganti'+(c.ket?' · '+c.ket:'')+(beda?' ('+(b||'—')+')':'')});
+    else if(beda) out.push({k:'spec',l:x,plan:a||'—',act:b||'—'}); });
+  if(C&&Array.isArray(C.ro)){
+    C.ro.forEach(r=>{ if(!r||r.st!=='ganti') return; const pr=(P.roasterPlan||[]).find(q=>q&&q.part===r.part)||{};
+      const ps=jcfSecRange(pr.sections||[]), as=jcfSecRange(r.sections||[]);
+      out.push({k:'ro',l:'Roaster '+r.part,plan:ps?'S'+ps:'non-section',act:(as!==ps?(as?'S'+as:'tidak dikerjakan'):'Ganti')+(r.ket?' · '+r.ket:'')}); });
+    (C.add||[]).forEach(a=>{ if(!a||!a.part) return; const s=jcfSecRange(a.sections||[]);
+      out.push({k:'add',l:'Tambahan · '+a.part,plan:'—',act:(s?'S'+s:'non-section')+(a.ket?' · '+a.ket:'')}); });
+  } else add('ro','Roaster',kfRoTxt(P.roasterPlan)||'—',kfRoTxt(p.roasterPlan)||'—');
   add('mp','Man power',kfMpTxt(P.manpower)||'—',kfMpTxt(p.manpower)||'—');
   return out; }
 function kfDiffSpecN(p){ return kfDiff(p).filter(d=>d.k==='spec').length; }
@@ -5977,7 +5988,7 @@ function kfCardHTML(p){ const mc=p.machine||p.line||'—', c=p.conf, A=kfIdArg(p
   const info=[]; if(kfIsConf(p)) info.push(ck?`🧪 ${n.filled} titik${n.bad?' · <b class="kf-bad">⚠ '+n.bad+'</b>':''}`:'🧪 ceklist belum diisi');
   if(c&&c.at) info.push(kfAt(c.at)+(c.by?' · '+esc(c.by):''));
   return `<button type="button" class="kf-card" data-id="${esc(String(p.id))}" style="--rc:${rc}" onclick="kfOpen(${A})">
-    <span class="kf-c1"><b class="kf-mc">${esc(mc)}</b><span class="kf-job">#${esc(p.typeJob||'—')}</span>${p.shift?'<span class="kf-sh">'+esc(p.shift)+'</span>':''}${p.trial?'<em class="kf-tr">trial</em>':''}${kfStChip(p)}</span>
+    <span class="kf-c1"><b class="kf-mc">${esc(mc)}</b><span class="kf-job">#${esc(p.typeJob||'—')}</span>${p.trial?'<em class="kf-tr">trial</em>':''}${kfStChip(p)}</span>
     <span class="kf-c2">${esc(p.description||p.bottleSize||'—')}</span>
     ${info.length?`<span class="kf-by">${info.join(' · ')}</span>`:''}
     <span class="kf-go">${kfNeed(p)?'Konfirmasi &amp; ceklist':'Lihat / ubah'} <i>›</i></span></button>`; }
@@ -5988,14 +5999,54 @@ function vKonf(){ if(window._kfEdit) return kfFormHTML();
     ${L.length?`<div class="kf-prog"><span><b>${nOk}</b> / ${L.length} selesai</span><i><s style="width:${pct}%"></s></i></div>`:''}</div>
   ${L.length?`<div class="kf-grid">${L.map(kfCardHTML).join('')}</div>`:'<div class="kf-empty"><b>📭</b>Tidak ada JC yang diplanningkan hari ini</div>'}`; }
 
-/* ---------- form: 1 · Rekap plan  +  2 · Ceklist after JC  (satu kesatuan, satu tombol Simpan) ---------- */
+/* ---------- form: 1 · Rekap plan (Sama / Ganti per item) + Tambahan perbaikan  +  2 · Ceklist after JC  (satu tombol Simpan) ---------- */
 function kfParts(extra){ const out=[]; const add=x=>{ if(x&&out.indexOf(x)<0) out.push(x); };
   Object.keys(CFG.jcAreas||{}).forEach(a=>(CFG.jcAreas[a]||[]).forEach(add)); (extra||[]).forEach(add); return out; }
-function kfMkEdit(p){ const P=kfPlanOf(p), act=!!(p.conf&&p.conf.st!=='tunda'), cur=act?p:P, ck=kfCkOf(p);
-  const e={id:p.id, shift:cur.shift||'', specs:kfClone(cur.specs||{})||{}, ro:kfClone(cur.roasterPlan||[])||[],
+function kfSecCmp(a,b){ return String(a).localeCompare(String(b),undefined,{numeric:true}); }
+function kfSecTxt(secs){ const r=jcfSecRange(secs||[]); return r?'S'+r:''; }
+/* daftar mech preventive (Settings → area & grup PM) untuk "Tambahan perbaikan lainnya" — mech yang ada di plan tidak ditawarkan */
+function kfMechGroups(exclude){ const ex=new Set((exclude||[]).map(jcRoNorm)), seen=new Set(), out=[];
+  const take=x=>{ if(!x||seen.has(x)||ex.has(jcRoNorm(x))) return false; seen.add(x); return true; };
+  areaListAll().forEach(a=>areaGroupsOf(a).forEach(g=>{ const ps=(g.parts||[]).filter(take); if(ps.length) out.push({label:String(a).replace(/\s*Equipment$/i,'')+' · '+(g.name||'Mekanisme'),parts:ps}); }));
+  const rest=(CFG.parts||[]).filter(take); if(rest.length) out.push({label:'Lainnya',parts:rest});
+  return out; }
+function kfMkEdit(p){ const P=kfPlanOf(p), act=!!(p.conf&&p.conf.st!=='tunda'), cur=act?p:P, ck=kfCkOf(p), C=(act&&p.conf.chk)||null, PS=P.specs||{};
+  const e={id:p.id, shift:cur.shift||'', specs:kfClone(cur.specs||{})||{},
     mp:kfClone(cur.manpower||{})||{}, hr:kfClone(cur.mpHours||{})||{}, note:(act&&p.conf.note)||(ck&&ck.notes)||'',
-    tunda:!!(p.conf&&p.conf.st==='tunda'), newDate:'', why:(p.conf&&p.conf.st==='tunda'&&p.conf.note)||'', roPart:(jcRoSectParts()[0]||''), roSecs:[], devs:[]};
-  e.devs=kfParts(Object.keys(Object.assign({},P.specs||{},e.specs||{}))).filter(pt=>jcfKey(kfSpecTxt((P.specs||{})[pt]))!==jcfKey(kfSpecTxt(e.specs[pt])));
+    tunda:!!(p.conf&&p.conf.st==='tunda'), newDate:'', why:(p.conf&&p.conf.st==='tunda'&&p.conf.note)||'',
+    chk:{}, ro:[], add:[], rows:[], groups:[], adPart:'', adSecs:[], adKet:'', adOpen:false};
+  /* part variabel: semua part Planning JC per area (yang kosong di plan tetap tampil, boleh tidak dipilih) */
+  const base=jcBaseOf(p), dp={}; transitionDiff(base,{specs:PS}).forEach(d=>{ dp[d.part]=d; });
+  const all=kfParts(Object.keys(Object.assign({},PS,e.specs))), seen=new Set();
+  const areas=Object.keys(CFG.jcAreas||{}).map(a=>({area:a,parts:(CFG.jcAreas[a]||[]).filter(x=>x&&!seen.has(x)&&(seen.add(x),true))}));
+  const rest=all.filter(x=>!seen.has(x)); if(rest.length) areas.push({area:'LAINNYA',parts:rest});
+  areas.forEach(g=>{ if(!g.parts.length) return; const idx=[];
+    g.parts.forEach(pt=>{ const pv=kfSpecTxt(PS[pt]), d=dp[pt], st=d&&d.status;
+      const tag=st==='change'?{c:'chg',t:'ganti dari '+d.oldV}:st==='add'?{c:'add',t:'pasang baru'}:st==='remove'?{c:'rem',t:'dilepas · sebelumnya '+d.oldV}:null;
+      idx.push(e.rows.length); e.rows.push({t:'s',part:pt,pv,tag,req:!!(pv||tag)});
+      const c=C&&C.specs&&C.specs[pt];
+      if(c&&(c.st==='sama'||c.st==='ganti')){ e.chk[pt]={st:c.st,ket:c.ket||''}; return; }
+      if(!act||C) return;
+      const av=kfSpecTxt(e.specs[pt]);   /* konfirmasi versi lama (isian angka) → dipetakan ke Sama / Ganti */
+      if(jcfKey(pv)!==jcfKey(av)) e.chk[pt]={st:'ganti',ket:av?'terpasang: '+av:'tidak terpasang'};
+      else if(pv) e.chk[pt]={st:'sama',ket:''}; });
+    e.groups.push({area:g.area,idx}); });
+  /* roaster plan */
+  const aro=(act?(p.roasterPlan||[]):[]).filter(r=>r&&r.part), used=new Set(), ridx=[];
+  (P.roasterPlan||[]).filter(r=>r&&r.part).forEach((r,i)=>{ const ps=(r.sections||[]).slice().sort(kfSecCmp), ns=!ps.length&&(!!r.ns||jcRoIsNs(r.part));
+    let st='', ket='', secs=ps.slice();
+    const c=C&&Array.isArray(C.ro)?((C.ro[i]&&C.ro[i].part===r.part)?C.ro[i]:C.ro.find(x=>x&&x.part===r.part)):null;
+    if(c){ st=(c.st==='sama'||c.st==='ganti')?c.st:''; ket=c.ket||''; if(Array.isArray(c.sections)) secs=c.sections.slice(); }
+    else if(act){ const j=aro.findIndex((x,k)=>!used.has(k)&&x.part===r.part);
+      if(j>=0){ used.add(j); const as=(aro[j].sections||[]).slice().sort(kfSecCmp), same=jcfSecRange(as)===jcfSecRange(ps); st=same?'sama':'ganti'; secs=as; if(!same) ket='section aktual: '+(kfSecTxt(as)||'—'); }
+      else { st='ganti'; secs=[]; ket='tidak dikerjakan'; } }
+    const ri=e.ro.length; e.ro.push({part:r.part,ps,sections:secs,ns,st,ket});
+    ridx.push(e.rows.length); e.rows.push({t:'r',i:ri,req:true}); });
+  if(ridx.length) e.groups.push({area:'ROASTER PLAN',idx:ridx,ro:true});
+  /* tambahan perbaikan lainnya (di luar plan) */
+  if(C&&Array.isArray(C.add)) e.add=C.add.filter(x=>x&&x.part).map(x=>({part:x.part,sections:(x.sections||[]).slice(),ns:!!x.ns,ket:x.ket||''}));
+  else if(act) aro.forEach((x,k)=>{ if(!used.has(k)) e.add.push({part:x.part,sections:(x.sections||[]).slice(),ns:!(x.sections||[]).length,ket:''}); });   /* roaster tambahan versi lama */
+  const mg=kfMechGroups(e.ro.map(r=>r.part)); e.adPart=(mg[0]&&mg[0].parts[0])||'';
   return e; }
 function kfCkInit(p){ const ck=kfCkOf(p);
   window._jccEdit=ck?kfClone(ck):{id:null,date:p.jcDate,machine:p.machine||p.line||'',typeJob:p.typeJob||'',cd:p.cd||'',process:p.process||(CFG.processes[0]||''),weight:p.weight||'',perbaikan:'',variabel:'',sec:{},glob:{},notes:'',srcPlan:p.id};
@@ -6006,36 +6057,68 @@ function kfOpen(id,where){ const p=kfPlan(id); if(!p){ toast('Plan JC tidak dite
   render(); try{ const t=where==='ck'&&document.getElementById('kfCk'); if(t) t.scrollIntoView({block:'start'}); else window.scrollTo(0,0); }catch(e){} }
 function kfClose(){ window._kfEdit=null; window._jccEdit=null; render(); try{ window.scrollTo(0,0); }catch(e){} }
 function kfTunda(on){ const e=window._kfEdit; if(!e) return; e.tunda=!!on; render(); }
-function kfSpec(part,v){ const e=window._kfEdit; if(!e) return; e.specs[part]=v; try{ const P=kfPlanOf(kfPlan(e.id)), pv=kfSpecTxt((P.specs||{})[part]), ch=jcfKey(kfSpecTxt(v))!==jcfKey(pv);
-    const row=document.querySelector('.kf-rr[data-k="'+CSS.escape(part)+'"]'); if(row){ row.classList.toggle('chg',ch); const s=row.querySelector('.kf-was'); if(s) s.textContent=ch?'plan: '+(pv||'—'):''; } kfPaintSum(); }catch(_){} }
-function kfDevAdd(pt){ const e=window._kfEdit; if(!e||!pt) return; if(e.devs.indexOf(pt)<0) e.devs.push(pt); render();
-  setTimeout(()=>{ try{ const i=document.querySelector('.kf-rr[data-k="'+CSS.escape(pt)+'"] input'); if(i){ i.focus(); if(i.select) i.select(); } }catch(_){} },40); }
-function kfSugg(pt){ const m={}; (JCPLANS||[]).forEach(q=>{ [q&&q.specs,q&&q.plan0&&q.plan0.specs].forEach(s=>{ const v=kfSpecTxt(s&&s[pt]); if(v&&v!=='-') m[v]=(m[v]||0)+1; }); });
-  return Object.keys(m).sort((a,b)=>m[b]-m[a]).slice(0,40); }
 function kfMp(k,v){ const e=window._kfEdit; if(e) e.mp[k]=v; }
 function kfHr(k,v){ const e=window._kfEdit; if(!e) return; const n=parseFloat(String(v).replace(',','.')); if(n>0) e.hr[k]=Math.round(n*100)/100; else delete e.hr[k]; }
 function kfFld(k,v){ const e=window._kfEdit; if(e) e[k]=v; }
 function kfTog(k,v){ const e=window._kfEdit; if(!e||!!e[k]===!!v) return; e[k]=!!v; render(); }
-function kfRoToggle(i){ const e=window._kfEdit; if(!e||!e.ro[i]) return; e.ro[i].off=!e.ro[i].off; render(); }
-function kfRoSec(i,s){ const e=window._kfEdit; const r=e&&e.ro[i]; if(!r) return; r.sections=r.sections||[]; const j=r.sections.indexOf(s); if(j<0) r.sections.push(s); else r.sections.splice(j,1);
-  r.sections.sort((a,b)=>String(a).localeCompare(String(b),undefined,{numeric:true})); render(); }
-function kfRoAdd(){ const e=window._kfEdit; if(!e) return; const part=e.roPart; if(!part) return; const ns=jcRoIsNs(part), secs=ns?[]:(e.roSecs||[]).slice();
+/* ----- pilihan Sama / Ganti per baris rekap ----- */
+function kfRowSt(i){ const e=window._kfEdit, r=e&&e.rows[i]; if(!r) return ''; if(r.t==='s'){ const c=e.chk[r.part]; return (c&&c.st)||''; } return (e.ro[r.i]&&e.ro[r.i].st)||''; }
+function kfIsTodo(i){ const e=window._kfEdit, r=e&&e.rows[i]; return !!(r&&r.req&&!kfRowSt(i)); }
+function kfTodo(){ const e=window._kfEdit, out=[]; if(!e) return out; e.rows.forEach((r,i)=>{ if(kfIsTodo(i)) out.push(i); }); return out; }
+function kfReqN(){ const e=window._kfEdit; return e?e.rows.filter(r=>r.req).length:0; }
+function kfSetSt(i,st){ const e=window._kfEdit, r=e&&e.rows[i]; if(!r) return;
+  if(r.t==='s'){ if(!st){ delete e.chk[r.part]; return; } const c=e.chk[r.part]; e.chk[r.part]={st,ket:(c&&c.ket)||''}; return; }
+  const o=e.ro[r.i]; if(!o) return; o.st=st||''; if(st==='sama') o.sections=o.ps.slice(); }
+function kfPick(i,st){ const was=kfRowSt(i); kfSetSt(i,was===st?'':st); kfRowPaint(i); kfPaintSum();
+  if(kfRowSt(i)==='sama') kfNext(i);
+  else if(kfRowSt(i)==='ganti'){ try{ const el=document.querySelector('.kf-rw[data-i="'+i+'"]'), r=el&&el.getBoundingClientRect(); if(r&&r.bottom>window.innerHeight-90) el.scrollIntoView({block:'center',behavior:'smooth'}); }catch(_){} } }
+function kfKet(i,v){ const e=window._kfEdit, r=e&&e.rows[i]; if(!r) return; if(r.t==='s'){ if(e.chk[r.part]) e.chk[r.part].ket=v; } else if(e.ro[r.i]) e.ro[r.i].ket=v; }
+function kfRoSec(i,s){ const e=window._kfEdit, r=e&&e.rows[i], o=r&&r.t==='r'&&e.ro[r.i]; if(!o) return; const a=o.sections||(o.sections=[]), j=a.indexOf(s);
+  if(j<0) a.push(s); else a.splice(j,1); a.sort(kfSecCmp); kfRowPaint(i); kfPaintSum(); }
+/* "kalau Sama → lanjut ke bawahnya": sorot & gulir ke item berikutnya yang belum dipilih */
+function kfNext(i){ const e=window._kfEdit; if(!e) return; let j=-1;
+  for(let k=i+1;k<e.rows.length;k++) if(kfIsTodo(k)){ j=k; break; }
+  if(j<0) for(let k=0;k<i;k++) if(kfIsTodo(k)){ j=k; break; }
+  if(j>=0) kfGoRow(j,true); }
+function kfGoRow(j,soft){ const el=document.querySelector('.kf-rw[data-i="'+j+'"]'); if(!el) return;
+  document.querySelectorAll('.kf-rw.hl').forEach(x=>x.classList.remove('hl')); el.classList.add('hl');
+  try{ const r=el.getBoundingClientRect(); if(!soft||r.bottom>window.innerHeight-96||r.top<64) el.scrollIntoView({block:'center',behavior:'smooth'}); }catch(_){}
+  clearTimeout(window._kfHlT); window._kfHlT=setTimeout(()=>{ try{ el.classList.remove('hl'); }catch(_){} },1800); }
+function kfAllSama(){ kfTodo().forEach(i=>kfSetSt(i,'sama')); render(); }
+function kfRowHTML(i){ const e=window._kfEdit, r=e&&e.rows[i]; if(!r) return ''; const st=kfRowSt(i);
+  const seg=`<div class="kf-sg" role="group" aria-label="Sama atau ganti"><button type="button" class="kf-sgb s${st==='sama'?' on':''}" aria-pressed="${st==='sama'}" onclick="kfPick(${i},'sama')">Sama</button><button type="button" class="kf-sgb g${st==='ganti'?' on':''}" aria-pressed="${st==='ganti'}" onclick="kfPick(${i},'ganti')">Ganti</button></div>`;
+  if(r.t==='s'){ const c=e.chk[r.part]||{}, tg=r.tag?`<span class="kf-tg ${r.tag.c}">${esc(r.tag.t)}</span>`:'';
+    return `<div class="kf-rw${st?' '+st:''}${r.req?'':' opt'}" data-i="${i}"><div class="kf-rn"><b title="${esc(r.part)}">${esc(r.part)}</b><small>${r.pv?`<span class="kf-pv">${esc(r.pv)}</span>`:'<span class="kf-pv0">tidak diisi di plan</span>'}${tg}</small></div>${seg}`
+      +(st==='ganti'?`<input class="kf-ket" value="${esc(c.ket||'')}" oninput="kfKet(${i},this.value)" placeholder="Keterangan (boleh kosong) — mis. pakai yang lain" aria-label="Keterangan ganti ${esc(r.part)}" autocomplete="off">`:'')+`</div>`; }
+  const o=e.ro[r.i], mc=(kfPlan(e.id)||{}), secsAll=sectionsOf(mc.machine||mc.line);
+  const gx=st!=='ganti'?'':(o.ns?'':`<div class="kf-gx"><span class="kf-gl">Section yang dikerjakan</span><span class="kf-secs">${secsAll.map(s=>`<button type="button" class="kf-sc${(o.sections||[]).indexOf(s)>=0?' on':''}" onclick="kfRoSec(${i},'${esc(s)}')">${esc(s)}</button>`).join('')}</span></div>`)
+    +`<input class="kf-ket" value="${esc(o.ket||'')}" oninput="kfKet(${i},this.value)" placeholder="Keterangan (boleh kosong)" aria-label="Keterangan roaster ${esc(o.part)}" autocomplete="off">`;
+  return `<div class="kf-rw ro${st?' '+st:''}" data-i="${i}"><div class="kf-rn"><b title="${esc(o.part)}">${esc(o.part)}</b><small><span class="kf-pv">${o.ns?'non-section':esc(kfSecTxt(o.ps)||'—')}</span><span class="kf-tg ro">roaster</span></small></div>${seg}${gx}</div>`; }
+function kfRowPaint(i){ const el=document.querySelector('.kf-rw[data-i="'+i+'"]'); if(!el) return; const t=document.createElement('div'); t.innerHTML=kfRowHTML(i); const n=t.firstElementChild; if(n) el.replaceWith(n); }
+/* ----- tambahan perbaikan lainnya ----- */
+function kfAdSec(s){ const e=window._kfEdit; if(!e) return; const a=e.adSecs||(e.adSecs=[]), j=a.indexOf(s); if(j<0) a.push(s); else a.splice(j,1); render(); }
+function kfAdAdd(){ const e=window._kfEdit; if(!e) return; const part=e.adPart; if(!part){ toast('Pilih mech dulu',1); return; }
+  const ns=jcRoIsNs(part), secs=ns?[]:(e.adSecs||[]).slice().sort(kfSecCmp), ket=String(e.adKet||'').trim();
   if(!ns&&!secs.length){ toast('Pilih minimal 1 section',1); return; }
-  const ex=e.ro.find(r=>r.part===part); if(ex){ ex.off=false; if(!ns){ ex.sections=[...new Set((ex.sections||[]).concat(secs))].sort((a,b)=>String(a).localeCompare(String(b),undefined,{numeric:true})); } }
-  else e.ro.push(ns?{part,sections:[],ns:true}:{part,sections:secs.sort((a,b)=>String(a).localeCompare(String(b),undefined,{numeric:true}))});
-  e.roSecs=[]; e.roOpen=false; render(); }
-function kfRoNewSec(s){ const e=window._kfEdit; if(!e) return; const a=e.roSecs||(e.roSecs=[]); const j=a.indexOf(s); if(j<0) a.push(s); else a.splice(j,1); render(); }
-/* jumlah beda (isian sekarang vs plan) */
-function kfDiffNow(){ const e=window._kfEdit; if(!e) return []; const p=kfPlan(e.id); if(!p) return []; const P=kfPlanOf(p), t=[];
-  if((e.shift||'')!==(P.shift||'')) t.push('shift');
-  let n=0; Object.keys(Object.assign({},P.specs||{},e.specs||{})).forEach(k=>{ if(jcfKey(kfSpecTxt((P.specs||{})[k]))!==jcfKey(kfSpecTxt(e.specs[k]))) n++; }); if(n) t.push(n+' part');
-  if(kfRoTxt(P.roasterPlan)!==kfRoTxt(e.ro.filter(r=>!r.off&&(r.ns||(r.sections||[]).length)))) t.push('roaster');
+  if(!ket){ toast('Isi keterangan perbaikannya',1); try{ const i=document.getElementById('kfAdKet'); if(i) i.focus(); }catch(_){} return; }
+  e.add.push({part,sections:secs,ns,ket}); e.adSecs=[]; e.adKet=''; render(); kfPaintSum(); }
+function kfAdDel(j){ const e=window._kfEdit; if(!e||!e.add[j]) return; e.add.splice(j,1); render(); }
+/* ringkasan isian sekarang vs plan */
+function kfDiffNow(){ const e=window._kfEdit; if(!e) return []; const t=[];
+  const n=Object.keys(e.chk).filter(k=>e.chk[k]&&e.chk[k].st==='ganti').length; if(n) t.push(n+' part');
+  const r=e.ro.filter(x=>x.st==='ganti').length; if(r) t.push(r+' roaster');
+  if(e.add.length) t.push(e.add.length+' tambahan');
   return t; }
+function kfRcChip(){ const t=kfDiffNow(), todo=kfTodo().length, req=kfReqN();
+  if(t.length) return `<span class="kf-st" id="kfRcSt" style="--c:var(--blue)">✏️ ganti: ${esc(t.join(', '))}</span>`;
+  if(todo) return `<span class="kf-st" id="kfRcSt" style="--c:var(--orange)">● ${req-todo}/${req} dicek</span>`;
+  return '<span class="kf-st" id="kfRcSt" style="--c:var(--green)">✅ sesuai plan</span>'; }
 function kfPaintSum(){ const el=document.getElementById('kfSum'); if(el) el.innerHTML=kfSumTxt();
-  const ch=document.getElementById('kfRcSt'); if(ch){ const t=kfDiffNow(); ch.outerHTML=t.length?`<span class="kf-st" id="kfRcSt" style="--c:var(--blue)">✏️ beda: ${t.join(', ')}</span>`:'<span class="kf-st" id="kfRcSt" style="--c:var(--green)">✅ sesuai plan</span>'; } }
+  const ch=document.getElementById('kfRcSt'); if(ch) ch.outerHTML=kfRcChip();
+  const b=document.getElementById('kfAllBtn'); if(b){ const n=kfTodo().length; b.hidden=!n; b.textContent='✓ Sisanya sama ('+n+')'; } }
 function kfSumTxt(){ const e=window._kfEdit; if(!e) return ''; if(e.tunda) return e.newDate?'⏸ Dipindah ke <b>'+fmtD(parseD(e.newDate))+'</b>':'⏸ Ditandai <b>ditunda</b>';
-  const t=kfDiffNow(), c=window._jccEdit, n=c?jccCounts(c):{filled:0,bad:0};
-  return (t.length?'✏️ Beda dari plan: <b>'+t.join(', ')+'</b>':'✅ Sesuai plan')+' · 🧪 '+n.filled+' titik'+(n.bad?' · ⚠ '+n.bad:''); }
+  const t=kfDiffNow(), todo=kfTodo().length, req=kfReqN(), c=window._jccEdit, n=c?jccCounts(c):{filled:0,bad:0};
+  return (t.length?'✏️ Ganti: <b>'+esc(t.join(', '))+'</b>':todo?'● <b>'+(req-todo)+'/'+req+'</b> dicek':'✅ Sesuai plan')+' · 🧪 '+n.filled+' titik'+(n.bad?' · ⚠ '+n.bad:''); }
 /* tabel tekanan ringkas: tekan sel lalu geser kiri/kanan (tanpa pop-up) */
 function kfCkHTML(p){ const c=window._jccEdit; if(!c) return ''; jccEnsureCss();
   const secs=sectionsOf(c.machine), n=jccCounts(c);
@@ -6052,10 +6135,10 @@ function kfCkHTML(p){ const c=window._jccEdit; if(!c) return ''; jccEnsureCss();
     <label class="kf-f"><span>Perbaikan / temuan setelah JC</span><textarea rows="2" oninput="jccHdr('perbaikan',this.value)" placeholder="mis. ganti seal plunger S3, setting ulang timing">${esc(c.perbaikan||'')}</textarea></label></div>`; }
 function kfFormHTML(){ const e=window._kfEdit, p=kfPlan(e.id);
   if(!p){ window._kfEdit=null; window._jccEdit=null; return '<div class="kf-empty"><b>⚠️</b>Plan JC tidak ditemukan<div><button type="button" class="kf-b" onclick="kfClose()">← Kembali</button></div></div>'; }
-  const P=kfPlanOf(p), PS=P.specs||{}, mc=p.machine||p.line||'—', secsAll=sectionsOf(mc), c=p.conf, jd=P.jcDate||p.jcDate;
+  const P=kfPlanOf(p), mc=p.machine||p.line||'—', secsAll=sectionsOf(mc), c=p.conf, jd=P.jcDate||p.jcDate;
   const head=`<div class="kf-head"><button type="button" class="kf-back" onclick="kfClose()" aria-label="Kembali ke daftar" title="Kembali ke daftar">←</button>
       <div class="kf-ht"><h2>${esc(mc)} <span>#${esc(p.typeJob||'—')}</span>${p.trial?' <em class="kf-tr">trial</em>':''}</h2>
-      <small>${(jcDayName(jd)||'').slice(0,3)} ${jd?fmtD(parseD(jd)):'—'} · ${esc(P.shift||'—')}${p.description||p.bottleSize?' · '+esc(p.description||p.bottleSize):''}</small></div></div>
+      <small>${(jcDayName(jd)||'').slice(0,3)} ${jd?fmtD(parseD(jd)):'—'}${p.description||p.bottleSize?' · '+esc(p.description||p.bottleSize):''}</small></div></div>
     ${c?`<div class="kf-cinfo" style="--c:${KF_ST[c.st].c}"><span>${KF_ST[c.st].ic} ${KF_ST[c.st].t}${c.at?' · '+kfAt(c.at):''}${c.by?' · '+esc(c.by):''}</span><button type="button" class="kf-lnk" onclick="kfUndo()" title="Kembalikan isian ke plan asli">↺ Batalkan konfirmasi</button></div>`:''}`;
   let body;
   if(e.tunda){
@@ -6065,40 +6148,34 @@ function kfFormHTML(){ const e=window._kfEdit, p=kfPlan(e.id);
       <div class="kf-hint">Ada jadwal baru → JC pindah ke tanggal itu. Kosong → ditandai <b>Ditunda</b>.</div>
       <button type="button" class="kf-lnk2" onclick="kfTunda(false)">← JC jadi dikerjakan</button></div>`;
   } else {
-    /* 1 · Rekap plan: part yang DIGANTI di JC ini (vs JC sebelumnya) + yang ditandai beda; nilai = aktual (awal = plan) */
-    const base=jcBaseOf(p), dp=transitionDiff(base,{specs:PS}), g=new Set(dp.filter(d=>d.status!=='same').map(d=>d.part));
-    const show=kfParts(Object.keys(Object.assign({},PS,e.specs))).filter(pt=>g.has(pt)||e.devs.indexOf(pt)>=0);
-    const rows=show.map((pt,i)=>{ const pv=kfSpecTxt(PS[pt]), av=kfSpecTxt(e.specs[pt]), bv=kfSpecTxt(base&&base.specs&&base.specs[pt]), ch=jcfKey(pv)!==jcfKey(av);
-      return `<div class="kf-rr${ch?' chg':''}" data-k="${esc(pt)}"><div class="kf-rn"><b title="${esc(pt)}">${esc(pt)}</b><small>${bv?'dari '+esc(bv):g.has(pt)?'pasang baru':'tetap'}<span class="kf-was">${ch?'plan: '+esc(pv||'—'):''}</span></small></div>`
-        +`<input value="${esc(av)}" data-k="${esc(pt)}" list="kfdl${i}" oninput="kfSpec(this.dataset.k,this.value)" placeholder="—" aria-label="Aktual ${esc(pt)}" autocomplete="off"><datalist id="kfdl${i}">${kfSugg(pt).map(v=>`<option value="${esc(v)}">`).join('')}</datalist></div>`; }).join('');
-    const opts=Object.keys(CFG.jcAreas||{}).map(a=>{ const ps=(CFG.jcAreas[a]||[]).filter(pt=>show.indexOf(pt)<0);
-      return ps.length?`<optgroup label="${esc(a)}">${ps.map(pt=>`<option value="${esc(pt)}">${esc(pt)} — ${esc(kfSpecTxt(PS[pt])||'—')}</option>`).join('')}</optgroup>`:''; }).join('');
-    const ro=e.ro.map((r,i)=>{ const ns=!(r.sections||[]).length&&(r.ns||jcRoIsNs(r.part));
-      return `<div class="kf-ro${r.off?' off':''}"><label class="kf-rck"><input type="checkbox" ${r.off?'':'checked'} onchange="kfRoToggle(${i})"><b>${esc(r.part)}</b></label>`
-        +(ns?'<span class="kf-rns">non-section</span>':`<span class="kf-secs">${secsAll.map(s=>`<button type="button" class="kf-sc${(r.sections||[]).indexOf(s)>=0?' on':''}" ${r.off?'disabled':''} onclick="kfRoSec(${i},'${esc(s)}')">${esc(s)}</button>`).join('')}</span>`)+`</div>`; }).join('');
-    const sp=jcRoSectParts(), np=jcRoNsParts(), nsNew=jcRoIsNs(e.roPart);
-    const roAdd=`<details class="kf-more"${e.roOpen?' open':''} ontoggle="kfTog('roOpen',this.open)"><summary><span>＋ Roaster lain yang dipasang</span></summary>${e.roOpen?`<div class="kf-roaddb">
-        <select onchange="kfFld('roPart',this.value);kfFld('roSecs',[]);render()" aria-label="Part roaster"><optgroup label="Per section">${sp.map(x=>`<option${x===e.roPart?' selected':''}>${esc(x)}</option>`).join('')}</optgroup>${np.length?`<optgroup label="Non-section">${np.map(x=>`<option${x===e.roPart?' selected':''}>${esc(x)}</option>`).join('')}</optgroup>`:''}</select>
-        ${nsNew?'<span class="kf-rns">non-section</span>':`<span class="kf-secs">${secsAll.map(s=>`<button type="button" class="kf-sc${(e.roSecs||[]).indexOf(s)>=0?' on':''}" onclick="kfRoNewSec('${esc(s)}')">${esc(s)}</button>`).join('')}</span>`}
-        <button type="button" class="kf-b" onclick="kfRoAdd()">＋ Tambah</button></div>`:''}</details>`;
+    /* 1 · Rekap plan: tiap item dipilih Sama (sesuai plan) / Ganti (beda → keterangan opsional) */
+    const grp=e.groups.map(g=>`<div class="kf-grp"><div class="kf-gh">${g.ro?'🔁':areaIcon(g.area)} ${esc(g.area)}</div>${g.idx.map(kfRowHTML).join('')}</div>`).join('');
+    const todo=kfTodo().length;
+    /* tambahan perbaikan lainnya: mech preventive di luar plan + keterangan */
+    const mg=kfMechGroups(e.ro.map(r=>r.part)), flat=[].concat(...mg.map(g=>g.parts));
+    if(flat.indexOf(e.adPart)<0) e.adPart=flat[0]||'';
+    const nsAd=!!e.adPart&&jcRoIsNs(e.adPart);
+    const adList=e.add.map((a,j)=>`<div class="kf-ad"><div><b>${esc(a.part)}</b><span class="kf-adsec">${a.ns?'non-section':esc(kfSecTxt(a.sections))}</span>${a.ket?`<small>${esc(a.ket)}</small>`:''}</div><button type="button" class="kf-x" onclick="kfAdDel(${j})" aria-label="Hapus ${esc(a.part)}" title="Hapus">✕</button></div>`).join('');
+    const adB=!mg.length?'<div class="kf-hint">Belum ada mech preventive di Settings (area &amp; grup part).</div>'
+      :`<div class="kf-adb"><select onchange="kfFld('adPart',this.value);kfFld('adSecs',[]);render()" aria-label="Mech yang diperbaiki">${mg.map(g=>`<optgroup label="${esc(g.label)}">${g.parts.map(x=>`<option${x===e.adPart?' selected':''}>${esc(x)}</option>`).join('')}</optgroup>`).join('')}</select>
+        ${nsAd?'<span class="kf-rns">non-section</span>':`<span class="kf-secs">${secsAll.map(s=>`<button type="button" class="kf-sc${(e.adSecs||[]).indexOf(s)>=0?' on':''}" onclick="kfAdSec('${esc(s)}')">${esc(s)}</button>`).join('')}</span>`}
+        <input id="kfAdKet" class="kf-ket" value="${esc(e.adKet||'')}" oninput="kfFld('adKet',this.value)" placeholder="Keterangan perbaikan — mis. ganti spring, setting ulang" aria-label="Keterangan perbaikan" autocomplete="off">
+        <button type="button" class="kf-b" onclick="kfAdAdd()">＋ Tambah perbaikan</button></div>`;
+    const adOpen=e.adOpen||false;
+    const tambah=`<details class="kf-more"${adOpen?' open':''} ontoggle="kfTog('adOpen',this.open)"><summary><span>🔧 Tambahan perbaikan lainnya</span><small>${e.add.length?e.add.length+' item':'di luar plan'}</small></summary>${adOpen?`<div class="kf-hint kf-hp">Mech preventive yang dikerjakan di luar plan. Yang sudah ada di plan cukup dipilih Sama / Ganti di atas.</div>${adList?`<div class="kf-ads">${adList}</div>`:''}${adB}`:''}</details>`;
     const mpS=kfMpTxt(e.mp), hrN=Object.values(e.hr||{}).reduce((a,b)=>a+(+b||0),0);
     const mp=`<details class="kf-more"${e.mpOpen?' open':''} ontoggle="kfTog('mpOpen',this.open)"><summary><span>👷 Man power &amp; jam</span><small>${esc(mpS||'belum diisi')}${hrN?' · '+String(Math.round(hrN*100)/100).replace('.',',')+' jam':''}</small></summary>
       ${e.mpOpen?`<div class="kf-mp">${jcfMpGroups().map(gr=>`<div class="kf-mpr"><span>${esc(gr.label)}</span><input value="${esc(e.mp[gr.key]||'')}" data-k="${esc(gr.key)}" oninput="kfMp(this.dataset.k,this.value)" placeholder="nama (pisah koma)" list="kfPeople" aria-label="${esc(gr.label)}"><input class="kf-hrin" type="text" inputmode="decimal" value="${e.hr[gr.key]?String(e.hr[gr.key]).replace('.',','):''}" data-k="${esc(gr.key)}" oninput="kfHr(this.dataset.k,this.value)" placeholder="jam" aria-label="Jam kerja ${esc(gr.label)}"></div>`).join('')}</div>
       <datalist id="kfPeople">${mpPeople().filter(o=>!o.hidden).map(o=>`<option value="${esc(o.name)}">`).join('')}</datalist>`:''}</details>`;
-    const t=kfDiffNow();
-    const shOpts=CFG.shifts.map(sh=>`<option${sh===e.shift?' selected':''}>${esc(sh)}</option>`).join('')+(e.shift&&CFG.shifts.indexOf(e.shift)<0?`<option selected>${esc(e.shift)}</option>`:'');
-    body=`<div class="kf-box"><div class="kf-h3"><span class="kf-n">1</span>Rekap plan${t.length?`<span class="kf-st" id="kfRcSt" style="--c:var(--blue)">✏️ beda: ${t.join(', ')}</span>`:'<span class="kf-st" id="kfRcSt" style="--c:var(--green)">✅ sesuai plan</span>'}</div>
-      <div class="kf-hint">Isian awal = plan. Ubah hanya yang <b>berbeda</b> dengan yang terpasang.</div>
-      <div class="kf-rr kf-rsh"><div class="kf-rn"><b>Shift</b><small>plan: ${esc(P.shift||'—')}</small></div><select onchange="kfFld('shift',this.value);kfPaintSum()" aria-label="Shift">${shOpts}</select></div>
-      ${rows?`<div class="kf-rrs">${rows}</div>`:'<div class="kf-hint">Tidak ada part yang diganti di plan ini.</div>'}
-      ${opts?`<select class="kf-add" onchange="kfDevAdd(this.value)" aria-label="Part lain yang beda dari plan"><option value="">＋ Part lain yang beda dari plan…</option>${opts}</select>`:''}
-      ${ro?`<div class="kf-ros">${ro}</div>`:''}${roAdd}${mp}
+    body=`<div class="kf-box"><div class="kf-h3"><span class="kf-n">1</span>Rekap plan${kfRcChip()}</div>
+      <div class="kf-rtop"><div class="kf-hint"><b>Sama</b> = terpasang sesuai plan · <b>Ganti</b> = beda dari plan (keterangan boleh kosong).</div><button type="button" class="kf-all" id="kfAllBtn" onclick="kfAllSama()"${todo?'':' hidden'}>✓ Sisanya sama (${todo})</button></div>
+      ${grp||'<div class="kf-hint">Belum ada part di Settings → Planning JC.</div>'}
+      ${tambah}${mp}
       <button type="button" class="kf-lnk2" onclick="kfTunda(true)">⏸ JC tidak jadi / ditunda?</button></div>
       ${kfCkHTML(p)}`;
   }
   const foot=`<div class="kf-foot"><div class="kf-sum" id="kfSum">${kfSumTxt()}</div><button type="button" class="kf-b pri" onclick="kfSaveAll()">💾 Simpan</button></div>`;
   return `<div class="kf-form">${head}${body}${foot}</div>`; }
-
 /* ---------- simpan / batalkan ---------- */
 function kfResync(p,oldM,oldD){ try{ if(p.varApplied) syncJCVarPlan(p); if(p.roasterApplied) syncRoasterPlan(p); }catch(e){ console.error('kfResync',e); }
   try{ jcSibResync(oldM,oldD,p.id); jcSibResync(p.machine||p.line,p.jcDate,p.id); }catch(e){} }
@@ -6116,13 +6193,27 @@ function kfCommit(p,e){ const before=auditSnap('jcplan',p), oldM=p.machine||p.li
     auditLog('edit','jcplan',ref,before,auditSnap('jcplan',p),'Konfirmasi JC: ditunda'+(e.newDate?' → '+e.newDate:'')+(why?' · '+why:''));
     return 'tunda'; }
   if(!p.plan0) p.plan0=kfClone({jcDate:p.jcDate,shift:p.shift,specs:p.specs||{},roasterPlan:p.roasterPlan||[],manpower:p.manpower||{},mpHours:p.mpHours||{}});
-  const P=p.plan0;
+  const P=p.plan0, PS=P.specs||{};
   p.jcDate=P.jcDate||p.jcDate; p.shift=e.shift||P.shift||''; p.postponed=false;   /* konfirmasi = hari yang sama dengan planning */
-  const sp={}; Object.keys(e.specs||{}).forEach(k=>{ const v=kfSpecTxt(e.specs[k]); if(v) sp[k]=v; }); p.specs=sp;
-  p.roasterPlan=(e.ro||[]).filter(r=>r&&r.part&&!r.off&&(r.ns||(r.sections||[]).length)).map(r=>{ const o={part:r.part,sections:(r.sections||[]).slice()}; if(!o.sections.length) o.ns=true; return o; });
+  /* part variabel: Sama → isian plan · Ganti → isian tidak diubah di sini, pilihan + keterangan tercatat di p.conf.chk */
+  const sp={}, cs={};
+  kfParts(Object.keys(Object.assign({},PS,e.specs||{}))).forEach(k=>{ const c=e.chk&&e.chk[k], g=!!(c&&c.st==='ganti'), v=kfSpecTxt(g?(e.specs||{})[k]:PS[k]); if(v) sp[k]=v;
+    if(c&&c.st){ const kt=String(c.ket||'').trim(); cs[k]=(g&&kt)?{st:c.st,ket:kt}:{st:c.st}; } });
+  p.specs=sp;
+  /* roaster: Sama → section plan · Ganti → section yang dicentang. Tambahan perbaikan (mech preventive) ikut tercatat */
+  const ro=[], put=(part,secs,ns)=>{ const ex=ro.find(x=>x.part===part);
+    if(ex){ if(!ns){ ex.sections=[...new Set((ex.sections||[]).concat(secs))].sort(kfSecCmp); if(ex.sections.length) delete ex.ns; } return; }
+    ro.push(ns?{part,sections:[],ns:true}:{part,sections:secs.slice().sort(kfSecCmp)}); };
+  (e.ro||[]).forEach(r=>{ if(r.ns){ put(r.part,[],true); return; } const s=r.st==='ganti'?(r.sections||[]):(r.ps||[]); if(s.length) put(r.part,s,false); });
+  (e.add||[]).forEach(a=>{ if(a.ns) put(a.part,[],true); else if((a.sections||[]).length) put(a.part,a.sections,false); });
+  p.roasterPlan=ro;
   p.manpower=kfClone(e.mp||{}); p.mpHours=kfClone(e.hr||{});
-  const nd=kfDiff(p).filter(d=>d.k!=='mp').length, st=nd?'berubah':'sesuai';   /* status otomatis: ada beda dari plan → "Ada perubahan" */
-  p.conf={st,at:Date.now(),by:who,note:String(e.note||'').trim(),rec:true};
+  const chk={specs:cs,
+    ro:(e.ro||[]).map(r=>{ const g=r.st==='ganti', o={part:r.part,st:g?'ganti':'sama',sections:(g?(r.sections||[]):(r.ps||[])).slice()}; const kt=String(r.ket||'').trim(); if(g&&kt) o.ket=kt; return o; }),
+    add:(e.add||[]).map(a=>({part:a.part,sections:(a.sections||[]).slice(),ns:!!a.ns,ket:String(a.ket||'').trim()}))};
+  p.conf={st:'sesuai',at:Date.now(),by:who,note:String(e.note||'').trim(),rec:true,chk};
+  const nd=kfDiff(p).filter(d=>d.k!=='mp').length, st=nd?'berubah':'sesuai';   /* status otomatis: ada Ganti / tambahan → "Ada perubahan" */
+  p.conf.st=st;
   p.varApplied=true; if(jcRoHasSect(p)) p.roasterApplied=true;   /* selalu tercatat ke Input Data (tanggal plan) */
   kfResync(p,oldM,oldD);
   auditLog('edit','jcplan',ref,before,auditSnap('jcplan',p),'Konfirmasi JC: '+KF_ST[st].t+(nd?' · '+nd+' beda dari plan':''));
@@ -6137,6 +6228,10 @@ function kfCkCommit(p,note){ const c=window._jccEdit; if(!c) return false; const
   else { const i=JCCHECKS.findIndex(x=>x.id===c.id); const b=i>=0?auditJccSnap(JCCHECKS[i]):null; if(i>=0) JCCHECKS[i]=c; else JCCHECKS.push(c); auditLog('edit','jccheck',ref,b,auditJccSnap(c)); }
   return true; }
 function kfSaveAll(){ const e=window._kfEdit; if(!e) return; const p=kfPlan(e.id); if(!p){ toast('Plan JC tidak ditemukan',1); return; }
+  if(!e.tunda){ const todo=kfTodo();
+    if(todo.length){ if(!confirm(todo.length+' item rekap plan belum dipilih Sama / Ganti.\n\nOK = anggap Sama (sesuai plan)\nBatal = cek dulu')){ kfGoRow(todo[0]); return; }
+      todo.forEach(i=>kfSetSt(i,'sama')); }
+    if(e.adOpen&&String(e.adKet||'').trim()&&!confirm('Tambahan perbaikan yang sedang diisi belum ditambahkan (tombol ＋ Tambah perbaikan).\n\nOK = simpan tanpa itu\nBatal = kembali')) return; }
   const st=kfCommit(p,e); if(!st) return;
   const ck=st!=='tunda'&&kfCkCommit(p,e.note);
   saveAll(); window._kfEdit=null; window._jccEdit=null;
@@ -11602,6 +11697,54 @@ body.soft .kf-box{border:0}
 .kf-mpr>span{grid-column:1/-1;font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.3px}
 .kf-roaddb{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:0 12px 12px}
 .kf-form .kf-roaddb select,body.soft .kf-form .kf-roaddb select{flex:1 1 180px;width:auto}
+/* rekap plan: tiap item dipilih Sama / Ganti (ganti → keterangan opsional) */
+.kf-rtop{display:flex;align-items:center;gap:8px;margin-top:-4px;min-width:0}
+.kf-rtop .kf-hint{margin:0;flex:1 1 auto;min-width:0}
+.kf-all{flex:0 0 auto;border:1px solid color-mix(in srgb,var(--green) 45%,transparent);background:color-mix(in srgb,var(--green) 12%,transparent);color:var(--green);font-family:inherit;font-size:12px;font-weight:800;border-radius:999px;padding:6px 11px;cursor:pointer;white-space:nowrap}
+.kf-all[hidden]{display:none}
+.kf-grp{display:flex;flex-direction:column;gap:5px;min-width:0}
+.kf-gh{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--txt3);margin:6px 2px 0}
+.kf-rw{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px 8px;padding:5px 5px 5px 10px;border-radius:12px;background:var(--panel2);border:1px solid transparent;transition:background-color .15s,border-color .15s,box-shadow .15s;min-width:0}
+.kf-rw.sama{background:color-mix(in srgb,var(--green) 9%,var(--panel2))}
+.kf-rw.ganti{background:color-mix(in srgb,var(--blue) 13%,var(--panel2))}
+.kf-rw.opt:not(.sama):not(.ganti) .kf-rn{opacity:.6}
+.kf-rw.hl{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 30%,transparent)}
+.kf-rw .kf-rn small{display:flex;align-items:center;gap:6px;min-width:0}
+.kf-pv{font-weight:700;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.kf-pv0{font-style:italic}
+.kf-tg{flex:0 1 auto;font-size:10.5px;font-weight:800;border-radius:6px;padding:0 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.kf-tg.chg{color:var(--orange);background:color-mix(in srgb,var(--orange) 14%,transparent)}
+.kf-tg.add{color:var(--blue);background:color-mix(in srgb,var(--blue) 14%,transparent)}
+.kf-tg.rem{color:var(--red);background:color-mix(in srgb,var(--red) 13%,transparent)}
+.kf-tg.ro{color:var(--accent2);background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.kf-sg{display:inline-flex;gap:3px;padding:3px;border-radius:999px;background:var(--panel);box-shadow:var(--neu-in-sm,none)}
+.kf-sgb{min-width:60px;height:32px;padding:0 12px;border:0;border-radius:999px;background:transparent;color:var(--txt2);font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;transition:background-color .15s,color .15s}
+.kf-sgb.s.on{background:var(--green);color:#062312}
+.kf-sgb.g.on{background:var(--blue);color:#fff}
+body.light .kf-sgb.s.on{color:#fff}
+.kf-sgb:active{transform:translateY(1px)}
+.kf-gx{grid-column:1/-1;display:flex;flex-direction:column;gap:5px;min-width:0}
+.kf-gl{font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.3px}
+.kf-rw .kf-ket{grid-column:1/-1}
+.kf-form .kf-ket,body.soft .kf-form .kf-ket{min-height:34px;padding:5px 12px}
+.kf-hp{margin:0;padding:0 12px}
+.kf-ads{display:flex;flex-direction:column;gap:5px;padding:8px 12px 0}
+.kf-ad{display:flex;align-items:flex-start;gap:8px;padding:7px 6px 7px 10px;border-radius:12px;background:var(--panel)}
+.kf-ad>div{flex:1 1 auto;min-width:0}
+.kf-ad b{font-size:13px}
+.kf-adsec{font-size:11.5px;font-weight:800;color:var(--accent2);margin-left:6px}
+.kf-ad small{display:block;font-size:12px;color:var(--txt2);margin-top:1px;overflow-wrap:anywhere}
+.kf-x{flex:0 0 auto;width:28px;height:28px;border-radius:50%;border:0;background:var(--panel2);color:var(--txt3);font-family:inherit;font-size:12px;cursor:pointer}
+.kf-adb{display:flex;flex-direction:column;gap:8px;padding:8px 12px 12px}
+.kf-adb .kf-b{align-self:flex-start}
+@media(max-width:380px){ .kf-sgb{min-width:52px;padding:0 9px} }
+/* halaman konfirmasi: tanpa lonceng notifikasi; HP/tablet tanpa navbar bawah */
+html[data-app="jcc"] #bellBtn,html[data-app="jcc"] #bellPop,html[data-app="jcc"] #bellPopBack{display:none!important}
+@media(max-width:680px){ html[data-app="jcc"] header .tb-icons{display:none!important} }   /* isinya (lonceng) sudah tidak ada di HP */
+@media(max-width:1000px){
+  html[data-app="jcc"] nav.bnd{display:none!important}
+  html[data-app="jcc"] main{padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+}
 /* ceklist tekanan (bagian 2) */
 .kf-pt{background:var(--panel2);border-radius:12px;padding:8px 8px 6px;min-width:0}
 .kf-ptt{font-size:12.5px;font-weight:800;color:var(--accent2);margin:0 0 4px 2px}
@@ -11634,7 +11777,7 @@ body.soft .kf-box{border:0}
   html[data-app="jcc"] main{padding-top:14px}   /* halaman konfirmasi: tanpa ruang kosong di bawah header */
   .kf-grid{grid-template-columns:minmax(0,1fr)}
   .kf-prog{flex:1 1 100%;max-width:none;margin-left:0}
-  .kf-foot{bottom:calc(84px + env(safe-area-inset-bottom,0px));padding:6px}
+  .kf-foot{bottom:max(10px,env(safe-area-inset-bottom,0px));padding:6px}
   .kf-sum{font-size:11.5px;padding-left:4px}
   .kf-gp{grid-template-columns:minmax(0,1fr)}
   .kf-pt .jcc-chip{max-width:none;min-height:44px;font-size:16px}   /* sel lebar & tinggi: mudah ditekan lalu digeser */
