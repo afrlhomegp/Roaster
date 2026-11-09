@@ -6094,10 +6094,10 @@ function kfRowHTML(i){ const e=window._kfEdit, r=e&&e.rows[i]; if(!r) return '';
   const seg=`<div class="kf-sg" role="group" aria-label="Sama atau ganti"><button type="button" class="kf-sgb s${st==='sama'?' on':''}" aria-pressed="${st==='sama'}" onclick="kfPick(${i},'sama')">Sama</button><button type="button" class="kf-sgb g${st==='ganti'?' on':''}" aria-pressed="${st==='ganti'}" onclick="kfPick(${i},'ganti')">Ganti</button></div>`;
   if(r.t==='s'){ const c=e.chk[r.part]||{}, tg=r.tag?`<span class="kf-tg ${r.tag.c}">${esc(r.tag.t)}</span>`:'';
     return `<div class="kf-rw${st?' '+st:''}${r.req?'':' opt'}" data-i="${i}"><div class="kf-rn"><b title="${esc(r.part)}">${esc(r.part)}</b><small>${r.pv?`<span class="kf-pv">${esc(r.pv)}</span>`:'<span class="kf-pv0">tidak diisi di plan</span>'}${tg}</small></div>${seg}`
-      +(st==='ganti'?`<input class="kf-ket" value="${esc(c.ket||'')}" oninput="kfKet(${i},this.value)" placeholder="Keterangan (boleh kosong) — mis. pakai yang lain" aria-label="Keterangan ganti ${esc(r.part)}" autocomplete="off">`:'')+`</div>`; }
+      +(st?`<input class="kf-ket" value="${esc(c.ket||'')}" oninput="kfKet(${i},this.value)" placeholder="${st==='ganti'?'Keterangan (boleh kosong) — mis. pakai yang lain':'Keterangan (boleh kosong) — mis. kondisi baik, sudah dicek'}" aria-label="Keterangan ${esc(r.part)}" autocomplete="off">`:'')+`</div>`; }
   const o=e.ro[r.i], mc=(kfPlan(e.id)||{}), secsAll=sectionsOf(mc.machine||mc.line);
-  const gx=st!=='ganti'?'':(o.ns?'':`<div class="kf-gx"><span class="kf-gl">Section yang dikerjakan</span><span class="kf-secs">${secsAll.map(s=>`<button type="button" class="kf-sc${(o.sections||[]).indexOf(s)>=0?' on':''}" onclick="kfRoSec(${i},'${esc(s)}')">${esc(s)}</button>`).join('')}</span></div>`)
-    +`<input class="kf-ket" value="${esc(o.ket||'')}" oninput="kfKet(${i},this.value)" placeholder="Keterangan (boleh kosong)" aria-label="Keterangan roaster ${esc(o.part)}" autocomplete="off">`;
+  const gx=(st!=='ganti'||o.ns?'':`<div class="kf-gx"><span class="kf-gl">Section yang dikerjakan</span><span class="kf-secs">${secsAll.map(s=>`<button type="button" class="kf-sc${(o.sections||[]).indexOf(s)>=0?' on':''}" onclick="kfRoSec(${i},'${esc(s)}')">${esc(s)}</button>`).join('')}</span></div>`)
+    +(st?`<input class="kf-ket" value="${esc(o.ket||'')}" oninput="kfKet(${i},this.value)" placeholder="Keterangan (boleh kosong)" aria-label="Keterangan roaster ${esc(o.part)}" autocomplete="off">`:'');
   return `<div class="kf-rw ro${st?' '+st:''}" data-i="${i}"><div class="kf-rn"><b title="${esc(o.part)}">${esc(o.part)}</b><small><span class="kf-pv">${o.ns?'non-section':esc(kfSecTxt(o.ps)||'—')}</span><span class="kf-tg ro">roaster</span></small></div>${seg}${gx}</div>`; }
 function kfRowPaint(i){ const el=document.querySelector('.kf-rw[data-i="'+i+'"]'); if(!el) return; const t=document.createElement('div'); t.innerHTML=kfRowHTML(i); const n=t.firstElementChild; if(n) el.replaceWith(n); }
 /* ----- tambahan perbaikan lainnya ----- */
@@ -6129,7 +6129,7 @@ function kfCkHTML(p){ const c=window._jccEdit; if(!c) return ''; jccEnsureCss();
   const secs=sectionsOf(c.machine), n=jccCounts(c);
   const cdSel=`<label class="kf-f kf-cd"><span>CD</span><select onchange="jccHdr('cd',this.value,true)"><option value="">— pilih CD —</option>${CFG.cds.map(x=>`<option${c.cd===x?' selected':''}>${esc(x)}</option>`).join('')}</select></label>`;
   let body;
-  if(!c.cd) body=cdSel+'<div class="kf-hint">Pilih CD dulu — kolom Luar/Dalam (dan Tengah untuk 6¼") mengikuti CD.</div>';
+  if(!c.cd) body=cdSel+'<div class="kf-hint">Pilih CD dulu — kolom Luar/Dalam (dan Tengah untuk 4¼") mengikuti CD.</div>';
   else { const cols=jccCols(c.cd);
     body=(p.cd?'':cdSel)+JCC_PT.map(([t,nm])=>`<div class="kf-pt"><div class="kf-ptt">${esc(nm)}</div><table><thead><tr><th>Sec</th>${cols.map(x=>`<th>${jccColLabel(x)}</th>`).join('')}</tr></thead><tbody>`
       +secs.map(s=>{ const cl=jccGetCell(t,s); return `<tr><td>${esc(s)}</td>${cols.map(col=>`<td>${jccPresChip('p',t,s,col,jccTypeName(t)+' · '+s+' · '+jccColLabel(col),cl[col]||'')}</td>`).join('')}</tr>`; }).join('')+'</tbody></table></div>').join('')
@@ -6203,7 +6203,7 @@ function kfCommit(p,e){ const before=auditSnap('jcplan',p), oldM=p.machine||p.li
   /* part variabel: Sama → isian plan · Ganti → isian tidak diubah di sini, pilihan + keterangan tercatat di p.conf.chk */
   const sp={}, cs={};
   kfParts(Object.keys(Object.assign({},PS,e.specs||{}))).forEach(k=>{ const c=e.chk&&e.chk[k], g=!!(c&&c.st==='ganti'), v=kfSpecTxt(g?(e.specs||{})[k]:PS[k]); if(v) sp[k]=v;
-    if(c&&c.st){ const kt=String(c.ket||'').trim(); cs[k]=(g&&kt)?{st:c.st,ket:kt}:{st:c.st}; } });
+    if(c&&c.st){ const kt=String(c.ket||'').trim(); cs[k]=kt?{st:c.st,ket:kt}:{st:c.st}; } });   /* keterangan tersimpan untuk Sama maupun Ganti */
   p.specs=sp;
   /* roaster: Sama → section plan · Ganti → section yang dicentang. Tambahan perbaikan (mech preventive) ikut tercatat */
   const ro=[], put=(part,secs,ns)=>{ const ex=ro.find(x=>x.part===part);
@@ -6214,7 +6214,7 @@ function kfCommit(p,e){ const before=auditSnap('jcplan',p), oldM=p.machine||p.li
   p.roasterPlan=ro;
   p.manpower=kfClone(e.mp||{}); p.mpHours=kfClone(e.hr||{});
   const chk={specs:cs,
-    ro:(e.ro||[]).map(r=>{ const g=r.st==='ganti', o={part:r.part,st:g?'ganti':'sama',sections:(g?(r.sections||[]):(r.ps||[])).slice()}; const kt=String(r.ket||'').trim(); if(g&&kt) o.ket=kt; return o; }),
+    ro:(e.ro||[]).map(r=>{ const g=r.st==='ganti', o={part:r.part,st:g?'ganti':'sama',sections:(g?(r.sections||[]):(r.ps||[])).slice()}; const kt=String(r.ket||'').trim(); if(kt) o.ket=kt; return o; }),
     add:(e.add||[]).map(a=>({part:a.part,sections:(a.sections||[]).slice(),ns:!!a.ns,ket:String(a.ket||'').trim()}))};
   p.conf={st:'sesuai',at:Date.now(),by:who,note:String(e.note||'').trim(),rec:true,chk};
   const nd=kfDiff(p).filter(d=>d.k!=='mp').length, st=nd?'berubah':'sesuai';   /* status otomatis: ada Ganti / tambahan → "Ada perubahan" */
@@ -6249,22 +6249,36 @@ function kfWaHari(d){ const H=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat',
 function kfWaJam(t){ const d=new Date(t); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
 function kfWaShift(s){ s=kfWaCl(s); return !s?'':/shift/i.test(s)?s:'Shift '+s; }
 function kfWaKet(k){ k=kfWaCl(k); return k?' — _'+k+'_':''; }
-function kfWaDiff(p){ const P=kfPlanOf(p), C=(p.conf&&p.conf.chk)||null, L=[];
-  if(kfWaCl(P.shift)!==kfWaCl(p.shift)) L.push('- Shift: ~'+(kfWaCl(P.shift)||'-')+'~ → *'+(kfWaCl(p.shift)||'-')+'*');
-  if(C){
-    Object.keys(C.specs||{}).forEach(k=>{ const c=C.specs[k]; if(!c||c.st!=='ganti') return; const a=kfWaCl((P.specs||{})[k]), b=kfWaCl((p.specs||{})[k]);
-      L.push('- '+kfWaCl(k)+': '+(b&&jcfKey(b)!==jcfKey(a)?(a?'~'+a+'~ → ':'')+'*'+b+'*':(a?'`'+a+'` ':'')+'*diganti*')+kfWaKet(c.ket)); });
-    (C.ro||[]).forEach(r=>{ if(!r||r.st!=='ganti') return; const pr=(P.roasterPlan||[]).find(q=>q&&q.part===r.part)||{}, a=kfSecTxt(pr.sections), b=kfSecTxt(r.sections);
-      L.push('- Roaster '+kfWaCl(r.part)+': '+(a?'~'+a+'~ → ':'')+'*'+(b||'tidak dikerjakan')+'*'+kfWaKet(r.ket)); });
-    (C.add||[]).forEach(a=>{ if(!a||!a.part) return; const s=kfSecTxt(a.sections);
-      L.push('- Tambahan: *'+kfWaCl(a.part)+(s?' '+s:'')+'*'+kfWaKet(a.ket)); });
-  } else kfDiff(p).filter(d=>d.k!=='mp'&&d.k!=='date'&&d.k!=='shift').forEach(d=>L.push('- '+kfWaCl(d.l)+': ~'+kfWaCl(d.plan)+'~ → *'+kfWaCl(d.act)+'*'));
+function kfWaTitle(s){ return String(s||'').toLowerCase().replace(/(^|[\s+\/(-])\S/g,m=>m.toUpperCase()); }
+/* part variabel sesuai yang diisi (per area). Yang diganti: ~plan~ → *aktual* — _keterangan_ */
+function kfWaParts(p){ const P=kfPlanOf(p), C=(p.conf&&p.conf.chk)||null, PS=P.specs||{}, AS=p.specs||{}, L=[];
+  const chg={}; if(!C) kfDiff(p).forEach(d=>{ if(d.k!=='mp'&&d.k!=='date'&&d.k!=='shift'&&d.k!=='ro') chg[d.l]=1; });
+  const all=kfParts(Object.keys(Object.assign({},PS,AS))), seen=new Set();
+  const areas=Object.keys(CFG.jcAreas||{}).map(a=>({area:a,parts:(CFG.jcAreas[a]||[]).filter(x=>x&&!seen.has(x)&&(seen.add(x),true))}));
+  const rest=all.filter(x=>!seen.has(x)); if(rest.length) areas.push({area:'Lainnya',parts:rest});
+  areas.forEach(g=>{ const rows=[];
+    g.parts.forEach(pt=>{ const pv=kfWaCl(PS[pt]), av=kfWaCl(AS[pt]), c=C&&C.specs&&C.specs[pt];
+      const ganti=c?c.st==='ganti':(!!chg[pt]||jcfKey(pv)!==jcfKey(av)), ket=c?kfWaKet(c.ket):'';
+      if(ganti&&jcfKey(pv)!==jcfKey(av)) rows.push('- '+kfWaCl(pt)+': '+(pv?'~'+pv+'~ → ':'')+'*'+(av||'dilepas')+'*'+ket);
+      else if(ganti) rows.push('- '+kfWaCl(pt)+': *'+(av||pv||'diganti')+'* _(diganti)_'+ket);
+      else if(av||(c&&kfWaCl(c.ket))) rows.push('- '+kfWaCl(pt)+': '+(av||'-')+(c?kfWaKet(c.ket):'')); });
+    if(rows.length){ L.push('_'+kfWaTitle(kfWaCl(g.area))+'_'); L.push(...rows); } });
   return L; }
+/* roaster sesuai yang diisi: section aktual; yang berubah dicoret → baru */
+function kfWaRo(p){ const P=kfPlanOf(p), C=(p.conf&&p.conf.chk)||null, L=[], sec=s=>{ const t=kfSecTxt(s); return t?'`'+t+'`':''; };
+  if(C&&Array.isArray(C.ro)&&C.ro.length){
+    C.ro.forEach(r=>{ if(!r||!r.part) return; const pr=(P.roasterPlan||[]).find(q=>q&&q.part===r.part)||{}, a=kfSecTxt(pr.sections), b=kfSecTxt(r.sections), ns=!b&&(!!pr.ns||jcRoIsNs(r.part));
+      if(r.st==='ganti'&&a!==b) L.push('- '+kfWaCl(r.part)+': '+(a?'~'+a+'~ → ':'')+'*'+(b||(ns?'non-section':'tidak dikerjakan'))+'*'+kfWaKet(r.ket));
+      else L.push('- '+kfWaCl(r.part)+(b?' '+sec(r.sections):ns?' _(non-section)_':'')+kfWaKet(r.ket)); }); }
+  else (p.roasterPlan||[]).filter(r=>r&&r.part).forEach(r=>L.push('- '+kfWaCl(r.part)+(kfSecTxt(r.sections)?' '+sec(r.sections):r.ns?' _(non-section)_':'')));
+  return L; }
+function kfWaAdd(p){ const C=(p.conf&&p.conf.chk)||null; return ((C&&C.add)||[]).filter(a=>a&&a.part).map(a=>{ const s=kfSecTxt(a.sections);
+  return '- *'+kfWaCl(a.part)+'*'+(s?' `'+s+'`':a.ns?' _(non-section)_':'')+kfWaKet(a.ket); }); }
 /* tabel tekanan rata kolom (blok monospace). 2 kolom (Luar/Dalam) → 1 tabel PU|CB|VB · 3 kolom (ada Tengah) → 1 tabel per jenis agar tidak terpotong di HP */
 function kfWaTable(ck,machine){ const secs=sectionsOf(machine), cols=jccCols(ck.cd), sw=Math.max(2,...secs.map(s=>s.length))+1;
-  const cell=(t,s,col)=>{ const c=((ck.sec||{})[s]||{})[t]||{}, v=c[col]?String(c[col]):'-'; return v.padStart(3,' ')+(c[col+'Bad']?'!':' '); };
+  const cell=(t,s,col)=>{ const c=((ck.sec||{})[s]||{})[t]||{}, v=c[col]?jccDisp(c[col]):'-'; return v.padStart(3,' ')+(c[col+'Bad']?'!':' '); };
   const tbl=T=>{ const w=cols.length*4; let h1=' '.repeat(sw), h2=' '.repeat(sw);
-    T.forEach(t=>{ const nm=t.toUpperCase(), pad=w-nm.length; h1+=' '.repeat(Math.floor(pad/2))+nm+' '.repeat(Math.ceil(pad/2)); h2+=cols.map(c=>' '+c.toUpperCase()+'  ').join(''); });
+    T.forEach(t=>{ const nm=t.toUpperCase(), pad=w-nm.length; h1+=' '.repeat(Math.floor(pad/2))+nm+' '.repeat(Math.ceil(pad/2)); h2+=cols.map(c=>' '+jccColLabel(c).charAt(0)+'  ').join(''); });   /* L = Luar · T = Tengah · D = Dalam */
     const rows=secs.map(s=>s.padEnd(sw,' ')+T.map(t=>cols.map(col=>cell(t,s,col)).join('')).join(''));
     return '```\n'+[h1,h2].concat(rows).map(r=>r.replace(/\s+$/,'')).join('\n')+'\n```'; };
   const T=JCC_PT.map(x=>x[0]); return cols.length>2?T.map(t=>tbl([t])).join('\n'):tbl(T); }
@@ -6272,33 +6286,31 @@ function kfWaBad(ck){ const out=[]; if(!ck) return out; const sec=ck.sec||{};
   sectionsOf(ck.machine).concat(Object.keys(sec)).filter((s,i,a)=>a.indexOf(s)===i).forEach(s=>JCC_PT.forEach(([t])=>{ const c=(sec[s]||{})[t]||{};
     ['l','m','d'].forEach(col=>{ if(c[col+'Bad']) out.push(t.toUpperCase()+' '+s+' '+jccColLabel(col)); }); }));
   JCC_GP.forEach(([k,n])=>{ const g=(ck.glob||{})[k]; if(g&&g.bad) out.push(n); }); return out; }
-function kfWaText(p){ if(!p) return ''; const c=p.conf||{}, ck=kfCkOf(p), L=[], tunda=p.postponed||c.st==='tunda';
-  const st=tunda?'Ditunda':c.st==='berubah'?'Ada perubahan dari plan':c.st==='sesuai'?'Sesuai plan':'Belum dikonfirmasi';
+function kfWaText(p){ if(!p) return ''; const c=p.conf||{}, ck=kfCkOf(p), L=[], tunda=p.postponed||c.st==='tunda', P=kfPlanOf(p);
   L.push('*KONFIRMASI JOB CHANGE*');
   L.push('*'+kfWaCl(p.machine||p.line||'-')+' · Job #'+kfWaCl(p.typeJob||'-')+'*'+(p.trial?' _(trial)_':''));
   L.push('_'+[kfWaHari(parseD(p.jcDate)),kfWaShift(p.shift)].filter(Boolean).join(' · ')+'_');
+  if(!tunda&&kfWaCl(P.shift)&&kfWaCl(P.shift)!==kfWaCl(p.shift)) L.push('Shift: ~'+kfWaShift(P.shift)+'~ → *'+(kfWaShift(p.shift)||'-')+'*');
   L.push('');
   const desc=kfWaCl(p.description||p.bottleSize), spec=[kfWaCl(p.process),p.cd?'CD '+kfWaCl(p.cd):'',p.weight?kfWaCl(p.weight)+' gr':''].filter(Boolean).join(' · ');
-  if(desc) L.push('> '+desc); if(spec) L.push('> '+spec); if(desc||spec) L.push('');
-  L.push('*Status:* '+st);
-  if(tunda){ L.push(''); L.push('*ALASAN*'); L.push('> '+(kfWaCl(c.note)||'-')); }
+  if(desc) L.push('> '+desc); if(spec) L.push('> '+spec);
+  if(tunda){ L.push(''); L.push('*ALASAN DITUNDA*'); L.push('> '+(kfWaCl(c.note)||'-')); }
   else {
-    const df=kfWaDiff(p); L.push('');
-    if(df.length){ L.push('*PERUBAHAN DARI PLAN*'); L.push(...df); } else L.push('_Semua part & roaster sesuai plan_');
-    const ro=(p.roasterPlan||[]).filter(r=>r&&r.part);
-    if(ro.length){ L.push(''); L.push('*ROASTER*'); ro.forEach(r=>{ const s=kfSecTxt(r.sections); L.push('- '+kfWaCl(r.part)+(s?' `'+s+'`':(r.ns?' _(non-section)_':''))); }); }
+    const pt=kfWaParts(p); if(pt.length){ L.push(''); L.push('*PART VARIABEL*'); L.push(...pt); }
+    const ro=kfWaRo(p); if(ro.length){ L.push(''); L.push('*ROASTER*'); L.push(...ro); }
+    const ad=kfWaAdd(p); if(ad.length){ L.push(''); L.push('*TAMBAHAN PERBAIKAN*'); L.push(...ad); }
     L.push('');
     if(ck){ const n=jccCounts(ck), bad=kfWaBad(ck);
       L.push('*CEKLIST AFTER JC* — '+n.filled+' titik (bar)');
       L.push(kfWaTable(ck,p.machine||p.line||ck.machine));
       if(bad.length) L.push('_! = gauge trouble_');
-      const G=JCC_GP.map(([k,nm])=>{ const g=(ck.glob||{})[k]; return g&&g.v?'- '+nm+': `'+g.v+'`'+(g.bad?' _gauge trouble_':''):null; }).filter(Boolean);
+      const G=JCC_GP.map(([k,nm])=>{ const g=(ck.glob||{})[k]; return g&&g.v?'- '+nm+': `'+jccDisp(g.v)+'`'+(g.bad?' _gauge trouble_':''):null; }).filter(Boolean);
       if(G.length){ L.push(''); L.push('*Tekanan global*'); L.push(...G); }
       if(bad.length){ L.push(''); L.push('*Gauge trouble*'); bad.forEach(b=>L.push('- '+b)); }
       const pb=kfWaCl(ck.perbaikan); if(pb){ L.push(''); L.push('*TEMUAN / PERBAIKAN*'); L.push('> '+pb); } }
     else { L.push('*CEKLIST AFTER JC*'); L.push('_Belum diisi_'); }
     const mp=jcfMpGroups().map(g=>{ const nm=mpSplit((p.manpower||{})[g.key]).map(kfWaCl).filter(Boolean); if(!nm.length) return null; const h=(p.mpHours||{})[g.key];
-      return String(g.label).toLowerCase().replace(/(^|[\s+])\S/g,m=>m.toUpperCase())+': '+nm.join(', ')+(h?' — `'+String(h).replace('.',',')+' jam`':''); }).filter(Boolean);
+      return kfWaTitle(g.label)+': '+nm.join(', ')+(h?' — `'+String(h).replace('.',',')+' jam`':''); }).filter(Boolean);
     if(mp.length){ L.push(''); L.push('*MAN POWER*'); mp.forEach((m,i)=>L.push((i+1)+'. '+m)); } }
   if(c.at){ L.push(''); L.push('_Dikonfirmasi '+(kfWaCl(c.by)||'-')+' · '+kfWaJam(c.at)+'_'); }
   return L.join('\n'); }
@@ -10449,7 +10461,7 @@ function importJSON(inp){const f=inp.files[0];if(!f)return;const rd=new FileRead
 /* ============ CEKLIST JOBCHANGE (after job change) — pressure data input ============ */
 const JCC_PT=[['pu','Plunger Up'],['cb','Counter Blow'],['vb','Vertiblow']];
 const JCC_GP=[['hp','High Pressure'],['lp','Low Pressure'],['sb','Settle Blow'],['fb','Final Blow'],['fcg','Finish Cooling'],['moc','Pressure MOC']];
-function jccHasTengah(cd){ return /6¼|6\s*1\/4|6\.25/.test(String(cd||'')); }
+function jccHasTengah(cd){ return /(^|[^0-9])4\s*(¼|1\/4|[.,]25)/.test(String(cd||'')); }   /* CD 4¼" (triple gob) → 3 per section: Luar · Tengah · Dalam */
 function jccCols(cd){ return jccHasTengah(cd)?['l','m','d']:['l','d']; }
 function jccColLabel(c){ return c==='l'?'Luar':c==='m'?'Tengah':'Dalam'; }
 function jccGetCell(type,sec){ const e=window._jccEdit; e.sec=e.sec||{}; e.sec[sec]=e.sec[sec]||{}; e.sec[sec][type]=e.sec[sec][type]||{}; return e.sec[sec][type]; }
@@ -10466,10 +10478,10 @@ function jccHint(){ return jccDesk()
   ?'<b>Ketik tekanan (bar, 0–5)</b> — Enter = lanjut ke kotak berikutnya · 24 = 2,4 · ↑ ↓ = ±0,1. <b>Klik 2×</b> = ⚠ gauge trouble.'
   :'<b>Tekan angka lalu geser ◀ ▶</b> — pelan = 0,1 · cepat = loncat · lepas jari = pilih (0–5 bar). <b>Ketuk 2×</b> = ⚠ gauge trouble.'; }
 function jccDesk(){ try{ return window.matchMedia('(hover: hover) and (pointer: fine)').matches; }catch(e){ return false; } }
-function jccPresChip(kind,a,b,c,label,val){ const id=jccChipId(kind,a,b,c); const filled=(val!==''&&val!=null); const shown=filled?val:'–';
+function jccPresChip(kind,a,b,c,label,val){ const id=jccChipId(kind,a,b,c); const filled=(val!==''&&val!=null); const shown=filled?jccDisp(val):'–';
   let bad=false; try{ bad=kind==='p'?!!jccGetCell(a,b)[c+'Bad']:!!jccGetG(a).bad; }catch(e){}
   const lab=esc(String(label||''));
-  if(jccDesk()) return '<span class="jcc-iw'+(bad?' bad':'')+'" title="'+lab+(bad?' · ⚠ gauge trouble':'')+'"><input type="text" inputmode="decimal" autocomplete="off" spellcheck="false" maxlength="4" id="'+id+'" class="jcc-in'+(filled?' on':'')+'" value="'+(filled?esc(val):'')+'" placeholder="–" data-kind="'+kind+'" data-a="'+esc(a)+'" data-b="'+esc(b||'')+'" data-c="'+esc(c||'')+'" data-lab="'+lab+'" aria-label="'+lab+' (bar)"></span>';
+  if(jccDesk()) return '<span class="jcc-iw'+(bad?' bad':'')+'" title="'+lab+(bad?' · ⚠ gauge trouble':'')+'"><input type="text" inputmode="decimal" autocomplete="off" spellcheck="false" maxlength="4" id="'+id+'" class="jcc-in'+(filled?' on':'')+'" value="'+(filled?esc(jccDisp(val)):'')+'" placeholder="–" data-kind="'+kind+'" data-a="'+esc(a)+'" data-b="'+esc(b||'')+'" data-c="'+esc(c||'')+'" data-lab="'+lab+'" aria-label="'+lab+' (bar)"></span>';
   return '<button type="button" id="'+id+'" class="jcc-chip'+(filled?' on':'')+(bad?' bad':'')+'" data-kind="'+kind+'" data-a="'+esc(a)+'" data-b="'+esc(b||'')+'" data-c="'+esc(c||'')+'" data-lab="'+lab+'" aria-label="'+lab+' (bar)">'+shown+'</button>'; }
 function jccCell(type,sec,col){ const c=jccGetCell(type,sec); return jccPresChip('p',type,sec,col,jccTypeName(type)+' · '+sec+' · '+jccColLabel(col),c[col]||''); }
 function jccTable(type,label){ const e=window._jccEdit; const secs=sectionsOf(e.machine); const cols=jccCols(e.cd);
@@ -10495,7 +10507,7 @@ function jccCounts(r){ let filled=0,bad=0; const sec=r.sec||{}; Object.keys(sec)
 function jccForm(){ const e=window._jccEdit; jccEnsureCss(); const isNew=e.id==null;
   const masters=jcmList().filter(m=>!e.cd||m.cd===e.cd);
   const plans=(JCPLANS||[]).filter(p=>!e.machine||(p.machine||p.line)===e.machine).slice().sort((a,b)=>(b.jcDate||'').localeCompare(a.jcDate||''));
-  const head='<h2 class="title">🧪 '+(isNew?'Ceklist JC Baru':'Edit Ceklist JC')+'</h2><div class="sub">Data tekanan per-section (Plunger Up / Counter Blow / Vertiblow) + tekanan global, untuk basis predictive maintenance. Kolom <b>Tengah</b> muncul otomatis bila CD = 6¼".</div>';
+  const head='<h2 class="title">🧪 '+(isNew?'Ceklist JC Baru':'Edit Ceklist JC')+'</h2><div class="sub">Data tekanan per-section (Plunger Up / Counter Blow / Vertiblow) + tekanan global, untuk basis predictive maintenance. Kolom <b>Tengah</b> muncul otomatis bila CD = 4¼".</div>';
   const fld=(lbl,inner)=>'<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--txt3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px">'+lbl+'</div>'+inner+'</div>';
   const inp='style="width:100%;padding:9px 10px;border-radius:10px"';
   const hdrCard='<div class="card" style="padding:14px;margin-bottom:12px">'
@@ -10513,7 +10525,7 @@ function jccForm(){ const e=window._jccEdit; jccEnsureCss(); const isNew=e.id==n
     +fld('Tarik dari Plan JC','<select onchange="jccPull(this.value)" '+inp+'><option value="">— pilih plan untuk prefill —</option>'+plans.map(p=>'<option value="'+p.id+'">'+esc(p.jcDate||'')+' · '+esc(p.typeJob||'-')+(p.cd?' · '+esc(p.cd):'')+'</option>').join('')+'</select>')
     +'</div>';
   let body='';
-  if(!e.cd){ body='<div class="card" style="padding:14px;border-color:var(--yellow)"><b>Pilih CD dulu</b><div class="note" style="margin-top:4px">Kolom Luar/Dalam (dan Tengah untuk 6¼") mengikuti CD yang dipilih.</div></div>'; }
+  if(!e.cd){ body='<div class="card" style="padding:14px;border-color:var(--yellow)"><b>Pilih CD dulu</b><div class="note" style="margin-top:4px">Kolom Luar/Dalam (dan Tengah untuk 4¼") mengikuti CD yang dipilih.</div></div>'; }
   else { body='<div class="note" style="margin:0 0 10px">'+jccHint()+'</div>'+JCC_PT.map(([t,nm])=>jccTable(t,nm)).join('');
     body+='<div class="card" style="padding:14px;margin-bottom:12px"><h3 style="margin:0 0 6px;color:var(--accent2)">Tekanan Global <span class="tag">bar · 0–5</span></h3>'
       +JCC_GP.map(([k,nm])=>{ const g=jccGetG(k); return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line2)"><span style="font-size:13px">'+nm+'</span><span style="display:flex;align-items:center">'+jccPresChip('g',k,'','',nm,g.v||'')+'</span></div>'; }).join('')
@@ -10724,7 +10736,7 @@ function jccLinkedFailures(machine,sec,fromDate,days){
 }
 function jccDevPill(pct){
   const up=pct>0, c=up?'var(--orange)':'var(--blue)';
-  return '<span style="color:'+c+';font-weight:800">'+(up?'▲ +':'▼ ')+pct.toFixed(1)+'%</span>';
+  return '<span style="color:'+c+';font-weight:800">'+(up?'▲ +':'▼ ')+jccDisp(pct.toFixed(1))+'%</span>';
 }
 /* panel anomali — dipakai di popup mesin & halaman Ceklist JC */
 function jccAnomalyPanel(machine,compact){
@@ -10739,7 +10751,7 @@ function jccAnomalyPanel(machine,compact){
       ? '<div class="note" style="margin-top:2px">↳ '+esc(r.sec)+' diganti '+link.slice(0,3).map(x=>esc(x.part)+(x.n>1?' ×'+x.n:'')).join(', ')+' dalam '+jccLinkDays()+' hari setelah ceklist</div>'
       : '';
     return '<tr><td style="text-align:left">'+esc(r.label)+(r.bad?' <span style="color:var(--red)">⚠</span>':'')+linkTxt+'</td>'
-      +'<td class="mono">'+r.med.toFixed(1)+'</td><td class="mono"><b>'+r.v.toFixed(1)+'</b></td>'
+      +'<td class="mono">'+jccDisp(r.med.toFixed(1))+'</td><td class="mono"><b>'+jccDisp(r.v.toFixed(1))+'</b></td>'
       +'<td style="white-space:nowrap">'+jccDevPill(r.pct)+'</td></tr>';
   }).join('');
   return '<div style="margin:8px 0">'
@@ -10786,6 +10798,7 @@ const JCC_MAX=50;      /* 5,0 bar dalam satuan 0,1 */
 const JCC_DIR=1;       /* 1: kanan = naik · -1: kiri = naik */
 function jccValIdx(v){ if(v===''||v==null)return null; const i=Math.round(parseFloat(String(v).replace(',','.'))*10); return (isFinite(i)&&i>=0&&i<=JCC_MAX)?i:null; }
 function jccFmt(i){ return (i==null||i<0)?'':(i/10).toFixed(1); }
+function jccDisp(v){ return (v===''||v==null)?'':String(v).replace('.',','); }   /* tampilan desimal koma: 2.5 → 2,5 */
 function jccEnsureCss(){ if(document.getElementById('jccCss'))return;
   const css='<style id="jccCss">'
   +'.jcc-chip{min-width:54px;padding:7px 10px;border-radius:12px;border:1px solid var(--line2,#3a3a3a);background:rgba(127,127,127,.08);color:var(--txt2,#bbb);font-weight:700;font-size:14px;font-variant-numeric:tabular-nums;cursor:ew-resize;transition:transform .08s,box-shadow .12s;touch-action:pan-y;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}'
@@ -10834,7 +10847,7 @@ function jccGetVal(t){ try{ return t.kind==='p'?(jccGetCell(t.a,t.b)[t.c]||''):(
 function jccIsBad(t){ try{ return t.kind==='p'?!!jccGetCell(t.a,t.b)[t.c+'Bad']:!!jccGetG(t.a).bad; }catch(e){ return false; } }
 function jccPaintCount(){ const c=window._jccEdit; if(!c) return; const n=jccCounts(c); const el=document.getElementById('kfCkN');
   if(el) el.innerHTML=n.filled+' titik'+(n.bad?' · <b class="kf-bad">⚠ '+n.bad+' gauge trouble</b>':''); try{ kfPaintSum(); }catch(e){} }
-function jccShowVal(el,val){ if(!el) return; const f=!(val===''||val==null); if(el.tagName==='INPUT') el.value=f?val:''; else el.textContent=f?val:'–'; el.classList.toggle('on',f); }
+function jccShowVal(el,val){ if(!el) return; const f=!(val===''||val==null); if(el.tagName==='INPUT') el.value=f?jccDisp(val):''; else el.textContent=f?jccDisp(val):'–'; el.classList.toggle('on',f); }
 function jccWriteVal(t,val,el){ if(!window._jccEdit) return; if(t.kind==='p') jccSetP(t.a,t.b,t.c,val); else jccSetG(t.a,val);
   jccShowVal(el||document.getElementById(jccChipId(t.kind,t.a,t.b,t.c)),val); jccPaintCount(); }
 function jccToggleBad(t,el){ if(!window._jccEdit) return; let on; if(t.kind==='p'){ const c=jccGetCell(t.a,t.b); c[t.c+'Bad']=!c[t.c+'Bad']; on=c[t.c+'Bad']; } else { const g=jccGetG(t.a); g.bad=!g.bad; on=g.bad; }
@@ -10868,13 +10881,13 @@ function jccSeed(t){ const e=window._jccEdit; if(!e) return 20;
     b.style.left=Math.round(left)+'px'; b.style.top=Math.round(top)+'px'; }
   function paint(s,x){ const b=bub(); b.classList.remove('tip'); b.classList.toggle('bad',jccIsBad(s.t));
     b.querySelector('.sw-l').textContent=s.t.lab||'Pressure';
-    const v=b.querySelector('.sw-v'), e=s.idx<0; v.classList.toggle('empty',e); v.innerHTML=e?'kosong':jccFmt(s.idx)+'<small>bar</small>';
+    const v=b.querySelector('.sw-v'), e=s.idx<0; v.classList.toggle('empty',e); v.innerHTML=e?'kosong':jccDisp(jccFmt(s.idx))+'<small>bar</small>';
     const pct=Math.max(0,s.idx)/JCC_MAX*100; b.querySelector('.sw-tr b').style.left=pct+'%'; b.querySelector('.sw-tr u').style.width=pct+'%';
     const m=b.querySelector('.sw-m em'); m.textContent=s.k>0.6?'cepat »':s.k>0.25?'sedang':'halus · 0,1'; m.classList.toggle('fast',s.k>0.6);
     jccShowVal(s.el,jccFmt(s.idx)); place(b,s.el,x,s.y); b.classList.add('show'); }
   function hide(){ const b=document.getElementById('jccSw'); if(b) b.classList.remove('show','tip'); }
   function tip(el,t,msg){ const b=bub(); b.classList.add('tip'); b.classList.toggle('bad',jccIsBad(t)); b.querySelector('.sw-l').textContent=t.lab||'Pressure';
-    const val=jccGetVal(t), v=b.querySelector('.sw-v'); v.classList.toggle('empty',!val); v.innerHTML=val?val+'<small>bar</small>':'kosong';
+    const val=jccGetVal(t), v=b.querySelector('.sw-v'); v.classList.toggle('empty',!val); v.innerHTML=val?jccDisp(val)+'<small>bar</small>':'kosong';
     b.querySelector('.sw-hint').textContent=msg; place(b,el); b.classList.add('show'); clearTimeout(tipT); tipT=setTimeout(hide,1400); }
   function chipAt(ev){ const el=ev.target&&ev.target.closest&&ev.target.closest('.jcc-chip[data-kind]'); return el&&window._jccEdit?el:null; }
   document.addEventListener('pointerdown',function(ev){ const el=chipAt(ev); if(!el) return; if(ev.pointerType==='mouse'&&ev.button!==0) return; if(S&&S.on) return;
@@ -10921,7 +10934,7 @@ function jccSeed(t){ const e=window._jccEdit; if(!e) return 20;
     if(!document.body.contains(el)||!window._jccEdit) return; const t=jccChipRef(el), i=kbParse(buf);
     if(i==null){ jccShowVal(el,jccGetVal(t)); return; } jccWriteVal(t,jccFmt(i),el); }
   function kbCancel(){ const el=kb.el; if(!el) return; clearTimeout(kb.tm); kb={el:null,buf:'',tm:0}; el.classList.remove('typing'); jccShowVal(el,jccGetVal(jccChipRef(el))); }
-  function kbArm(el){ clearTimeout(kb.tm); kb.tm=setTimeout(kbCommit,1300); el.textContent=kb.buf||'–'; el.classList.add('typing'); }
+  function kbArm(el){ clearTimeout(kb.tm); kb.tm=setTimeout(kbCommit,1300); el.textContent=jccDisp(kb.buf)||'–'; el.classList.add('typing'); }
   function next(el,d){ const box=el.closest('#kfCk')||document; const L=[...box.querySelectorAll('.jcc-chip[data-kind]')]; const n=L[L.indexOf(el)+d]; if(n){ try{ n.focus({preventScroll:false}); }catch(_){ n.focus(); } } }
   document.addEventListener('keydown',function(ev){ const el=document.activeElement; if(!el||!el.matches||!el.matches('.jcc-chip[data-kind]')||!window._jccEdit) return;
     if(ev.ctrlKey||ev.metaKey||ev.altKey) return; const k=ev.key, t=jccChipRef(el);
@@ -10945,7 +10958,7 @@ function jccSeed(t){ const e=window._jccEdit; if(!e) return 20;
   document.addEventListener('change',function(ev){ const el=ev.target; if(isIn(el)&&window._jccEdit) jccInCommit(el); });
   document.addEventListener('keydown',function(ev){ const el=ev.target; if(!isIn(el)||!window._jccEdit) return;
     if(ev.key==='Enter'){ ev.preventDefault(); if(jccInCommit(el)) inNext(el,ev.shiftKey?-1:1); return; }
-    if(ev.key==='Escape'){ ev.preventDefault(); el.value=jccGetVal(jccChipRef(el)); el.classList.remove('err'); try{ el.select(); }catch(_){} return; }
+    if(ev.key==='Escape'){ ev.preventDefault(); el.value=jccDisp(jccGetVal(jccChipRef(el))); el.classList.remove('err'); try{ el.select(); }catch(_){} return; }
     const d={ArrowUp:1,ArrowDown:-1}[ev.key];
     if(d){ ev.preventDefault(); const t=jccChipRef(el), p=jccParseIn(el.value), cur=jccValIdx(p===null?jccGetVal(t):p);
       const i=cur==null?jccSeed(t):Math.max(0,Math.min(JCC_MAX,cur+d*(ev.shiftKey?5:1))); el.value=jccFmt(i); jccInCommit(el); try{ el.select(); }catch(_){} } });
@@ -10957,8 +10970,8 @@ function jccParseIn(s){ s=String(s==null?'':s).trim().replace(',','.'); if(!s) r
   let n; if(s.indexOf('.')>=0) n=parseFloat(s); else if(s.length===1) n=+s; else n=+(s[0]+'.'+s.slice(1));
   if(!isFinite(n)||n<0||n>5.0001) return null; return (Math.round(n*10)/10).toFixed(1); }
 function jccInCommit(el){ const t=jccChipRef(el), v=jccParseIn(el.value), prev=jccGetVal(t);
-  if(v===null){ el.classList.remove('err'); void el.offsetWidth; el.classList.add('err'); try{ toast('Isi tekanan 0 – 5 bar (contoh 2.4 atau 24)',1); }catch(_){} el.value=prev; return false; }
-  el.value=v; el.classList.remove('err'); if(v!==prev){ if(t.kind==='p') jccSetP(t.a,t.b,t.c,v); else jccSetG(t.a,v); }
+  if(v===null){ el.classList.remove('err'); void el.offsetWidth; el.classList.add('err'); try{ toast('Isi tekanan 0 – 5 bar (contoh 2,4 atau 24)',1); }catch(_){} el.value=jccDisp(prev); return false; }
+  el.value=jccDisp(v); el.classList.remove('err'); if(v!==prev){ if(t.kind==='p') jccSetP(t.a,t.b,t.c,v); else jccSetG(t.a,v); }
   el.classList.toggle('on',v!==''); jccPaintCount(); return true; }
 /* ============ CEKLIST JC ↔ MACHINE STATUS integration (kondisi naik/turun) ============ */
 function jccForMachine(machine){ return (JCCHECKS||[]).filter(r=>r.machine===machine).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')||((a.id||0)-(b.id||0))); }
@@ -10966,7 +10979,7 @@ function jccFlatPoints(r){ const out={}; const sec=r.sec||{};
   Object.keys(sec).forEach(s=>{ ['pu','cb','vb'].forEach(t=>{ const cell=sec[s]&&sec[s][t]; if(!cell)return; ['l','m','d'].forEach(col=>{ const v=cell[col]; if(v!==''&&v!=null){ out['p|'+t+'|'+s+'|'+col]={v:parseFloat(v),bad:!!cell[col+'Bad'],label:jccTypeName(t)+' '+s+'·'+jccColLabel(col)}; } }); }); });
   const g=r.glob||{}; Object.keys(g).forEach(k=>{ if(g[k]&&g[k].v!==''&&g[k].v!=null){ const gp=JCC_GP.find(x=>x[0]===k); out['g|'+k]={v:parseFloat(g[k].v),bad:!!g[k].bad,label:(gp?gp[1]:k)}; } });
   return out; }
-function jccArrow(d){ if(d>0.05)return '<span style="color:var(--orange);font-weight:800">▲ +'+d.toFixed(1)+'</span>'; if(d<-0.05)return '<span style="color:var(--blue);font-weight:800">▼ '+d.toFixed(1)+'</span>'; return '<span style="color:var(--txt3)">= 0</span>'; }
+function jccArrow(d){ if(d>0.05)return '<span style="color:var(--orange);font-weight:800">▲ +'+jccDisp(d.toFixed(1))+'</span>'; if(d<-0.05)return '<span style="color:var(--blue);font-weight:800">▼ '+jccDisp(d.toFixed(1))+'</span>'; return '<span style="color:var(--txt3)">= 0</span>'; }
 function jccMachineCard(machine){
   const list=jccForMachine(machine);
   if(!list.length){ return '<div class="card noswipe" style="padding:14px;margin-top:14px"><h3>🧪 Kondisi dari Ceklist JC</h3><div class="note" style="margin:6px 0 10px">Belum ada ceklist JC untuk '+machine+'. Catat tekanan setelah job change supaya kondisi mesin bisa dipantau di sini.</div><button class="btn sec sm" onclick="closeMmodal();go(\'jccheck\')">✅ Konfirmasi JC ↗</button></div>'; }
@@ -10992,7 +11005,7 @@ function jccMachineCard(machine){
     +'<span class="tag">= Tetap '+same+'</span></div>';
   const tbl = rows.length
     ? '<div class="tblwrap"><table><thead><tr><th style="text-align:left">Titik</th><th>'+esc(prev.date||'sblm')+'</th><th>'+esc(latest.date||'kini')+'</th><th>Δ bar</th></tr></thead><tbody>'
-      +rows.slice(0,14).map(r=>'<tr><td style="text-align:left">'+esc(r.label)+(r.bad?' <span style="color:var(--red)">⚠</span>':'')+'</td><td class="mono">'+r.before.toFixed(1)+'</td><td class="mono"><b>'+r.now.toFixed(1)+'</b></td><td>'+jccArrow(r.d)+'</td></tr>').join('')
+      +rows.slice(0,14).map(r=>'<tr><td style="text-align:left">'+esc(r.label)+(r.bad?' <span style="color:var(--red)">⚠</span>':'')+'</td><td class="mono">'+jccDisp(r.before.toFixed(1))+'</td><td class="mono"><b>'+jccDisp(r.now.toFixed(1))+'</b></td><td>'+jccArrow(r.d)+'</td></tr>').join('')
       +'</tbody></table></div>'+(rows.length>14?'<div class="note" style="margin-top:4px">+'+(rows.length-14)+' titik lain berubah…</div>':'')
     : '<div class="note" style="margin:4px 0">Semua titik tekanan stabil (tidak ada perubahan signifikan) dibanding ceklist sebelumnya.</div>';
   const opts2=jccTrendOpts(machine); const defKey=(rows.length&&opts2.some(o=>o.key===rows[0].key))?rows[0].key:(opts2[0]?opts2[0].key:''); window._jccTrendKey=defKey;
@@ -11014,7 +11027,7 @@ function jccTrendDraw(machine,key){ window._jccTrendKey=key; const cv=document.g
   charts.jccTrend=mkChart(cv,{type:'line',data:{labels:labels,datasets:[{data:data,borderColor:'#f6b73c',backgroundColor:'rgba(246,183,60,.15)',borderWidth:2,fill:true,tension:.25,spanGaps:true,
     pointRadius:5,pointBackgroundColor:data.map((v,i)=>bad[i]?'#ff5a5a':(_out[i]?'#ff8c3b':'#f6b73c')),pointBorderColor:data.map((v,i)=>bad[i]?'#ff5a5a':(_out[i]?'#ff8c3b':'#f6b73c'))},
     ...(_med?[{data:data.map(()=>_med),borderColor:'rgba(127,127,127,.55)',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,tension:0,spanGaps:true}]:[])]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},datalabels:{display:false},tooltip:{callbacks:{label:(c)=>c.datasetIndex?('median '+_med.toFixed(1)+' bar'):(c.parsed.y+' bar'+(bad[c.dataIndex]?' ⚠ trouble':'')+(_out[c.dataIndex]?' · menyimpang >'+_lim+'%':''))}}},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},datalabels:{display:false},tooltip:{callbacks:{label:(c)=>c.datasetIndex?('median '+jccDisp(_med.toFixed(1))+' bar'):(jccDisp(c.parsed.y)+' bar'+(bad[c.dataIndex]?' ⚠ trouble':'')+(_out[c.dataIndex]?' · menyimpang >'+_lim+'%':''))}}},
     scales:{x:{ticks:{color:tc,maxRotation:0,autoSkip:true},grid:{display:false}},y:{ticks:{color:tc},grid:{color:gc},suggestedMin:0,suggestedMax:4,title:{display:true,text:'bar',color:tc}}}}}); }
 /* ---- prepare-JC ↔ ceklist linkage ---- */
 function jccForPlan(p){ if(!p)return []; const pid=p.id; const mc=p.machine||p.line; return (JCCHECKS||[]).filter(r=> (r.srcPlan!=null && String(r.srcPlan)===String(pid)) || (mc && r.machine===mc && (r.date||'')===(p.jcDate||'') && (r.typeJob||'')===(p.typeJob||'')) ); }
