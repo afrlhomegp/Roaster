@@ -6130,7 +6130,7 @@ function kfCkHTML(p){ const c=window._jccEdit; if(!c) return ''; jccEnsureCss();
   const e=window._kfEdit||{}, open=!!e.ckOpen, secs=sectionsOf(c.machine), n=jccCounts(c);
   const cdSel=`<label class="kf-f kf-cd"><span>CD</span><select onchange="jccHdr('cd',this.value,true)"><option value="">— pilih CD —</option>${CFG.cds.map(x=>`<option${c.cd===x?' selected':''}>${esc(x)}</option>`).join('')}</select></label>`;
   /* urutan: tekanan global dulu → tabel per section paling bawah (bisa disembunyikan / ditampilkan) */
-  const glob=`<div class="kf-pt"><div class="kf-ptt">Tekanan global</div><div class="kf-gp">${JCC_GP.map(([k,nm])=>{ const g=jccGetG(k); return `<div><span>${esc(nm)}</span><span class="kf-gpv">${jccPresChip('g',k,'','',nm,g.v||'')}</span></div>`; }).join('')}</div></div>`;
+  const glob=`<div class="kf-pt"><div class="kf-ptt">Tekanan global</div><div class="kf-gp">${JCC_GP.map(([k,nm])=>{ const g=jccGetG(k); return `<div><span>${esc(nm)}${JCC_GS[k]?` <small class="kf-gpu">${esc(JCC_GS[k].unit)}</small>`:''}</span><span class="kf-gpv">${jccPresChip('g',k,'','',nm,g.v||'')}</span></div>`; }).join('')}</div></div>`;
   let per='';
   if(open){ if(!c.cd) per='<div class="kf-hint">Pilih CD dulu — kolom Luar/Dalam (dan Tengah untuk 4¼") mengikuti CD.</div>';
     else { const cols=jccCols(c.cd);
@@ -6297,7 +6297,7 @@ function kfWaText(p){ if(!p) return ''; const c=p.conf||{}, ck=kfCkOf(p), L=[], 
       L.push('*CEKLIST AFTER JC* — '+n.filled+' titik (bar)');
       L.push(kfWaTable(ck,p.machine||p.line||ck.machine));
       if(bad.length) L.push('_! = gauge trouble_');
-      const G=JCC_GP.map(([k,nm])=>{ const g=(ck.glob||{})[k]; return g&&g.v?'- '+nm+': `'+jccDisp(g.v)+'`'+(g.bad?' _gauge trouble_':''):null; }).filter(Boolean);
+      const G=JCC_GP.map(([k,nm])=>{ const g=(ck.glob||{})[k]; return g&&g.v?'- '+nm+': `'+jccDisp(g.v)+'`'+(jccUnitX(k)?' '+jccUnitX(k):'')+(g.bad?' _gauge trouble_':''):null; }).filter(Boolean);
       if(G.length){ L.push(''); L.push('*Tekanan global*'); L.push(...G); }
       if(bad.length){ L.push(''); L.push('*Gauge trouble*'); bad.forEach(b=>L.push('- '+b)); }
       const pb=kfWaCl(ck.perbaikan); if(pb){ L.push(''); L.push('*TEMUAN / PERBAIKAN*'); L.push('> '+pb); } }
@@ -6487,8 +6487,8 @@ function kfRepData(p){ const c=p.conf||{}, tunda=!!(p.postponed||c.st==='tunda')
     const T=JCC_PT.filter(([t])=>secs.some(s=>cols.some(k=>has(cell(s,t)[k])||cell(s,t)[k+'Bad'])));
     const rows=secs.filter(s=>T.some(([t])=>cols.some(k=>has(cell(s,t)[k])||cell(s,t)[k+'Bad'])))
       .map(s=>({s,v:T.map(([t])=>cols.map(k=>{ const x=cell(s,t); return {v:has(x[k])?jccDisp(x[k]):'',bad:!!x[k+'Bad']}; }))}));
-    const GL={hp:'HIGH P.',lp:'LOW P.',sb:'SETTLE BLOW',fb:'FINAL BLOW',fcg:'FIN. COOLING',moc:'MOC'};
-    const glob=JCC_GP.map(([k,nm])=>{ const g=(ck.glob||{})[k]; return g&&(has(g.v)||g.bad)?{l:GL[k]||String(nm).toUpperCase(),v:has(g.v)?jccDisp(g.v):'–',bad:!!g.bad}:null; }).filter(Boolean);
+    const GL={hp:'HIGH P.',lp:'LOW P.',sb:'SETTLE BLOW',fb:'FINAL BLOW',fcg:'FIN. COOLING',moc:'MOC',blw:'BLOWER',vac:'VAC / COOL BTM',hecs:'HEC STROKE',hecc:'HEC CTU',dfe:'DFE'};
+    const glob=JCC_GP.map(([k,nm])=>{ const g=(ck.glob||{})[k]; return g&&(has(g.v)||g.bad)?{l:GL[k]||String(nm).toUpperCase(),v:has(g.v)?jccDisp(g.v):'–',u:jccUnitX(k),op:!!JCC_GS[k],bad:!!g.bad}:null; }).filter(Boolean);
     if(rows.length||glob.length) D.ck={cols,T:T.map(x=>x[1]),rows,glob,filled:jccCounts(ck).filled};
     D.bad=kfWaBad(ck); }
   const tm=c.temu||{}; D.temu=KF_TEMU.map(([k,l])=>({l,v:cl(tm[k])})).filter(x=>x.v);
@@ -6554,10 +6554,13 @@ function kfRpBlocks(D,g,LW,RW){ const K=KF_RP, ink=K.ink, mut=K.mut, fnt=K.fnt, 
           if(ci===0&&ti>0){ g.fillStyle='#f1f4f8'; g.fillRect(cx-1,y,2,16); }
           if(c.bad){ g.fillStyle='#ffe3e3'; g.fillRect(cx+1,y+1,cw-2,14); }
           kfRpT(g,c.v?c.v+(c.bad?' !':''):(c.bad?'!':'–'),cx+cw/2,y+12,kfRpF(c.bad?900:500,10.5),c.bad?'#c0262f':(c.v?ink:'#b6bec9'),'center',cw-2); })); }})); }
-    if(C.glob.length){ const per=Math.min(6,C.glob.length), gw=(iw-(per-1)*4)/per, nr=Math.ceil(C.glob.length/per);
-      items.push({h:6+nr*30,d:(g,x,y,w)=>{ C.glob.forEach((o,i)=>{ const gx=x+(i%per)*(gw+4), gy=y+6+Math.floor(i/per)*30;
-        kfRpBox(g,gx,gy,gw,26,6,o.bad?'#fff0f0':'#f6f8fb',o.bad?'#f6c4c4':'#e6eaf0'); kfRpT(g,o.l,gx+gw/2,gy+9.5,kfRpF(800,7.5),fnt,'center',gw-4);
-        kfRpT(g,o.v+(o.bad?' !':''),gx+gw/2,gy+21.5,kfRpF(700,11),o.bad?'#c0262f':ink,'center',gw-4); }); }}); }
+    if(C.glob.length){ const GR=[], ch=a=>{ for(let i=0;i<a.length;i+=6) GR.push(a.slice(i,i+6)); }; ch(C.glob.filter(o=>!o.op)); ch(C.glob.filter(o=>o.op));
+      items.push({h:6+GR.length*30,d:(g,x,y,w)=>{ GR.forEach((row,ri)=>{ const per=Math.max(4,row.length), gw=(w-(per-1)*4)/per;
+        row.forEach((o,i)=>{ const gx=x+i*(gw+4), gy=y+6+ri*30, vc=o.bad?'#c0262f':ink, vt=o.v+(o.bad?' !':'');
+          kfRpBox(g,gx,gy,gw,26,6,o.bad?'#fff0f0':'#f6f8fb',o.bad?'#f6c4c4':'#e6eaf0'); kfRpT(g,o.l,gx+gw/2,gy+9.5,kfRpF(800,7.5),fnt,'center',gw-4);
+          if(!o.u||o.v==='–'){ kfRpT(g,vt,gx+gw/2,gy+21.5,kfRpF(700,11),vc,'center',gw-4); return; }
+          g.font=kfRpF(700,11); const vw=g.measureText(vt).width; g.font=kfRpF(700,8); const uw=g.measureText(' '+o.u).width;
+          const sx=gx+Math.max(2,(gw-vw-uw)/2); kfRpT(g,vt,sx,gy+21.5,kfRpF(700,11),vc); kfRpT(g,' '+o.u,sx+vw,gy+21.5,kfRpF(700,8),fnt,'left',gx+gw-2-sx-vw); }); }); }}); }
     if(D.bad.length){ const lines=kfRpWrap(g,[{t:'Gauge trouble:',f:kfRpF(800,10),c:'#c0262f'},{t:' '+D.bad.join(', '),f:kfRpF(500,10),c:'#c0262f'}],iw,4);
       items.push({h:8+lines.length*13,d:(g,x,y)=>kfRpLines(g,lines,x,y+16,13)}); }
     L.push({id:'ck',mv:1,box:{stroke:ln,r:10,pt:8,pb:6,px:10},items,rep:hdr?[title,hdr]:[title]}); }
@@ -10759,7 +10762,15 @@ function importJSON(inp){const f=inp.files[0];if(!f)return;const rd=new FileRead
   }catch(err){toast('File tidak valid',1);}};rd.readAsText(f);}
 /* ============ CEKLIST JOBCHANGE (after job change) — pressure data input ============ */
 const JCC_PT=[['pu','Plunger Up'],['cb','Counter Blow'],['vb','Vertiblow']];
-const JCC_GP=[['hp','High Pressure'],['lp','Low Pressure'],['sb','Settle Blow'],['fb','Final Blow'],['fcg','Finish Cooling'],['moc','Pressure MOC']];
+const JCC_GP=[['hp','High Pressure'],['lp','Low Pressure'],['sb','Settle Blow'],['fb','Final Blow'],['fcg','Finish Cooling'],['moc','Pressure MOC'],
+  ['blw','Blower Pressure'],['vac','Vacuum / Cool Bottom'],['hecs','HEC Stroke Pump'],['hecc','HEC Hasil CTU'],['dfe','DFE Pressure']];
+/* skala isian: tekanan bar 0–5 langkah 0,1 (default) · operation check punya satuan & rentang sendiri */
+const JCC_BAR={min:0,max:5,step:0.1,dec:1,unit:'bar',seed:2,short:1};
+const JCC_GS={blw:{min:0,max:300,step:1,dec:0,unit:'mBar',seed:80},vac:{min:-1,max:5,step:0.1,dec:1,unit:'bar',seed:0.5},
+  hecs:{min:0,max:100,step:1,dec:0,unit:'stroke',seed:30},hecc:{min:0,max:100,step:1,dec:0,unit:'CTU',seed:45},dfe:{min:0,max:150,step:1,dec:0,unit:'psi',seed:60}};
+function jccSc(t){ return (t&&t.kind==='g'&&JCC_GS[t.a])||JCC_BAR; }
+function jccScN(sc){ return Math.round((sc.max-sc.min)/sc.step); }
+function jccUnitX(k){ const g=JCC_GS[k]; return g&&g.unit!=='bar'?g.unit:''; }   /* satuan selain bar (untuk teks / laporan) */
 function jccHasTengah(cd){ return /(^|[^0-9])4\s*(¼|1\/4|[.,]25)/.test(String(cd||'')); }   /* CD 4¼" (triple gob) → 3 per section: Luar · Tengah · Dalam */
 function jccCols(cd){ return jccHasTengah(cd)?['l','m','d']:['l','d']; }
 function jccColLabel(c){ return c==='l'?'Luar':c==='m'?'Tengah':'Dalam'; }
@@ -10775,13 +10786,13 @@ function jccChipId(kind,a,b,c){ return 'jccchip_'+kind+'_'+a+'_'+(b||'')+'_'+(c|
 /* desktop = perangkat ber-mouse → isi tekanan dengan mengetik angka; HP / tablet (layar sentuh) → tekan & geser */
 function jccHint(){ return jccDesk()
   ?'<b>Ketik tekanan (bar, 0–5)</b> — Enter = lanjut ke kotak berikutnya · 24 = 2,4 · ↑ ↓ = ±0,1. <b>Klik 2×</b> = ⚠ gauge trouble.'
-  :'<b>Tekan angka lalu geser ◀ ▶</b> — pelan = 0,1 · cepat = loncat · lepas jari = pilih (0–5 bar). <b>Ketuk 2×</b> = ⚠ gauge trouble.'; }
+  :'<b>Tekan angka lalu geser ◀ ▶</b> — pelan = halus · cepat = loncat · mentok di tepi layar? <b>tahan</b> = terus naik / turun · lepas jari = pilih. <b>Ketuk 2×</b> = ⚠ gauge trouble.'; }
 function jccDesk(){ try{ return window.matchMedia('(hover: hover) and (pointer: fine)').matches; }catch(e){ return false; } }
 function jccPresChip(kind,a,b,c,label,val){ const id=jccChipId(kind,a,b,c); const filled=(val!==''&&val!=null); const shown=filled?jccDisp(val):'–';
   let bad=false; try{ bad=kind==='p'?!!jccGetCell(a,b)[c+'Bad']:!!jccGetG(a).bad; }catch(e){}
   const lab=esc(String(label||''));
-  if(jccDesk()) return '<span class="jcc-iw'+(bad?' bad':'')+'" title="'+lab+(bad?' · ⚠ gauge trouble':'')+'"><input type="text" inputmode="decimal" autocomplete="off" spellcheck="false" maxlength="4" id="'+id+'" class="jcc-in'+(filled?' on':'')+'" value="'+(filled?esc(jccDisp(val)):'')+'" placeholder="–" data-kind="'+kind+'" data-a="'+esc(a)+'" data-b="'+esc(b||'')+'" data-c="'+esc(c||'')+'" data-lab="'+lab+'" aria-label="'+lab+' (bar)"></span>';
-  return '<button type="button" id="'+id+'" class="jcc-chip'+(filled?' on':'')+(bad?' bad':'')+'" data-kind="'+kind+'" data-a="'+esc(a)+'" data-b="'+esc(b||'')+'" data-c="'+esc(c||'')+'" data-lab="'+lab+'" aria-label="'+lab+' (bar)">'+shown+'</button>'; }
+  if(jccDesk()) return '<span class="jcc-iw'+(bad?' bad':'')+'" title="'+lab+(bad?' · ⚠ gauge trouble':'')+'"><input type="text" inputmode="decimal" autocomplete="off" spellcheck="false" maxlength="6" id="'+id+'" class="jcc-in'+(filled?' on':'')+'" value="'+(filled?esc(jccDisp(val)):'')+'" placeholder="–" data-kind="'+kind+'" data-a="'+esc(a)+'" data-b="'+esc(b||'')+'" data-c="'+esc(c||'')+'" data-lab="'+lab+'" aria-label="'+lab+' ('+jccSc({kind:kind,a:a}).unit+')"></span>';
+  return '<button type="button" id="'+id+'" class="jcc-chip'+(filled?' on':'')+(bad?' bad':'')+'" data-kind="'+kind+'" data-a="'+esc(a)+'" data-b="'+esc(b||'')+'" data-c="'+esc(c||'')+'" data-lab="'+lab+'" aria-label="'+lab+' ('+jccSc({kind:kind,a:a}).unit+')">'+shown+'</button>'; }
 function jccCell(type,sec,col){ const c=jccGetCell(type,sec); return jccPresChip('p',type,sec,col,jccTypeName(type)+' · '+sec+' · '+jccColLabel(col),c[col]||''); }
 function jccTable(type,label){ const e=window._jccEdit; const secs=sectionsOf(e.machine); const cols=jccCols(e.cd);
   const head='<th style="text-align:left">Sec</th>'+cols.map(c=>'<th>'+jccColLabel(c)+'</th>').join('');
@@ -10826,8 +10837,8 @@ function jccForm(){ const e=window._jccEdit; jccEnsureCss(); const isNew=e.id==n
   let body='';
   if(!e.cd){ body='<div class="card" style="padding:14px;border-color:var(--yellow)"><b>Pilih CD dulu</b><div class="note" style="margin-top:4px">Kolom Luar/Dalam (dan Tengah untuk 4¼") mengikuti CD yang dipilih.</div></div>'; }
   else { body='<div class="note" style="margin:0 0 10px">'+jccHint()+'</div>'+JCC_PT.map(([t,nm])=>jccTable(t,nm)).join('');
-    body+='<div class="card" style="padding:14px;margin-bottom:12px"><h3 style="margin:0 0 6px;color:var(--accent2)">Tekanan Global <span class="tag">bar · 0–5</span></h3>'
-      +JCC_GP.map(([k,nm])=>{ const g=jccGetG(k); return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line2)"><span style="font-size:13px">'+nm+'</span><span style="display:flex;align-items:center">'+jccPresChip('g',k,'','',nm,g.v||'')+'</span></div>'; }).join('')
+    body+='<div class="card" style="padding:14px;margin-bottom:12px"><h3 style="margin:0 0 6px;color:var(--accent2)">Tekanan Global <span class="tag">bar · + operation check</span></h3>'
+      +JCC_GP.map(([k,nm])=>{ const g=jccGetG(k); return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line2)"><span style="font-size:13px">'+nm+(JCC_GS[k]?' <small style="color:var(--txt3)">('+JCC_GS[k].unit+')</small>':'')+'</span><span style="display:flex;align-items:center">'+jccPresChip('g',k,'','',nm,g.v||'')+'</span></div>'; }).join('')
       +'</div>';
   }
   const repair='<div class="card" style="padding:14px;margin-bottom:12px">'
@@ -11095,8 +11106,9 @@ function jccAnomalyDetail(){
    • komputer: drag mouse sama, atau klik sel lalu ketik angka (25 = 2,5) · ← → · Delete = kosong · Enter = sel berikutnya */
 const JCC_MAX=50;      /* 5,0 bar dalam satuan 0,1 */
 const JCC_DIR=1;       /* 1: kanan = naik · -1: kiri = naik */
-function jccValIdx(v){ if(v===''||v==null)return null; const i=Math.round(parseFloat(String(v).replace(',','.'))*10); return (isFinite(i)&&i>=0&&i<=JCC_MAX)?i:null; }
-function jccFmt(i){ return (i==null||i<0)?'':(i/10).toFixed(1); }
+function jccValIdx(v,sc){ sc=sc||JCC_BAR; if(v===''||v==null)return null; const x=parseFloat(String(v).replace(',','.')); if(!isFinite(x)) return null;
+  const i=Math.round((x-sc.min)/sc.step); return (i>=0&&i<=jccScN(sc))?i:null; }
+function jccFmt(i,sc){ sc=sc||JCC_BAR; return (i==null||i<0)?'':(sc.min+i*sc.step).toFixed(sc.dec); }
 function jccDisp(v){ return (v===''||v==null)?'':String(v).replace('.',','); }   /* tampilan desimal koma: 2.5 → 2,5 */
 function jccEnsureCss(){ if(document.getElementById('jccCss'))return;
   const css='<style id="jccCss">'
@@ -11110,7 +11122,7 @@ function jccEnsureCss(){ if(document.getElementById('jccCss'))return;
   +'.jcc-chip.wig{animation:jccWig .38s ease}'
   +'@keyframes jccWig{20%{transform:translateX(-5px)}50%{transform:translateX(5px)}80%{transform:translateX(-2px)}}'
   +'body.jcc-swiping,body.jcc-swiping *{user-select:none!important;-webkit-user-select:none!important;cursor:ew-resize!important}'
-  +'#jccSw{position:fixed;left:0;top:0;z-index:10000;pointer-events:none;width:210px;box-sizing:border-box;padding:9px 13px 10px;border-radius:16px;background:rgba(18,20,24,.95);color:#fff;box-shadow:0 10px 30px rgba(0,0,0,.45);opacity:0;transform:translateY(6px) scale(.96);transition:opacity .12s,transform .12s;font:inherit;line-height:1.2}'
+  +'#jccSw{position:fixed;left:0;top:0;z-index:10000;pointer-events:none;width:226px;box-sizing:border-box;padding:9px 13px 10px;border-radius:16px;background:rgba(18,20,24,.95);color:#fff;box-shadow:0 10px 30px rgba(0,0,0,.45);opacity:0;transform:translateY(6px) scale(.96);transition:opacity .12s,transform .12s;font:inherit;line-height:1.2}'
   +'#jccSw.show{opacity:1;transform:none}'
   +'#jccSw .sw-l{font-size:11px;font-weight:700;color:#b9c0cc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}'
   +'#jccSw .sw-v{font-size:32px;font-weight:900;text-align:center;font-variant-numeric:tabular-nums;line-height:1.1;margin:2px 0 6px;color:#ffd27a}'
@@ -11123,7 +11135,7 @@ function jccEnsureCss(){ if(document.getElementById('jccCss'))return;
   +'#jccSw .sw-tr b{position:absolute;top:1px;width:15px;height:15px;margin-left:-7.5px;border-radius:50%;background:#ffd27a;box-shadow:0 0 0 4px rgba(255,210,122,.22)}'
   +'#jccSw .sw-sc{display:flex;justify-content:space-between;font-size:10px;color:#8a93a3;margin:2px 2px 0;font-variant-numeric:tabular-nums}'
   +'#jccSw .sw-m{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:11px;color:#b9c0cc;margin-top:6px}'
-  +'#jccSw .sw-m em{font-style:normal;font-weight:800;padding:1px 9px;border-radius:999px;background:rgba(255,255,255,.1);color:#e6e9ef}'
+  +'#jccSw .sw-m em{font-style:normal;font-weight:800;white-space:nowrap;padding:1px 9px;border-radius:999px;background:rgba(255,255,255,.1);color:#e6e9ef}'
   +'#jccSw .sw-m em.fast{background:#e0931a;color:#2a1a00}'
   +'#jccSw .sw-bad{display:none;text-align:center;font-size:11px;font-weight:800;color:#ff8a8a;margin-top:5px}#jccSw.bad .sw-bad{display:block}'
   +'#jccSw .sw-hint{display:none;text-align:center;font-size:12px;font-weight:700;color:#e6e9ef;margin-top:6px}'
@@ -11154,13 +11166,13 @@ function jccToggleBad(t,el){ if(!window._jccEdit) return; let on; if(t.kind==='p
   jccBuzz(on?[14,50,14]:10); jccPaintCount();
   try{ toast((on?'⚠ Gauge trouble: ':'⚠ dibatalkan: ')+(t.lab||'')); }catch(e){} return on; }
 /* nilai awal saat sel kosong mulai digeser: section terdekat (kolom sama) → kolom lain baris sama → ceklist sebelumnya mesin ini → 2,0 */
-function jccSeed(t){ const e=window._jccEdit; if(!e) return 20;
+function jccSeed(t){ const e=window._jccEdit, sc=jccSc(t); if(!e) return jccValIdx(sc.seed,sc);
   if(t.kind==='p'){ const secs=sectionsOf(e.machine), i=secs.indexOf(t.b);
     for(let d=1; d<secs.length; d++){ for(const j of [i-d,i+d]){ if(j>=0&&j<secs.length){ const v=jccValIdx(jccGetCell(t.a,secs[j])[t.c]); if(v!=null) return v; } } }
     for(const col of jccCols(e.cd)){ const v=jccValIdx(jccGetCell(t.a,t.b)[col]); if(v!=null) return v; } }
   try{ const prev=jccForMachine(e.machine).filter(r=>r.id!==e.id).pop();
-    if(prev){ const v=t.kind==='p'?jccValIdx((((prev.sec||{})[t.b]||{})[t.a]||{})[t.c]):jccValIdx(((prev.glob||{})[t.a]||{}).v); if(v!=null) return v; } }catch(_){}
-  return 20; }
+    if(prev){ const v=t.kind==='p'?jccValIdx((((prev.sec||{})[t.b]||{})[t.a]||{})[t.c]):jccValIdx(((prev.glob||{})[t.a]||{}).v,sc); if(v!=null) return v; } }catch(_){}
+  return jccValIdx(sc.seed,sc); }
 (function(){
   if(window._jccSwInit) return; window._jccSwInit=true;
   const TH=7, SLOW=16, FAST=2.5, V0=0.12, V1=0.9;           /* px per 0,1 bar: pelan → cepat · kecepatan px/ms */
@@ -11180,18 +11192,28 @@ function jccSeed(t){ const e=window._jccEdit; if(!e) return 20;
     b.style.left=Math.round(left)+'px'; b.style.top=Math.round(top)+'px'; }
   function paint(s,x){ const b=bub(); b.classList.remove('tip'); b.classList.toggle('bad',jccIsBad(s.t));
     b.querySelector('.sw-l').textContent=s.t.lab||'Pressure';
-    const v=b.querySelector('.sw-v'), e=s.idx<0; v.classList.toggle('empty',e); v.innerHTML=e?'kosong':jccDisp(jccFmt(s.idx))+'<small>bar</small>';
-    const pct=Math.max(0,s.idx)/JCC_MAX*100; b.querySelector('.sw-tr b').style.left=pct+'%'; b.querySelector('.sw-tr u').style.width=pct+'%';
-    const m=b.querySelector('.sw-m em'); m.textContent=s.k>0.6?'cepat »':s.k>0.25?'sedang':'halus · 0,1'; m.classList.toggle('fast',s.k>0.6);
-    jccShowVal(s.el,jccFmt(s.idx)); place(b,s.el,x,s.y); b.classList.add('show'); }
+    const v=b.querySelector('.sw-v'), e=s.idx<0; v.classList.toggle('empty',e); v.innerHTML=e?'kosong':jccDisp(jccFmt(s.idx,s.sc))+'<small>'+s.sc.unit+'</small>';
+    if(b._sc!==s.sc){ b._sc=s.sc; b.querySelector('.sw-sc').innerHTML=[0,1,2,3,4,5].map(k=>'<span>'+jccDisp(String(+(s.sc.min+(s.sc.max-s.sc.min)*k/5).toFixed(s.sc.dec)))+'</span>').join(''); }
+    const pct=Math.max(0,s.idx)/s.N*100; b.querySelector('.sw-tr b').style.left=pct+'%'; b.querySelector('.sw-tr u').style.width=pct+'%';
+    const m=b.querySelector('.sw-m em'); m.textContent=s.repSide?(JCC_DIR*s.repSide>0?'tahan · naik »':'« turun · tahan'):s.k>0.6?'cepat »':s.k>0.25?'sedang':'halus · '+jccDisp(String(s.sc.step)); m.classList.toggle('fast',s.k>0.6||!!s.repSide);
+    jccShowVal(s.el,jccFmt(s.idx,s.sc)); place(b,s.el,x,s.y); b.classList.add('show'); }
   function hide(){ const b=document.getElementById('jccSw'); if(b) b.classList.remove('show','tip'); }
+  /* jari mentok di tepi layar (HP) → tahan = nilai jalan terus ke arah itu */
+  function repStop(s){ if(s&&s.rep){ clearTimeout(s.rep); s.rep=0; s.repSide=0; } }
+  function repTick(){ const s=S; if(!s||!s.on||!s.repSide) return; const held=performance.now()-s.repT0, d=JCC_DIR*s.repSide*(held>2200?(s.N>100?5:2):1);
+    const ni=Math.max(0,Math.min(s.N,s.idx+d));
+    if(ni!==s.idx){ const whole=Math.floor(ni/10)!==Math.floor(Math.max(0,s.idx)/10); s.idx=ni; jccBuzz(whole?9:3); paint(s,s.lx); }
+    s.rep=setTimeout(repTick,held<800?200:held<2000?120:70); }
+  function repEdge(s,x){ const vw=window.innerWidth||0, E=Math.max(28,Math.min(60,vw*0.13)), side=x>vw-E?1:x<E?-1:0;
+    if(side&&Math.sign(x-s.x0)===side){ if(s.repSide!==side){ repStop(s); s.repSide=side; s.repT0=performance.now(); s.rep=setTimeout(repTick,260); } }
+    else if(s.repSide){ repStop(s); } }
   function tip(el,t,msg){ const b=bub(); b.classList.add('tip'); b.classList.toggle('bad',jccIsBad(t)); b.querySelector('.sw-l').textContent=t.lab||'Pressure';
-    const val=jccGetVal(t), v=b.querySelector('.sw-v'); v.classList.toggle('empty',!val); v.innerHTML=val?jccDisp(val)+'<small>bar</small>':'kosong';
+    const val=jccGetVal(t), v=b.querySelector('.sw-v'); v.classList.toggle('empty',!val); v.innerHTML=val?jccDisp(val)+'<small>'+jccSc(t).unit+'</small>':'kosong';
     b.querySelector('.sw-hint').textContent=msg; place(b,el); b.classList.add('show'); clearTimeout(tipT); tipT=setTimeout(hide,1400); }
   function chipAt(ev){ const el=ev.target&&ev.target.closest&&ev.target.closest('.jcc-chip[data-kind]'); return el&&window._jccEdit?el:null; }
   document.addEventListener('pointerdown',function(ev){ const el=chipAt(ev); if(!el) return; if(ev.pointerType==='mouse'&&ev.button!==0) return; if(S&&S.on) return;
-    kbCommit(); clearTimeout(tipT); hide(); const t=jccChipRef(el), cur=jccValIdx(jccGetVal(t));
-    S={el,t,id:ev.pointerId,type:ev.pointerType,x0:ev.clientX,y0:ev.clientY,lx:ev.clientX,lt:ev.timeStamp,on:false,start:cur,idx:cur==null?-1:cur,acc:0,v:0,k:0};
+    kbCommit(); clearTimeout(tipT); hide(); const t=jccChipRef(el), sc=jccSc(t), cur=jccValIdx(jccGetVal(t),sc);
+    S={el,t,sc,N:jccScN(sc),id:ev.pointerId,type:ev.pointerType,x0:ev.clientX,y0:ev.clientY,lx:ev.clientX,lt:ev.timeStamp,on:false,start:cur,idx:cur==null?-1:cur,acc:0,v:0,k:0};
     if(ev.pointerType==='mouse') ev.preventDefault(); });
   document.addEventListener('pointermove',function(ev){ const s=S; if(!s||ev.pointerId!==s.id) return; const dx=ev.clientX-s.x0, dy=ev.clientY-s.y0;
     if(!s.on){ if(Math.abs(dx)<TH&&Math.abs(dy)<TH) return;
@@ -11205,15 +11227,15 @@ function jccSeed(t){ const e=window._jccEdit; if(!e) return 20;
     const vi=Math.abs(mdx)/dt; s.v=s.n?s.v*0.5+vi*0.5:vi; s.n=(s.n||0)+1; s.y=ev.clientY; s.k=Math.max(0,Math.min(1,(s.v-V0)/(V1-V0)));
     const pxs=SLOW/(1+s.k*(SLOW/FAST-1));                             /* pelan 16 px → cepat 2,5 px per 0,1 bar */
     s.acc+=JCC_DIR*mdx/pxs; const n=s.acc<0?Math.ceil(s.acc):Math.floor(s.acc);
-    if(n){ s.acc-=n; const ni=Math.max(-1,Math.min(JCC_MAX,s.idx+n));
+    if(n){ s.acc-=n; const ni=Math.max(-1,Math.min(s.N,s.idx+n));
       if(ni!==s.idx){ const whole=Math.floor(Math.max(0,ni)/10)!==Math.floor(Math.max(0,s.idx)/10)||ni<0||s.idx<0; s.idx=ni;
         if(whole) jccBuzz(9); else if(s.k<0.4) jccBuzz(3); }
       else s.acc=0; }                                                 /* mentok di ujung */
-    paint(s,ev.clientX); },{passive:false});
-  function end(ev,cancel){ const s=S; if(!s||ev.pointerId!==s.id) return; S=null;
+    repEdge(s,ev.clientX); paint(s,ev.clientX); },{passive:false});
+  function end(ev,cancel){ const s=S; if(!s||ev.pointerId!==s.id) return; S=null; repStop(s);
     if(s.on){ s.el.classList.remove('sw'); document.body.classList.remove('jcc-swiping'); hide(); try{ s.el.releasePointerCapture(s.id); }catch(_){}
-      if(cancel){ jccShowVal(s.el,jccFmt(s.start)); return; }
-      jccWriteVal(s.t,jccFmt(s.idx),s.el); jccBuzz(14); last=null; return; }
+      if(cancel){ jccShowVal(s.el,jccFmt(s.start,s.sc)); return; }
+      jccWriteVal(s.t,jccFmt(s.idx,s.sc),s.el); jccBuzz(14); last=null; return; }
     if(cancel) return;
     const now=Date.now();
     if(last&&last.el===s.el&&now-last.t<380){ clearTimeout(last.tm); last=null; hide(); jccToggleBad(s.t,s.el); return; }   /* ketuk 2× */
@@ -11227,24 +11249,24 @@ function jccSeed(t){ const e=window._jccEdit; if(!e) return 20;
   document.addEventListener('contextmenu',ev=>{ if(chipAt(ev)) ev.preventDefault(); });
   document.addEventListener('animationend',ev=>{ if(ev.target&&ev.target.classList&&ev.target.classList.contains('wig')) ev.target.classList.remove('wig'); });
   /* ---- keyboard (komputer) ---- */
-  function kbParse(buf){ if(!buf) return null; let n; if(buf.indexOf('.')>=0) n=parseFloat(buf); else if(buf.length===1) n=+buf; else n=+(buf[0]+'.'+buf[1]);
-    if(!isFinite(n)) return null; return Math.max(0,Math.min(JCC_MAX,Math.round(n*10))); }
+  function kbParse(buf,sc){ if(!buf) return null; let n; if(!sc.short||buf.indexOf('.')>=0||buf[0]==='-') n=parseFloat(buf); else if(buf.length===1) n=+buf; else n=+(buf[0]+'.'+buf[1]);
+    if(!isFinite(n)) return null; return Math.max(0,Math.min(jccScN(sc),Math.round((n-sc.min)/sc.step))); }
   function kbCommit(){ const el=kb.el; if(!el) return; clearTimeout(kb.tm); const buf=kb.buf; kb={el:null,buf:'',tm:0}; el.classList.remove('typing');
-    if(!document.body.contains(el)||!window._jccEdit) return; const t=jccChipRef(el), i=kbParse(buf);
-    if(i==null){ jccShowVal(el,jccGetVal(t)); return; } jccWriteVal(t,jccFmt(i),el); }
+    if(!document.body.contains(el)||!window._jccEdit) return; const t=jccChipRef(el), sc=jccSc(t), i=kbParse(buf,sc);
+    if(i==null){ jccShowVal(el,jccGetVal(t)); return; } jccWriteVal(t,jccFmt(i,sc),el); }
   function kbCancel(){ const el=kb.el; if(!el) return; clearTimeout(kb.tm); kb={el:null,buf:'',tm:0}; el.classList.remove('typing'); jccShowVal(el,jccGetVal(jccChipRef(el))); }
   function kbArm(el){ clearTimeout(kb.tm); kb.tm=setTimeout(kbCommit,1300); el.textContent=jccDisp(kb.buf)||'–'; el.classList.add('typing'); }
   function next(el,d){ const box=el.closest('#kfCk')||document; const L=[...box.querySelectorAll('.jcc-chip[data-kind]')]; const n=L[L.indexOf(el)+d]; if(n){ try{ n.focus({preventScroll:false}); }catch(_){ n.focus(); } } }
   document.addEventListener('keydown',function(ev){ const el=document.activeElement; if(!el||!el.matches||!el.matches('.jcc-chip[data-kind]')||!window._jccEdit) return;
     if(ev.ctrlKey||ev.metaKey||ev.altKey) return; const k=ev.key, t=jccChipRef(el);
-    if(/^[0-9]$/.test(k)||k==='.'||k===','){ ev.preventDefault(); clearTimeout(tipT); hide(); if(kb.el!==el){ kbCommit(); kb={el,buf:'',tm:0}; }
+    if(/^[0-9]$/.test(k)||k==='.'||k===','||(k==='-'&&jccSc(t).min<0&&!(kb.el===el&&kb.buf))){ ev.preventDefault(); clearTimeout(tipT); hide(); if(kb.el!==el){ kbCommit(); kb={el,buf:'',tm:0}; }
       const ch=k===','?'.':k; if(ch==='.'&&kb.buf.indexOf('.')>=0) return; if(kb.buf.replace('.','').length>=3) return; kb.buf+=ch; kbArm(el); return; }
     if(k==='Enter'){ ev.preventDefault(); kbCommit(); next(el,1); return; }
     if(k==='Escape'){ if(kb.el===el){ ev.preventDefault(); kbCancel(); } return; }
     if(k==='Backspace'){ ev.preventDefault(); if(kb.el===el&&kb.buf){ kb.buf=kb.buf.slice(0,-1); if(kb.buf) kbArm(el); else kbCancel(); return; } jccWriteVal(t,'',el); return; }
     if(k==='Delete'){ ev.preventDefault(); kbCancel(); jccWriteVal(t,'',el); return; }
     const d={ArrowRight:1,ArrowUp:1,ArrowLeft:-1,ArrowDown:-1}[k];
-    if(d){ ev.preventDefault(); kbCommit(); const cur=jccValIdx(jccGetVal(t)); const i=cur==null?jccSeed(t):Math.max(0,Math.min(JCC_MAX,cur+d*(ev.shiftKey?5:1))); jccWriteVal(t,jccFmt(i),el); return; } });
+    if(d){ ev.preventDefault(); kbCommit(); const sc=jccSc(t), cur=jccValIdx(jccGetVal(t),sc); const i=cur==null?jccSeed(t):Math.max(0,Math.min(jccScN(sc),cur+d*(ev.shiftKey?5:1))); jccWriteVal(t,jccFmt(i,sc),el); return; } });
   document.addEventListener('focusout',function(ev){ if(kb.el&&ev.target===kb.el) kbCommit(); });
   /* ---- desktop: kotak isian angka (.jcc-in) ---- */
   const isIn=el=>el&&el.matches&&el.matches('input.jcc-in[data-kind]');
@@ -11253,30 +11275,30 @@ function jccSeed(t){ const e=window._jccEdit; if(!e) return 20;
   document.addEventListener('focusin',function(ev){ const el=ev.target; if(!isIn(el)) return; el._jsel=true; try{ el.select(); }catch(_){} });
   document.addEventListener('mouseup',function(ev){ const el=ev.target; if(isIn(el)&&el._jsel){ el._jsel=false; if(el.selectionStart===el.selectionEnd){ ev.preventDefault(); try{ el.select(); }catch(_){} } } },true);
   document.addEventListener('focusout',function(ev){ if(isIn(ev.target)) ev.target._jsel=false; });
-  document.addEventListener('input',function(ev){ const el=ev.target; if(!isIn(el)) return; const v=el.value.replace(/[^0-9.,]/g,''); if(v!==el.value) el.value=v; el.classList.remove('err'); });
+  document.addEventListener('input',function(ev){ const el=ev.target; if(!isIn(el)) return; const v=el.value.replace(/[^0-9.,-]/g,''); if(v!==el.value) el.value=v; el.classList.remove('err'); });
   document.addEventListener('change',function(ev){ const el=ev.target; if(isIn(el)&&window._jccEdit) jccInCommit(el); });
   document.addEventListener('keydown',function(ev){ const el=ev.target; if(!isIn(el)||!window._jccEdit) return;
     if(ev.key==='Enter'){ ev.preventDefault(); if(jccInCommit(el)) inNext(el,ev.shiftKey?-1:1); return; }
     if(ev.key==='Escape'){ ev.preventDefault(); el.value=jccDisp(jccGetVal(jccChipRef(el))); el.classList.remove('err'); try{ el.select(); }catch(_){} return; }
     const d={ArrowUp:1,ArrowDown:-1}[ev.key];
-    if(d){ ev.preventDefault(); const t=jccChipRef(el), p=jccParseIn(el.value), cur=jccValIdx(p===null?jccGetVal(t):p);
-      const i=cur==null?jccSeed(t):Math.max(0,Math.min(JCC_MAX,cur+d*(ev.shiftKey?5:1))); el.value=jccFmt(i); jccInCommit(el); try{ el.select(); }catch(_){} } });
+    if(d){ ev.preventDefault(); const t=jccChipRef(el), sc=jccSc(t), p=jccParseIn(el.value,sc), cur=jccValIdx(p===null?jccGetVal(t):p,sc);
+      const i=cur==null?jccSeed(t):Math.max(0,Math.min(jccScN(sc),cur+d*(ev.shiftKey?5:1))); el.value=jccFmt(i,sc); jccInCommit(el); try{ el.select(); }catch(_){} } });
   document.addEventListener('dblclick',function(ev){ const el=ev.target; if(!isIn(el)||!window._jccEdit) return; jccToggleBad(jccChipRef(el),el); try{ el.select(); }catch(_){} });
 })();
 /* ketik bebas: "2.4" / "2,4" / "24" (= 2,4) / "3" (= 3,0) · batas 0–5 bar · kosong = hapus */
-function jccParseIn(s){ s=String(s==null?'':s).trim().replace(',','.'); if(!s) return '';
-  if(!/^\d*\.?\d*$/.test(s)||s==='.') return null;
-  let n; if(s.indexOf('.')>=0) n=parseFloat(s); else if(s.length===1) n=+s; else n=+(s[0]+'.'+s.slice(1));
-  if(!isFinite(n)||n<0||n>5.0001) return null; return (Math.round(n*10)/10).toFixed(1); }
-function jccInCommit(el){ const t=jccChipRef(el), v=jccParseIn(el.value), prev=jccGetVal(t);
-  if(v===null){ el.classList.remove('err'); void el.offsetWidth; el.classList.add('err'); try{ toast('Isi tekanan 0 – 5 bar (contoh 2,4 atau 24)',1); }catch(_){} el.value=jccDisp(prev); return false; }
+function jccParseIn(s,sc){ sc=sc||JCC_BAR; s=String(s==null?'':s).trim().replace(',','.'); if(!s) return '';
+  if(!/^-?\d*\.?\d*$/.test(s)||/^-?\.?$/.test(s)) return null;
+  let n; if(!sc.short||s.indexOf('.')>=0) n=parseFloat(s); else if(s.length===1) n=+s; else n=+(s[0]+'.'+s.slice(1));
+  if(!isFinite(n)||n<sc.min-1e-4||n>sc.max+1e-4) return null; const r=Math.round(n*10)/10; return sc.dec?r.toFixed(sc.dec):String(r); }
+function jccInCommit(el){ const t=jccChipRef(el), sc=jccSc(t), v=jccParseIn(el.value,sc), prev=jccGetVal(t);
+  if(v===null){ el.classList.remove('err'); void el.offsetWidth; el.classList.add('err'); try{ toast(sc===JCC_BAR?'Isi tekanan 0 – 5 bar (contoh 2,4 atau 24)':'Isi '+(t.lab||'nilai')+' '+jccDisp(String(sc.min))+' – '+jccDisp(String(sc.max))+' '+sc.unit,1); }catch(_){} el.value=jccDisp(prev); return false; }
   el.value=jccDisp(v); el.classList.remove('err'); if(v!==prev){ if(t.kind==='p') jccSetP(t.a,t.b,t.c,v); else jccSetG(t.a,v); }
   el.classList.toggle('on',v!==''); jccPaintCount(); return true; }
 /* ============ CEKLIST JC ↔ MACHINE STATUS integration (kondisi naik/turun) ============ */
 function jccForMachine(machine){ return (JCCHECKS||[]).filter(r=>r.machine===machine).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')||((a.id||0)-(b.id||0))); }
 function jccFlatPoints(r){ const out={}; const sec=r.sec||{};
   Object.keys(sec).forEach(s=>{ ['pu','cb','vb'].forEach(t=>{ const cell=sec[s]&&sec[s][t]; if(!cell)return; ['l','m','d'].forEach(col=>{ const v=cell[col]; if(v!==''&&v!=null){ out['p|'+t+'|'+s+'|'+col]={v:parseFloat(v),bad:!!cell[col+'Bad'],label:jccTypeName(t)+' '+s+'·'+jccColLabel(col)}; } }); }); });
-  const g=r.glob||{}; Object.keys(g).forEach(k=>{ if(g[k]&&g[k].v!==''&&g[k].v!=null){ const gp=JCC_GP.find(x=>x[0]===k); out['g|'+k]={v:parseFloat(g[k].v),bad:!!g[k].bad,label:(gp?gp[1]:k)}; } });
+  const g=r.glob||{}; Object.keys(g).forEach(k=>{ if(g[k]&&g[k].v!==''&&g[k].v!=null){ const gp=JCC_GP.find(x=>x[0]===k); out['g|'+k]={v:parseFloat(g[k].v),bad:!!g[k].bad,label:(gp?gp[1]:k)+(jccUnitX(k)?' ('+jccUnitX(k)+')':'')}; } });
   return out; }
 function jccArrow(d){ if(d>0.05)return '<span style="color:var(--orange);font-weight:800">▲ +'+jccDisp(d.toFixed(1))+'</span>'; if(d<-0.05)return '<span style="color:var(--blue);font-weight:800">▼ '+jccDisp(d.toFixed(1))+'</span>'; return '<span style="color:var(--txt3)">= 0</span>'; }
 function jccMachineCard(machine){
@@ -12312,6 +12334,7 @@ html[data-app="jcc"] #bellBtn,html[data-app="jcc"] #bellPop,html[data-app="jcc"]
 .kf-gp{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:2px 14px}
 .kf-gp>div{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:3px 2px;font-size:12.5px;font-weight:600;min-width:0}
 .kf-gp>div>span:first-child{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kf-gpu{font-size:11px;font-weight:700;color:var(--txt3);margin-left:2px}
 .kf-gpv{display:flex;align-items:center;flex:0 0 auto}
 .kf-foot{position:sticky;bottom:12px;z-index:20;display:flex;align-items:center;gap:8px;justify-content:flex-end;background:var(--panel);border-radius:16px;padding:8px;box-shadow:0 10px 30px rgba(0,0,0,.25),var(--neu-sm,none)}
 .kf-sum{margin-right:auto;font-size:12.5px;color:var(--txt2);min-width:0;padding-left:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -12335,6 +12358,8 @@ html[data-app="jcc"] #bellBtn,html[data-app="jcc"] #bellPop,html[data-app="jcc"]
   .kf-gp{grid-template-columns:minmax(0,1fr)}
   .kf-pt .jcc-chip{max-width:none;min-height:44px;font-size:16px}   /* sel lebar & tinggi: mudah ditekan lalu digeser */
   .kf-gpv .jcc-chip{min-width:112px;min-height:42px;font-size:16px}
+  .kf-pt{padding-right:max(10px,14%)}   /* ruang kosong di kanan → jari leluasa geser ke kanan (naik), tidak bentrok gesture tepi layar */
+  .kf-gp>div{padding-right:4px}
 }
 @media(max-width:380px){ .kf-pt .jcc-chip{min-width:40px;padding:6px 4px} }
 </style>
