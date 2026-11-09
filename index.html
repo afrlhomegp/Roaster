@@ -754,6 +754,43 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();win
   .jcrow label{flex:1 1 52%;min-width:0;font-size:11.5px;text-transform:none;letter-spacing:0;color:var(--txt2);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .jcrow input,.jcrow select.jcsel{flex:1 1 48%;padding:7px 9px;font-size:12.5px;min-width:0}
   .jcrow select.jcsel.empty{color:var(--txt3)}
+  .lt-card{min-width:0;max-width:100%}
+  .lt-chips{display:flex;flex-direction:column;gap:8px;margin:0 0 12px}
+  .jx-seg.ml-seg{display:flex;width:100%;margin:0 0 14px}
+  .jx-seg.ml-seg button{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:1px;font-size:12.5px;padding:8px 10px;white-space:normal;line-height:1.2}
+  .jx-seg.ml-seg button small{font-size:10.5px;font-weight:600;opacity:.75}
+  .ml-pane[hidden]{display:none!important}
+  .lt-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+  .lt-line>b{font-size:10.5px;font-weight:800;color:var(--txt3);letter-spacing:.05em;text-transform:uppercase;min-width:58px}
+  .lt-chip{border:1px solid var(--line);background:var(--panel2);color:var(--txt);border-radius:999px;padding:6px 13px;font:inherit;font-weight:700;font-size:12.5px;line-height:1.15;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .15s,border-color .15s}
+  .lt-chip:hover{border-color:var(--accent)}
+  .lt-chip small{font-size:10.5px;font-weight:500;color:var(--txt3)}
+  .lt-chip i{font-style:normal;font-size:10px;font-weight:800;min-width:17px;height:17px;padding:0 4px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;background:var(--accent);color:var(--bg)}
+  .lt-chip.on{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+  .lt-chip.on small{color:inherit;opacity:.85}
+  .lt-chip.on i{background:var(--bg);color:var(--accent)}
+  .lt-hd{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;padding:10px 12px;background:var(--panel2);border:1px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0}
+  .lt-hd>b{font-size:15px;font-weight:800;color:var(--txt)}
+  .lt-hd>span{font-size:12px;color:var(--txt3)}
+  .lt-hd .lt-rsall{margin-left:auto}
+  .lt-list{border:1px solid var(--line);border-radius:0 0 12px 12px;overflow:hidden}
+  .lt-row{display:grid;grid-template-columns:minmax(110px,210px) auto minmax(0,1fr) 30px;grid-template-areas:"pn iv st rp";align-items:center;gap:4px 14px;padding:8px 12px;border-top:1px solid var(--line)}
+  .lt-row:first-child{border-top:0}
+  .lt-pn{grid-area:pn;font-weight:700;color:var(--txt);min-width:0}
+  .lt-iv{grid-area:iv;display:inline-flex;align-items:center;gap:6px;margin:0}
+  .lt-iv input{width:80px;padding:6px 8px;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
+  .lt-iv small{font-size:11px;color:var(--txt3)}
+  .lt-st{grid-area:st;display:flex;flex-direction:column;gap:1px;font-size:11.5px;color:var(--txt3);min-width:0}
+  .lt-st em{font-style:normal;font-weight:600}
+  .lt-st em.k{color:var(--accent);font-weight:800}
+  .lt-st small{font-size:10.5px;overflow-wrap:anywhere}
+  .lt-row.ov{background:rgba(29,132,100,.07)}
+  .lt-row.ov .lt-iv input{border-color:var(--accent);color:var(--accent)}
+  .lt-rp,.lt-rp-x{grid-area:rp}
+  .lt-rp{border:0;background:none;color:var(--txt3);cursor:pointer;font-size:15px;width:28px;height:28px;border-radius:50%}
+  .lt-rp:hover{background:rgba(127,127,127,.15);color:var(--txt)}
+  .lt-row:not(.ov) .lt-rp{visibility:hidden}
+  @media(max-width:680px){ .lt-row{grid-template-columns:1fr auto 28px;grid-template-areas:"pn iv rp" "st iv rp";gap:2px 10px} .lt-line>b{min-width:100%} }
   .jv-area{border-radius:14px;background:var(--panel2);margin:0 0 8px;padding:0 12px}
   .jv-area>summary{cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 0;list-style:none}
   .jv-area>summary::-webkit-details-marker{display:none}
@@ -3232,6 +3269,7 @@ function syncNormalizeCfg(){
   if(!Array.isArray(CFG.denah.racks)) CFG.denah.racks=[];
   if(typeof CFG.denah.img!=='string') CFG.denah.img='';
   if(!CFG.lifetimes||typeof CFG.lifetimes!=='object') CFG.lifetimes={};
+  if(!CFG.lifetimesM||typeof CFG.lifetimesM!=='object'||Array.isArray(CFG.lifetimesM)) CFG.lifetimesM={};   /* lifetime khusus per mesin */
   if(!CFG.machineSecs||typeof CFG.machineSecs!=='object') CFG.machineSecs={};
   if(!CFG.commonReasons||!CFG.commonReasons.length) CFG.commonReasons=['JobChange','Roaster'];
   if(!CFG.partReasons||typeof CFG.partReasons!=='object') CFG.partReasons={};
@@ -3758,17 +3796,29 @@ function syncSettingsCard(){
 /* ============ COMPUTE ENGINE ============ */
 function classifyCat(reason){ return rgOf(reason).name; }   /* nama bab: Job Change / Roaster / Trouble */
 function isPlannedReason(reason){ return !!rgOf(reason).planned; }
-function lifetimeOf(part){ return CFG.lifetimes[part]||90; }
-function warnDaysFor(part){ var d=+CFG.warnDiv||2; return Math.max(1,Math.round(lifetimeOf(part)/d)); }
-function urgentDaysFor(part){ var d=+CFG.urgentDiv||4; return Math.max(1,Math.round(lifetimeOf(part)/d)); }
-function statusOf(rem,part){ if(rem<0)return'OVERDUE'; var u=(part!=null)?urgentDaysFor(part):(+CFG.urgent||7); var w=(part!=null)?warnDaysFor(part):(+CFG.warning||14); if(rem<=u)return'URGENT'; if(rem<=w)return'WARNING'; return'OK'; }
+/* LIFETIME TARGET (hari): default per part untuk semua mesin (CFG.lifetimes) + bisa beda per mesin (CFG.lifetimesM[mesin][part]).
+   Mesin tanpa isian khusus otomatis ikut default → mesin baru langsung ikut default. */
+function lifetimeDef(part){ const v=+(CFG.lifetimes||{})[part]; return v>0?v:90; }
+function lifetimeMOv(machine,part){ const m=machine!=null&&CFG.lifetimesM&&CFG.lifetimesM[machine]; const v=m?+m[part]:0; return v>0?v:null; }
+function lifetimeOf(part,machine){ const v=lifetimeMOv(machine,part); return v!=null?v:lifetimeDef(part); }
+function warnDaysFor(part,machine){ var d=+CFG.warnDiv||2; return Math.max(1,Math.round(lifetimeOf(part,machine)/d)); }
+function urgentDaysFor(part,machine){ var d=+CFG.urgentDiv||4; return Math.max(1,Math.round(lifetimeOf(part,machine)/d)); }
+/* target gabungan untuk tampilan lintas mesin: rata-rata target per data (bila ada) / per mesin dalam cakupan */
+function lifetimeScope(part,machs,recs){ const R=(recs||[]).filter(r=>r&&r.part===part&&r.actual!=null);
+  const L=R.length?R.map(r=>lifetimeOf(part,r.machine)):(machs&&machs.length?machs.map(m=>lifetimeOf(part,m)):[lifetimeDef(part)]);
+  const mn=Math.min(...L), mx=Math.max(...L), av=L.reduce((a,b)=>a+b,0)/L.length;
+  return {lt:Math.round(av*10)/10, mn, mx, mixed:mn!==mx, txt:mn===mx?String(mn):(mn+'–'+mx)}; }
+/* ringkasan target lintas mesin untuk teks: "60" atau "60–90" */
+function ltLabel(r){ return r&&r.mixed?(r.ltTxt+' (rata² '+Math.round(r.lt)+')'):String(r?r.lt:''); }   /* "60" atau "60–90 (rata² 72)" */
+function lifetimeRangeTxt(part,machs){ return lifetimeScope(part,machs||CFG.machines||[]).txt; }
+function statusOf(rem,part,machine){ if(rem<0)return'OVERDUE'; var u=(part!=null)?urgentDaysFor(part,machine):(+CFG.urgent||7); var w=(part!=null)?warnDaysFor(part,machine):(+CFG.warning||14); if(rem<=u)return'URGENT'; if(rem<=w)return'WARNING'; return'OK'; }
 function daysBetween(a,b){ return Math.round((b-a)/86400000); }
 function parseD(s){ const d=new Date(s+'T00:00:00'); d.setHours(0,0,0,0); return d; }
 function fmtD(d){ if(!d)return'—'; const x=(d instanceof Date)?d:parseD(d); return String(x.getDate()).padStart(2,'0')+'/'+String(x.getMonth()+1).padStart(2,'0')+'/'+x.getFullYear(); }
 
 // enrich records with category & sorted; compute actual lifetime
 function enriched(){
-  const list=DB.map((r,i)=>{const g=rgOf(r.reason);return {...r,_i:i,cat:g.name,gid:g.id,planned:!!g.planned,lt:lifetimeOf(r.part),d:parseD(r.date)};});
+  const list=DB.map((r,i)=>{const g=rgOf(r.reason);return {...r,_i:i,cat:g.name,gid:g.id,planned:!!g.planned,lt:lifetimeOf(r.part,r.machine),d:parseD(r.date)};});
   // actual lifetime = gap from previous same combo
   const groups={};
   [...list].sort((a,b)=>a.d-b.d).forEach(r=>{
@@ -3793,8 +3843,8 @@ function monitoring(){
     if(!o.last||r.d>o.last)o.last=r.d;
   });
   return Object.values(combo).map(o=>{
-    const lt=lifetimeOf(o.part); const nd=new Date(o.last.getTime()+lt*86400000);
-    const rem=daysBetween(TODAY,nd); const st=statusOf(rem,o.part);
+    const lt=lifetimeOf(o.part,o.machine); const nd=new Date(o.last.getTime()+lt*86400000);
+    const rem=daysBetween(TODAY,nd); const st=statusOf(rem,o.part,o.machine);
     return {...o,lt,nextDue:nd,rem,status:st,key:o.machine+'|'+o.section+'|'+o.part};
   }).sort((a,b)=>a.rem-b.rem);
 }
@@ -3839,8 +3889,8 @@ const VIEWS=[
   ['action','🚨','Action Required'],['plan','📅','Planning JC'],['jcm','🍾','Master JC'],['jccheck','🧪','Ceklist JC'],['mp','👷','Man Power'],['ana','📈','Analysis'],
   ['report','📑','Report'],['fc','🔮','Forecast'],['stock','📦','Stock'],['audit','🧾','Log Perubahan'],['set','⚙️','Settings']
 ];
-if(APP_MODE==='jcc'){ VIEWS.length=0; VIEWS.push(['konf','✅','Konfirmasi JC'],['ismain','🏭','← IS Machine']); }   /* konfirmasi + ceklist = 1 halaman */
-else { const _ji=VIEWS.findIndex(v=>v[0]==='jccheck'); if(_ji>=0) VIEWS[_ji]=['jccheck','✅','Konfirmasi JC ↗']; }   /* main: tautan ke konfirmasi-jc.html */
+if(APP_MODE==='jcc'){ VIEWS.length=0; VIEWS.push(['konf','✅','Verifikasi JC'],['ismain','🏭','← IS Machine']); }   /* konfirmasi + ceklist = 1 halaman */
+else { const _ji=VIEWS.findIndex(v=>v[0]==='jccheck'); if(_ji>=0) VIEWS[_ji]=['jccheck','✅','Verifikasi JC ↗']; }   /* main: tautan ke konfirmasi-jc.html */
 const _SVG=(p)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const NAVICON={
   dash:_SVG('<rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/>'),
@@ -3869,7 +3919,7 @@ const BN_MAX=6;
 const NAV_ADD={dash:{t:'Tambah data',go:()=>openFabMenu('nav')},input:{t:'Tambah data',go:()=>openFabMenu('nav')},stock:{t:'Tambah data',go:()=>openFabMenu('nav')},
   plan:{t:'Buat JC plan',go:()=>openJCPlan()},jcm:{t:'Tambah job type baru',go:()=>openJCMaster()},jccheck:{t:'Ceklist JC baru',go:()=>jccNew()}};
 function navAddGo(){ const a=NAV_ADD[current]; if(!a) return; try{ if(MSS_ST.open) mssSet(false); }catch(e){} a.go(); }
-const BN_SHORT={konf:'Konfirmasi',ismain:'IS Machine',dash:'Dashboard',input:'Input',mon:'Monitor',action:'Action',plan:'Planning',jcm:'Master JC',jccheck:APP_MODE==='jcc'?'Ceklist':'Konfirmasi',mp:'Man Power',ana:'Analysis',report:'Report',fc:'Forecast',stock:'Stock',audit:'Log',set:'Settings'};
+const BN_SHORT={konf:'Verifikasi',ismain:'IS Machine',dash:'Dashboard',input:'Input',mon:'Monitor',action:'Action',plan:'Planning',jcm:'Master JC',jccheck:APP_MODE==='jcc'?'Ceklist':'Verifikasi',mp:'Man Power',ana:'Analysis',report:'Report',fc:'Forecast',stock:'Stock',audit:'Log',set:'Settings'};
 function bottomIds(){ if(APP_MODE==='jcc') return ['konf','ismain']; return (CFG.bottomNav&&CFG.bottomNav.length)?CFG.bottomNav:['dash','input','plan','ana'];}
 function buildNav(){
   const m=monitoring(); const urgent=m.filter(x=>x.status==='OVERDUE'||x.status==='URGENT').length;
@@ -4058,7 +4108,7 @@ function pwaAsk(){ const st=pwaState(); _pwaShown=true; let m=document.getElemen
       :`<ol class="pwa-steps"><li>Ketuk menu <b>⋮</b> di pojok kanan atas Chrome</li><li>Pilih <b>Tambahkan ke layar utama</b> (atau <b>Instal aplikasi</b>)</li><li>Ketuk <b>Tambah</b> / <b>Instal</b></li></ol>`)
       +`<div class="pwa-tip">HP <b>Xiaomi / Redmi / POCO / Oppo / Vivo / Realme</b>: bila ikon tidak muncul, buka <b>Setelan → Aplikasi → ${pwaSamsung()?'Samsung Internet':'Chrome'} → Izin</b> → aktifkan <b>Pintasan layar utama</b>, lalu ulangi.</div>`}[st]||'';
   m.innerHTML=`<div class="jm-grab"></div>
-    <div class="pwa-hd"><img class="pwa-ic" src="${ic}" alt=""><div><b id="pwaAskT">Pasang ${APP_MODE==='jcc'?'Konfirmasi JC':'IS Machine'} di layar utama?</b><small>${st==='ready'?'Belum terpasang di HP ini':st==='ios'?'iPhone / iPad · lewat Safari':st==='manual'?'Lewat menu browser · 3 langkah':'Dibuka dari aplikasi lain'}</small></div></div>
+    <div class="pwa-hd"><img class="pwa-ic" src="${ic}" alt=""><div><b id="pwaAskT">Pasang ${APP_MODE==='jcc'?'Verifikasi JC':'IS Machine'} di layar utama?</b><small>${st==='ready'?'Belum terpasang di HP ini':st==='ios'?'iPhone / iPad · lewat Safari':st==='manual'?'Lewat menu browser · 3 langkah':'Dibuka dari aplikasi lain'}</small></div></div>
     <ul class="pwa-why"><li>Buka langsung dari ikon — tanpa cari link</li><li>Layar penuh, tanpa bilah alamat browser</li><li>Data & sinkronisasi tetap sama</li></ul>
     ${how?`<div class="pwa-how"${(st==='ios'||st==='manual')?' hidden':''}>${how}</div>`:''}
     <div class="pwa-acts"><button type="button" class="btn pwa-go" onclick="pwaAskGo()">${st==='ready'?'📲 Pasang':(st==='ios'||st==='manual')?'Lihat caranya':'Mengerti'}</button><button type="button" class="btn sec" onclick="pwaLater()">Nanti saja</button></div>
@@ -4068,7 +4118,7 @@ function pwaAskClose(){ const m=document.getElementById('pwaAsk'), bk=document.g
 function pwaAskGo(){ const st=pwaState(), m=document.getElementById('pwaAsk');
   if(st==='ready'){ pwaAskClose(); pwaInstall(); return; }
   const h=m&&m.querySelector('.pwa-how'); if(h&&h.hidden){ h.hidden=false; const b=m.querySelector('.pwa-go'); if(b) b.textContent='Sudah, tutup'; return; }
-  if(st==='ios'||st==='manual'){ pwaLS('pm_pwa_done','1'); pwaAskClose(); pwaPaint(); try{ toast('Sip — buka berikutnya lewat ikon '+(APP_MODE==='jcc'?'Konfirmasi JC':'IS Machine')+' di layar utama'); }catch(e){} return; }
+  if(st==='ios'||st==='manual'){ pwaLS('pm_pwa_done','1'); pwaAskClose(); pwaPaint(); try{ toast('Sip — buka berikutnya lewat ikon '+(APP_MODE==='jcc'?'Verifikasi JC':'IS Machine')+' di layar utama'); }catch(e){} return; }
   pwaLater(true); }
 function pwaLater(silent){ pwaLS('pm_pwa_later',String(Date.now())); pwaAskClose(); if(!silent) try{ toast('Oke — diingatkan lagi '+PWA_LATER_DAYS+' hari lagi'); }catch(e){} }
 function pwaNever(){ pwaLS('pm_pwa_never','1'); pwaAskClose(); try{ toast('Pop-up pasang aplikasi tidak ditampilkan lagi (bisa dibuka di Settings → Pasang Aplikasi)'); }catch(e){} }
@@ -4117,8 +4167,8 @@ function toggleBottom(id){CFG.bottomNav=(CFG.bottomNav&&CFG.bottomNav.length)?CF
 const _SB={OVERDUE:['var(--redbg)','var(--red)'],URGENT:['var(--orangebg)','var(--orange)'],WARNING:['var(--yellowbg)','var(--yellow)'],OK:['var(--greenbg)','var(--green)']};
 function machineSchedule(sel){var list=enriched().filter(function(r){return r.machine===sel;});var g={};
   list.forEach(function(r){var k=r.section+'|'+r.part; if(!g[k])g[k]={section:r.section,part:r.part,sched:[],trbl:[]}; if(r.planned)g[k].sched.push(r); else g[k].trbl.push(r);});
-  var map={}; Object.keys(g).forEach(function(k){var o=g[k]; var lt=lifetimeOf(o.part); o.sched.sort(function(a,b){return a.d-b.d;}); o.trbl.sort(function(a,b){return b.d-a.d;});
-    var lastSched=o.sched.length?o.sched[o.sched.length-1].d:null; var nd=lastSched?new Date(lastSched.getTime()+lt*86400000):null; var rem=nd?daysBetween(TODAY,nd):null; var status=rem===null?'NO DATA':statusOf(rem,o.part);
+  var map={}; Object.keys(g).forEach(function(k){var o=g[k]; var lt=lifetimeOf(o.part,sel); o.sched.sort(function(a,b){return a.d-b.d;}); o.trbl.sort(function(a,b){return b.d-a.d;});
+    var lastSched=o.sched.length?o.sched[o.sched.length-1].d:null; var nd=lastSched?new Date(lastSched.getTime()+lt*86400000):null; var rem=nd?daysBetween(TODAY,nd):null; var status=rem===null?'NO DATA':statusOf(rem,o.part,sel);
     map[k]={section:o.section,part:o.part,lt:lt,lastSched:lastSched,nextDue:nd,rem:rem,status:status,count:o.sched.length+o.trbl.length,trouble:o.trbl.length,troubleList:o.trbl.map(function(r){return {date:r.date,reason:r.reason};}),schedList:o.sched.slice().reverse().map(function(r){return {date:r.date,reason:r.reason};})};});
   return map; }
 const THEMES=[['dark','🌙 Gelap'],['light','☀️ Terang']];
@@ -4476,7 +4526,7 @@ function lifeChip(gap,lt){ if(gap==null)return'';
   return '<span class="mono" style="font-size:11px;white-space:nowrap;color:'+c+'" title="Umur aktual sejak penggantian sebelumnya: '+gap+' hari ('+pct+'% dari target lifetime '+lt+' hari)">\u23F1 '+gap+'/'+lt+'h</span>';
 }
 function openCell(sec,part){var k=sec+'|'+part; var x=(window._mSchedMap||{})[k]||{}; var sel=window._mSel; var sched=(x.schedList||[]); var trbl=(x.troubleList||[]);
-  var lt=lifetimeOf(part);
+  var lt=lifetimeOf(part,sel);
   var all=withGaps(sched,trbl).reverse();
   var S=all.filter(function(z){return z.t==='s';}), T=all.filter(function(z){return z.t==='t';});
   var rc=function(z,c){return '<div class="xrowc"><span class="mono" style="color:'+c+'">'+fmtD(parseD(z.date))+'</span><span style="color:var(--txt2);flex:1">'+(z.reason||'-')+'</span>'+lifeChip(z.gap,lt)+'</div>';};
@@ -4494,7 +4544,7 @@ function openCell(sec,part){var k=sec+'|'+part; var x=(window._mSchedMap||{})[k]
   document.getElementById('cmodal').classList.add('show'); }
 function closeCmodal(){var el=document.getElementById('cmodal'); if(el)el.classList.remove('show'); }
 function openComboHistory(machine,section,part){
-  const recs=comboRecords(machine,section,part); const ints=intervalsOf(recs); const gaps=ints.map(x=>x.gap); const lt=lifetimeOf(part);
+  const recs=comboRecords(machine,section,part); const ints=intervalsOf(recs); const gaps=ints.map(x=>x.gap); const lt=lifetimeOf(part,machine);
   const avg=gaps.length?(gaps.reduce((a,b)=>a+b,0)/gaps.length):null;
   const last=recs.length?recs[recs.length-1].d:null;
   const predicted=last&&avg!=null?new Date(last.getTime()+avg*86400000):(last?new Date(last.getTime()+lt*86400000):null);
@@ -4580,9 +4630,9 @@ function machinePartStatus(sel,part){
   var list=enriched().filter(function(r){return r.machine===sel&&r.part===part;});
   var sched=[],trbl=[]; list.forEach(function(r){ if(r.planned)sched.push(r); else trbl.push(r); });
   sched.sort(function(a,b){return a.d-b.d;}); trbl.sort(function(a,b){return b.d-a.d;});
-  var lt=lifetimeOf(part); var lastSched=sched.length?sched[sched.length-1].d:null;
+  var lt=lifetimeOf(part,sel); var lastSched=sched.length?sched[sched.length-1].d:null;
   var nd=lastSched?new Date(lastSched.getTime()+lt*86400000):null; var rem=nd?daysBetween(TODAY,nd):null;
-  var status=rem===null?'NO DATA':statusOf(rem,part);
+  var status=rem===null?'NO DATA':statusOf(rem,part,sel);
   return {part:part,lt:lt,lastSched:lastSched,nextDue:nd,rem:rem,status:status,count:sched.length+trbl.length,trouble:trbl.length,troubleList:trbl.map(function(r){return {date:r.date,reason:r.reason};}),schedList:sched.slice().reverse().map(function(r){return {date:r.date,reason:r.reason};})};
 }
 function machPartRowHTML(sel,p){
@@ -4621,7 +4671,7 @@ function sectionAreaHTML(sel,schedMap,area,secs,selParts){
 function openMachPart(part){
   var sel=window._mSel; var x=machinePartStatus(sel,part);
   var sched=(x.schedList||[]); var trbl=(x.troubleList||[]);
-  var lt=lifetimeOf(part);
+  var lt=lifetimeOf(part,sel);
   var all=withGaps(sched,trbl).reverse();
   var S=all.filter(function(z){return z.t==='s';}), T=all.filter(function(z){return z.t==='t';});
   var rc=function(z,c){return '<div class="xrowc"><span class="mono" style="color:'+c+'">'+fmtD(parseD(z.date))+'</span><span style="color:var(--txt2);flex:1">'+(z.reason||'-')+'</span>'+lifeChip(z.gap,lt)+'</div>';};
@@ -5055,7 +5105,7 @@ function renderAlertList(){
 /* ---- AVG LIFETIME PART PER MACHINE (klik kartu Avg Lifetime di dashboard) ---- */
 function avgLifePerMachine(){
   const en=enriched(); const map={};
-  CFG.machines.forEach(mc=>{ const o={}; CFG.parts.forEach(p=>o[p]={vals:[],lt:lifetimeOf(p)}); map[mc]=o; });
+  CFG.machines.forEach(mc=>{ const o={}; CFG.parts.forEach(p=>o[p]={vals:[],lt:lifetimeOf(p,mc)}); map[mc]=o; });
   en.forEach(r=>{ if(r.actual!=null && map[r.machine] && map[r.machine][r.part]) map[r.machine][r.part].vals.push(r.actual); });
   return map;
 }
@@ -5772,7 +5822,7 @@ function sumLolli(W,S,maxH){ const rows=S.life; if(!rows.length) return '<div cl
   rows.forEach((r,i)=>{ const y=top+i*RH+RH/2, col=r.ach<S.T*0.7?'var(--red)':r.ach<S.T?'var(--orange)':'var(--green)';
     g+=`<g data-si="${i}" class="ana-hit"><rect class="ana-hl" x="-6" y="${y-RH/2+2}" width="${W+12}" height="${RH-4}" rx="5" fill="transparent"/>`+anaT(0,y+4,anaClip(r.p,LW-6,12),{fs:12,c:'var(--txt)',fw:700})
       +`<line x1="${sx(0)}" x2="${sx(r.ach)}" y1="${y}" y2="${y}" style="stroke:var(--line2);stroke-width:2"/><circle cx="${sx(r.ach)}" cy="${y}" r="6" style="fill:${col};stroke:var(--panel);stroke-width:2"/>`
-      +anaT(W,y+4,Math.round(r.ach)+'%',{a:'end',fs:12,fw:800,c:'var(--txt)',cls:'ana-num'})+`<title>${esc(r.p+': rata-rata '+r.a.toFixed(1)+' hr dari target '+r.lt+' hr ('+Math.round(r.ach)+'%) · '+r.n+' data · tap → per mesin')}</title></g>`; });
+      +anaT(W,y+4,Math.round(r.ach)+'%',{a:'end',fs:12,fw:800,c:'var(--txt)',cls:'ana-num'})+`<title>${esc(r.p+': rata-rata '+r.a.toFixed(1)+' hr dari target '+ltLabel(r)+' hr ('+Math.round(r.ach)+'%) · '+r.n+' data · tap → per mesin')}</title></g>`; });
   const H=top+rows.length*RH+16; return `<svg class="ana-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg>`; }
 function sumHeat(W,S){ const rows=S.heat; if(!rows.length) return '<div class="ana-empty">Belum ada mesin.</div>';
   const narrow=W<420, mL=Math.round((narrow?44:58)*anaFS()), tW=Math.round((narrow?54:70)*anaFS()), gap=2, cW=(W-mL-tW-8-5*gap)/6, cH=narrow?22:24, mxv=Math.max(1,...rows.flatMap(r=>r.v)), mxT=Math.max(1,...rows.map(r=>r.tot)), op=[.18,.34,.52,.74,1]; let g='';
@@ -5826,11 +5876,11 @@ function vDash(){
     secAgg[x.section][x.status]++; secAgg[x.section].tot++; secAgg[x.section].trouble+=x.trouble; });
 
   // ===== Average Lifetime per Part (dashboard card; mirrors Lifetime Analysis) =====
-  const _alPartStat={}; PARTS.forEach(p=>_alPartStat[p]={vals:[],lt:lifetimeOf(p)});
+  const _alPartStat={}; PARTS.forEach(p=>{ const sc=lifetimeScope(p,MACHS,en); _alPartStat[p]={vals:[],lt:sc.lt,ltTxt:sc.txt,mixed:sc.mixed}; });   /* target ikut lifetime tiap mesin */
   en.forEach(r=>{ if(r.actual!=null && _alPartStat[r.part]) _alPartStat[r.part].vals.push(r.actual); });
   const _alAvg=a=>a.length?(a.reduce((x,y)=>x+y,0)/a.length):null;
   const _alAll=PARTS.map(p=>{const s=_alPartStat[p];const a=_alAvg(s.vals);const ach=a!=null?a/s.lt*100:null;
-      return {p,a,lt:s.lt,ach,n:s.vals.length};});
+      return {p,a,lt:s.lt,ltTxt:s.ltTxt,mixed:s.mixed,ach,n:s.vals.length};});
   const _alWith=_alAll.filter(x=>x.n>0).sort((x,y)=>x.ach-y.ach); // worst achievement first
   const _alNone=_alAll.filter(x=>x.n===0);                        // no interval computed yet
   const _alRows=_alWith;  // tampilkan HANYA part yang sudah punya data; part tanpa data otomatis muncul begitu datanya ada
@@ -6014,12 +6064,12 @@ function kfCardHTML(p){ const mc=p.machine||p.line||'—', c=p.conf, A=kfIdArg(p
     <span class="kf-c1"><b class="kf-mc">${esc(mc)}</b><span class="kf-job">#${esc(p.typeJob||'—')}</span>${p.trial?'<em class="kf-tr">trial</em>':''}${kfStChip(p)}</span>
     <span class="kf-c2">${esc(p.description||p.bottleSize||'—')}</span>
     ${info.length?`<span class="kf-by">${info.join(' · ')}</span>`:''}
-    <span class="kf-go">${kfNeed(p)?'Konfirmasi &amp; ceklist':'Lihat / ubah'} <i>›</i></span></button>`; }
+    <span class="kf-c3">${kfWaOk(p)?`<span class="kf-rpl" role="button" tabindex="0" title="Laporan PDF / foto / WhatsApp" onclick="event.stopPropagation();kfRepOpen(${A})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();kfRepOpen(${A});}">📄 Laporan</span>`:''}<span class="kf-go">${kfNeed(p)?'Verifikasi &amp; ceklist':'Lihat / ubah'} <i>›</i></span></span></button>`; }
 function vKonf(){ if(window._kfEdit) return kfFormHTML();
   const d=kfDay(), L=kfList(d), nOk=L.filter(p=>!kfNeed(p)).length, pct=L.length?Math.round(nOk/L.length*100):0;
-  return `<h2 class="title">✅ Konfirmasi JC</h2><div class="sub">Rekap ulang plan + ceklist tekanan setelah JC — data aktual otomatis jadi acuan di IS Machine.</div>
+  return `<h2 class="title">✅ Verifikasi Pengecekan Job Change</h2><div class="sub">Rekap ulang plan + ceklist tekanan setelah JC — data aktual otomatis jadi acuan di IS Machine.</div>
   <div class="kf-top"><div class="kf-date">📅 ${esc(jcDayName(d)||'')}, ${fmtD(parseD(d))}</div>
-    ${L.some(kfWaOk)?`<button type="button" class="kf-wab" onclick="kfWaOpen()">Kirim ke WhatsApp</button>`:''}
+    ${L.some(kfWaOk)?`<button type="button" class="kf-wab kf-rpb" onclick="kfRepOpen()">Laporan &amp; Kirim</button>`:''}
     ${L.length?`<div class="kf-prog"><span><b>${nOk}</b> / ${L.length} selesai</span><i><s style="width:${pct}%"></s></i></div>`:''}</div>
   ${L.length?`<div class="kf-grid">${L.map(kfCardHTML).join('')}</div>`:'<div class="kf-empty"><b>📭</b>Tidak ada JC yang diplanningkan hari ini</div>'}`; }
 
@@ -6038,7 +6088,8 @@ function kfMkEdit(p){ const P=kfPlanOf(p), act=!!(p.conf&&p.conf.st!=='tunda'), 
   const e={id:p.id, shift:cur.shift||'', specs:kfClone(cur.specs||{})||{},
     mp:kfClone(cur.manpower||{})||{}, hr:kfClone(cur.mpHours||{})||{}, note:(act&&p.conf.note)||(ck&&ck.notes)||'',
     tunda:!!(p.conf&&p.conf.st==='tunda'), newDate:'', why:(p.conf&&p.conf.st==='tunda'&&p.conf.note)||'',
-    chk:{}, ro:[], add:[], rows:[], groups:[], adPart:'', adSecs:[], adKet:'', adOpen:false};
+    chk:{}, ro:[], add:[], rows:[], groups:[], adPart:'', adSecs:[], adKet:'', adOpen:false,
+    speed:(act&&p.conf.speed)||'', shear:(act&&p.conf.shear)||'', temu:kfClone((act&&p.conf.temu)||{})||{}, ckOpen:kfCkPref()};
   /* part variabel: semua part Planning JC per area (yang kosong di plan tetap tampil, boleh tidak dipilih) */
   const base=jcBaseOf(p), dp={}; transitionDiff(base,{specs:PS}).forEach(d=>{ dp[d.part]=d; });
   const all=kfParts(Object.keys(Object.assign({},PS,e.specs))), seen=new Set();
@@ -6076,7 +6127,7 @@ function kfCkInit(p){ const ck=kfCkOf(p);
   window._jccEdit=ck?kfClone(ck):{id:null,date:p.jcDate,machine:p.machine||p.line||'',typeJob:p.typeJob||'',cd:p.cd||'',process:p.process||(CFG.processes[0]||''),weight:p.weight||'',perbaikan:'',variabel:'',sec:{},glob:{},notes:'',srcPlan:p.id};
   try{ Object.values(window._jccEdit.sec||{}).forEach(o=>Object.values(o||{}).forEach(x=>{ if(x&&x.eq) delete x.eq; })); }catch(_){} }
 function kfOpen(id,where){ const p=kfPlan(id); if(!p){ toast('Plan JC tidak ditemukan (mungkin belum tersinkron)',1); return; }
-  window._kfEdit=kfMkEdit(p); kfCkInit(p);
+  window._kfEdit=kfMkEdit(p); kfCkInit(p); if(where==='ck') window._kfEdit.ckOpen=true;
   if(current!=='konf'){ current='konf'; buildNav(); }
   render(); try{ const t=where==='ck'&&document.getElementById('kfCk'); if(t) t.scrollIntoView({block:'start'}); else window.scrollTo(0,0); }catch(e){} }
 function kfClose(){ window._kfEdit=null; window._jccEdit=null; render(); try{ window.scrollTo(0,0); }catch(e){} }
@@ -6145,25 +6196,26 @@ function kfSumTxt(){ const e=window._kfEdit; if(!e) return ''; if(e.tunda) retur
   return (t.length?'✏️ Ganti: <b>'+esc(t.join(', '))+'</b>':todo?'● <b>'+(req-todo)+'/'+req+'</b> dicek':'✅ Sesuai plan')+' · 🧪 '+n.filled+' titik'+(n.bad?' · ⚠ '+n.bad:''); }
 /* tabel tekanan ringkas: tekan sel lalu geser kiri/kanan (tanpa pop-up) */
 function kfCkHTML(p){ const c=window._jccEdit; if(!c) return ''; jccEnsureCss();
-  const secs=sectionsOf(c.machine), n=jccCounts(c);
+  const e=window._kfEdit||{}, open=!!e.ckOpen, secs=sectionsOf(c.machine), n=jccCounts(c);
   const cdSel=`<label class="kf-f kf-cd"><span>CD</span><select onchange="jccHdr('cd',this.value,true)"><option value="">— pilih CD —</option>${CFG.cds.map(x=>`<option${c.cd===x?' selected':''}>${esc(x)}</option>`).join('')}</select></label>`;
-  let body;
-  if(!c.cd) body=cdSel+'<div class="kf-hint">Pilih CD dulu — kolom Luar/Dalam (dan Tengah untuk 4¼") mengikuti CD.</div>';
-  else { const cols=jccCols(c.cd);
-    body=(p.cd?'':cdSel)+JCC_PT.map(([t,nm])=>`<div class="kf-pt"><div class="kf-ptt">${esc(nm)}</div><table><thead><tr><th>Sec</th>${cols.map(x=>`<th>${jccColLabel(x)}</th>`).join('')}</tr></thead><tbody>`
-      +secs.map(s=>{ const cl=jccGetCell(t,s); return `<tr><td>${esc(s)}</td>${cols.map(col=>`<td>${jccPresChip('p',t,s,col,jccTypeName(t)+' · '+s+' · '+jccColLabel(col),cl[col]||'')}</td>`).join('')}</tr>`; }).join('')+'</tbody></table></div>').join('')
-      +`<div class="kf-pt"><div class="kf-ptt">Tekanan global</div><div class="kf-gp">${JCC_GP.map(([k,nm])=>{ const g=jccGetG(k); return `<div><span>${esc(nm)}</span><span class="kf-gpv">${jccPresChip('g',k,'','',nm,g.v||'')}</span></div>`; }).join('')}</div></div>`; }
-  return `<div class="kf-box" id="kfCk"><div class="kf-h3"><span class="kf-n">2</span>Ceklist after JC<small id="kfCkN">${n.filled} titik${n.bad?' · <b class="kf-bad">⚠ '+n.bad+' gauge trouble</b>':''}</small></div>
+  /* urutan: tekanan global dulu → tabel per section paling bawah (bisa disembunyikan / ditampilkan) */
+  const glob=`<div class="kf-pt"><div class="kf-ptt">Tekanan global</div><div class="kf-gp">${JCC_GP.map(([k,nm])=>{ const g=jccGetG(k); return `<div><span>${esc(nm)}</span><span class="kf-gpv">${jccPresChip('g',k,'','',nm,g.v||'')}</span></div>`; }).join('')}</div></div>`;
+  let per='';
+  if(open){ if(!c.cd) per='<div class="kf-hint">Pilih CD dulu — kolom Luar/Dalam (dan Tengah untuk 4¼") mengikuti CD.</div>';
+    else { const cols=jccCols(c.cd);
+      per=JCC_PT.map(([t,nm])=>`<div class="kf-pt"><div class="kf-ptt">${esc(nm)}</div><table><thead><tr><th>Sec</th>${cols.map(x=>`<th>${jccColLabel(x)}</th>`).join('')}</tr></thead><tbody>`
+        +secs.map(s=>{ const cl=jccGetCell(t,s); return `<tr><td>${esc(s)}</td>${cols.map(col=>`<td>${jccPresChip('p',t,s,col,jccTypeName(t)+' · '+s+' · '+jccColLabel(col),cl[col]||'')}</td>`).join('')}</tr>`; }).join('')+'</tbody></table></div>').join(''); } }
+  const tg=`<button type="button" class="kf-cktg${open?' on':''}" id="kfCkTg" onclick="kfCkTog()" aria-expanded="${open}"><span class="kf-cktt">Tekanan per section<small>Plunger Up · Counter Blow · Vertiblow · ${secs.length} section</small></span><span class="kf-ckmo">${open?'Sembunyikan':'Tampilkan'}</span></button>`;
+  return `<div class="kf-box" id="kfCk"><div class="kf-h3"><span class="kf-n">4</span>Ceklist after JC<small id="kfCkN">${n.filled} titik${n.bad?' · <b class="kf-bad">⚠ '+n.bad+' gauge trouble</b>':''}</small></div>
     <div class="kf-hint kf-swh">${jccHint()}</div>
-    ${body}
-    <label class="kf-f"><span>Perbaikan / temuan setelah JC</span><textarea rows="2" oninput="jccHdr('perbaikan',this.value)" placeholder="mis. ganti seal plunger S3, setting ulang timing">${esc(c.perbaikan||'')}</textarea></label></div>`; }
+    ${(!c.cd||!p.cd)?cdSel:''}${glob}${tg}${open?`<div class="kf-ckbd">${per}</div>`:''}</div>`; }
 function kfFormHTML(){ const e=window._kfEdit, p=kfPlan(e.id);
   if(!p){ window._kfEdit=null; window._jccEdit=null; return '<div class="kf-empty"><b>⚠️</b>Plan JC tidak ditemukan<div><button type="button" class="kf-b" onclick="kfClose()">← Kembali</button></div></div>'; }
   const P=kfPlanOf(p), mc=p.machine||p.line||'—', secsAll=sectionsOf(mc), c=p.conf, jd=P.jcDate||p.jcDate;
   const head=`<div class="kf-head"><button type="button" class="kf-back" onclick="kfClose()" aria-label="Kembali ke daftar" title="Kembali ke daftar">←</button>
       <div class="kf-ht"><h2>${esc(mc)} <span>#${esc(p.typeJob||'—')}</span>${p.trial?' <em class="kf-tr">trial</em>':''}</h2>
       <small>${(jcDayName(jd)||'').slice(0,3)} ${jd?fmtD(parseD(jd)):'—'}${p.description||p.bottleSize?' · '+esc(p.description||p.bottleSize):''}</small></div></div>
-    ${c?`<div class="kf-cinfo" style="--c:${KF_ST[c.st].c}"><span>${KF_ST[c.st].ic} ${KF_ST[c.st].t}${c.at?' · '+kfAt(c.at):''}${c.by?' · '+esc(c.by):''}</span><button type="button" class="kf-lnk" onclick="kfUndo()" title="Kembalikan isian ke plan asli">↺ Batalkan konfirmasi</button></div>`:''}`;
+    ${c?`<div class="kf-cinfo" style="--c:${KF_ST[c.st].c}"><span>${KF_ST[c.st].ic} ${KF_ST[c.st].t}${c.at?' · '+kfAt(c.at):''}${c.by?' · '+esc(c.by):''}</span><span class="kf-cbt"><button type="button" class="kf-lnk kf-lnr" onclick="kfRepOpen(${kfIdArg(p.id)})" title="Laporan PDF / foto / WhatsApp (data yang sudah disimpan)">📄 Laporan</button><button type="button" class="kf-lnk" onclick="kfUndo()" title="Kembalikan isian ke plan asli">↺ Batalkan verifikasi</button></span></div>`:''}`;
   let body;
   if(e.tunda){
     body=`<div class="kf-box"><div class="kf-h3"><span class="kf-n">⏸</span>JC tidak jadi / ditunda</div>
@@ -6175,18 +6227,6 @@ function kfFormHTML(){ const e=window._kfEdit, p=kfPlan(e.id);
     /* 1 · Rekap plan: tiap item dipilih Sama (sesuai plan) / Ganti (beda → keterangan opsional) */
     const grp=e.groups.map(g=>`<div class="kf-grp"><div class="kf-gh">${g.ro?'🔁':areaIcon(g.area)} ${esc(g.area)}</div>${g.idx.map(kfRowHTML).join('')}</div>`).join('');
     const todo=kfTodo().length;
-    /* tambahan perbaikan lainnya: mech preventive di luar plan + keterangan */
-    const mg=kfMechGroups(e.ro.map(r=>r.part)), flat=[].concat(...mg.map(g=>g.parts));
-    if(flat.indexOf(e.adPart)<0) e.adPart=flat[0]||'';
-    const nsAd=!!e.adPart&&jcRoIsNs(e.adPart);
-    const adList=e.add.map((a,j)=>`<div class="kf-ad"><div><b>${esc(a.part)}</b><span class="kf-adsec">${a.ns?'non-section':esc(kfSecTxt(a.sections))}</span>${a.ket?`<small>${esc(a.ket)}</small>`:''}</div><button type="button" class="kf-x" onclick="kfAdDel(${j})" aria-label="Hapus ${esc(a.part)}" title="Hapus">✕</button></div>`).join('');
-    const adB=!mg.length?'<div class="kf-hint">Belum ada mech preventive di Settings (area &amp; grup part).</div>'
-      :`<div class="kf-adb"><select onchange="kfFld('adPart',this.value);kfFld('adSecs',[]);render()" aria-label="Mech yang diperbaiki">${mg.map(g=>`<optgroup label="${esc(g.label)}">${g.parts.map(x=>`<option${x===e.adPart?' selected':''}>${esc(x)}</option>`).join('')}</optgroup>`).join('')}</select>
-        ${nsAd?'<span class="kf-rns">non-section</span>':`<span class="kf-secs">${secsAll.map(s=>`<button type="button" class="kf-sc${(e.adSecs||[]).indexOf(s)>=0?' on':''}" onclick="kfAdSec('${esc(s)}')">${esc(s)}</button>`).join('')}</span>`}
-        <input id="kfAdKet" class="kf-ket" value="${esc(e.adKet||'')}" oninput="kfFld('adKet',this.value)" placeholder="Keterangan perbaikan — mis. ganti spring, setting ulang" aria-label="Keterangan perbaikan" autocomplete="off">
-        <button type="button" class="kf-b" onclick="kfAdAdd()">＋ Tambah perbaikan</button></div>`;
-    const adOpen=e.adOpen||false;
-    const tambah=`<details class="kf-more"${adOpen?' open':''} ontoggle="kfTog('adOpen',this.open)"><summary><span>🔧 Tambahan perbaikan lainnya</span><small>${e.add.length?e.add.length+' item':'di luar plan'}</small></summary>${adOpen?`<div class="kf-hint kf-hp">Mech preventive yang dikerjakan di luar plan. Yang sudah ada di plan cukup dipilih Sama / Ganti di atas.</div>${adList?`<div class="kf-ads">${adList}</div>`:''}${adB}`:''}</details>`;
     const mpS=kfMpTxt(e.mp), hrN=Object.values(e.hr||{}).reduce((a,b)=>a+(+b||0),0);
     const mp=`<details class="kf-more"${e.mpOpen?' open':''} ontoggle="kfTog('mpOpen',this.open)"><summary><span>👷 Man power &amp; jam</span><small>${esc(mpS||'belum diisi')}${hrN?' · '+String(Math.round(hrN*100)/100).replace('.',',')+' jam':''}</small></summary>
       ${e.mpOpen?`<div class="kf-mp">${jcfMpGroups().map(gr=>`<div class="kf-mpr"><span>${esc(gr.label)}</span><input value="${esc(e.mp[gr.key]||'')}" data-k="${esc(gr.key)}" oninput="kfMp(this.dataset.k,this.value)" placeholder="nama (pisah koma)" list="kfPeople" aria-label="${esc(gr.label)}"><input class="kf-hrin" type="text" inputmode="decimal" value="${e.hr[gr.key]?String(e.hr[gr.key]).replace('.',','):''}" data-k="${esc(gr.key)}" oninput="kfHr(this.dataset.k,this.value)" placeholder="jam" aria-label="Jam kerja ${esc(gr.label)}"></div>`).join('')}</div>
@@ -6194,9 +6234,9 @@ function kfFormHTML(){ const e=window._kfEdit, p=kfPlan(e.id);
     body=`<div class="kf-box"><div class="kf-h3"><span class="kf-n">1</span>Rekap plan${kfRcChip()}</div>
       <div class="kf-rtop"><div class="kf-hint"><b>Sama</b> = terpasang sesuai plan · <b>Ganti</b> = beda dari plan (keterangan boleh kosong).</div><button type="button" class="kf-all" id="kfAllBtn" onclick="kfAllSama()"${todo?'':' hidden'}>✓ Sisanya sama (${todo})</button></div>
       ${grp||'<div class="kf-hint">Belum ada part di Settings → Planning JC.</div>'}
-      ${tambah}${mp}
+      ${mp}
       <button type="button" class="kf-lnk2" onclick="kfTunda(true)">⏸ JC tidak jadi / ditunda?</button></div>
-      ${kfCkHTML(p)}`;
+      ${kfAdHTML(e,p)}${kfTemuHTML(e)}${kfCkHTML(p)}`;
   }
   const foot=`<div class="kf-foot"><div class="kf-sum" id="kfSum">${kfSumTxt()}</div><button type="button" class="kf-b pri" onclick="kfSaveAll()">💾 Simpan</button></div>`;
   return `<div class="kf-form">${head}${body}${foot}</div>`; }
@@ -6214,7 +6254,7 @@ function kfCommit(p,e){ const before=auditSnap('jcplan',p), oldM=p.machine||p.li
       p.notes=[String(p.notes||'').trim(),'Dipindah dari '+fmtD(parseD(from))+(why?' ('+why+')':'')].filter(Boolean).join(' · '); }
     else { p.postponed=true; p.conf={st:'tunda',at:Date.now(),by:who,note:why}; }
     kfResync(p,oldM,oldD);
-    auditLog('edit','jcplan',ref,before,auditSnap('jcplan',p),'Konfirmasi JC: ditunda'+(e.newDate?' → '+e.newDate:'')+(why?' · '+why:''));
+    auditLog('edit','jcplan',ref,before,auditSnap('jcplan',p),'Verifikasi JC: ditunda'+(e.newDate?' → '+e.newDate:'')+(why?' · '+why:''));
     return 'tunda'; }
   if(!p.plan0) p.plan0=kfClone({jcDate:p.jcDate,shift:p.shift,specs:p.specs||{},roasterPlan:p.roasterPlan||[],manpower:p.manpower||{},mpHours:p.mpHours||{}});
   const P=p.plan0, PS=P.specs||{};
@@ -6236,11 +6276,13 @@ function kfCommit(p,e){ const before=auditSnap('jcplan',p), oldM=p.machine||p.li
     ro:(e.ro||[]).map(r=>{ const g=r.st==='ganti', o={part:r.part,st:g?'ganti':'sama',sections:(g?(r.sections||[]):(r.ps||[])).slice()}; const kt=String(r.ket||'').trim(); if(kt) o.ket=kt; return o; }),
     add:(e.add||[]).map(a=>({part:a.part,sections:(a.sections||[]).slice(),ns:!!a.ns,ket:String(a.ket||'').trim()}))};
   p.conf={st:'sesuai',at:Date.now(),by:who,note:String(e.note||'').trim(),rec:true,chk};
+  { const sv=String(e.speed||'').trim(), sc=String(e.shear||'').trim(), tm={}; KF_TEMU.forEach(([k])=>{ const v=String((e.temu||{})[k]||'').trim(); if(v) tm[k]=v; });
+    if(sv) p.conf.speed=sv; if(sc) p.conf.shear=sc; if(Object.keys(tm).length) p.conf.temu=tm; }   /* data mesin & temuan pengingat (kosong = tidak disimpan) */
   const nd=kfDiff(p).filter(d=>d.k!=='mp').length, st=nd?'berubah':'sesuai';   /* status otomatis: ada Ganti / tambahan → "Ada perubahan" */
   p.conf.st=st;
   p.varApplied=true; if(jcRoHasSect(p)) p.roasterApplied=true;   /* selalu tercatat ke Input Data (tanggal plan) */
   kfResync(p,oldM,oldD);
-  auditLog('edit','jcplan',ref,before,auditSnap('jcplan',p),'Konfirmasi JC: '+KF_ST[st].t+(nd?' · '+nd+' beda dari plan':''));
+  auditLog('edit','jcplan',ref,before,auditSnap('jcplan',p),'Verifikasi JC: '+KF_ST[st].t+(nd?' · '+nd+' beda dari plan':''));
   return st; }
 /* ceklist after JC → JCCHECKS (terhubung ke plan). Disimpan bila ada isian / sudah pernah ada */
 function kfCkCommit(p,note){ const c=window._jccEdit; if(!c) return false; const n=jccCounts(c);
@@ -6255,7 +6297,7 @@ function kfSaveAll(){ const e=window._kfEdit; if(!e) return; const p=kfPlan(e.id
   if(!e.tunda){ const todo=kfTodo();
     if(todo.length){ if(!confirm(todo.length+' item rekap plan belum dipilih Sama / Ganti.\n\nOK = anggap Sama (sesuai plan)\nBatal = cek dulu')){ kfGoRow(todo[0]); return; }
       todo.forEach(i=>kfSetSt(i,'sama')); }
-    if(e.adOpen&&String(e.adKet||'').trim()&&!confirm('Tambahan perbaikan yang sedang diisi belum ditambahkan (tombol ＋ Tambah perbaikan).\n\nOK = simpan tanpa itu\nBatal = kembali')) return; }
+    if(kfAdPend(e)==='bad'&&!confirm('Tambahan perbaikan yang sedang diisi belum lengkap (pilih section dulu).\n\nOK = simpan tanpa itu\nBatal = kembali')){ try{ const i=document.getElementById('kfAdKet'); if(i) i.scrollIntoView({block:'center'}); }catch(_){} return; } }
   const st=kfCommit(p,e); if(!st) return;
   const ck=st!=='tunda'&&kfCkCommit(p,e.note);
   saveAll(); window._kfEdit=null; window._jccEdit=null; window._kfLast=p.id;
@@ -6306,13 +6348,14 @@ function kfWaBad(ck){ const out=[]; if(!ck) return out; const sec=ck.sec||{};
     ['l','m','d'].forEach(col=>{ if(c[col+'Bad']) out.push(t.toUpperCase()+' '+s+' '+jccColLabel(col)); }); }));
   JCC_GP.forEach(([k,n])=>{ const g=(ck.glob||{})[k]; if(g&&g.bad) out.push(n); }); return out; }
 function kfWaText(p){ if(!p) return ''; const c=p.conf||{}, ck=kfCkOf(p), L=[], tunda=p.postponed||c.st==='tunda', P=kfPlanOf(p);
-  L.push('*KONFIRMASI JOB CHANGE*');
+  L.push('*VERIFIKASI PENGECEKAN JOB CHANGE*');
   L.push('*'+kfWaCl(p.machine||p.line||'-')+' · Job #'+kfWaCl(p.typeJob||'-')+'*'+(p.trial?' _(trial)_':''));
   L.push('_'+[kfWaHari(parseD(p.jcDate)),kfWaShift(p.shift)].filter(Boolean).join(' · ')+'_');
   if(!tunda&&kfWaCl(P.shift)&&kfWaCl(P.shift)!==kfWaCl(p.shift)) L.push('Shift: ~'+kfWaShift(P.shift)+'~ → *'+(kfWaShift(p.shift)||'-')+'*');
   L.push('');
   const desc=kfWaCl(p.description||p.bottleSize), spec=[kfWaCl(p.process),p.cd?'CD '+kfWaCl(p.cd):'',p.weight?kfWaCl(p.weight)+' gr':''].filter(Boolean).join(' · ');
   if(desc) L.push('> '+desc); if(spec) L.push('> '+spec);
+  if(!tunda){ const ms=[kfWaCl(c.speed)?'Speed '+kfWaCl(c.speed):'',kfWaCl(c.shear)?'Shear cut '+kfWaCl(c.shear):''].filter(Boolean).join(' · '); if(ms) L.push('> '+ms); }
   if(tunda){ L.push(''); L.push('*ALASAN DITUNDA*'); L.push('> '+(kfWaCl(c.note)||'-')); }
   else {
     const pt=kfWaParts(p); if(pt.length){ L.push(''); L.push('*PART VARIABEL*'); L.push(...pt); }
@@ -6328,10 +6371,12 @@ function kfWaText(p){ if(!p) return ''; const c=p.conf||{}, ck=kfCkOf(p), L=[], 
       if(bad.length){ L.push(''); L.push('*Gauge trouble*'); bad.forEach(b=>L.push('- '+b)); }
       const pb=kfWaCl(ck.perbaikan); if(pb){ L.push(''); L.push('*TEMUAN / PERBAIKAN*'); L.push('> '+pb); } }
     else { L.push('*CEKLIST AFTER JC*'); L.push('_Belum diisi_'); }
+    const tmw=KF_TEMU.map(([k,l])=>{ const v=kfWaCl((c.temu||{})[k]); return v?'- '+l+': '+v:null; }).filter(Boolean);
+    if(tmw.length){ L.push(''); L.push('*PENGINGAT JOB KE DEPAN*'); L.push(...tmw); }
     const mp=jcfMpGroups().map(g=>{ const nm=mpSplit((p.manpower||{})[g.key]).map(kfWaCl).filter(Boolean); if(!nm.length) return null; const h=(p.mpHours||{})[g.key];
       return kfWaTitle(g.label)+': '+nm.join(', ')+(h?' — `'+String(h).replace('.',',')+' jam`':''); }).filter(Boolean);
     if(mp.length){ L.push(''); L.push('*MAN POWER*'); mp.forEach((m,i)=>L.push((i+1)+'. '+m)); } }
-  if(c.at){ L.push(''); L.push('_Dikonfirmasi '+(kfWaCl(c.by)||'-')+' · '+kfWaJam(c.at)+'_'); }
+  if(c.at){ L.push(''); L.push('_Diverifikasi '+(kfWaCl(c.by)||'-')+' · '+kfWaJam(c.at)+'_'); }
   return L.join('\n'); }
 /* pratinjau: tampilkan gaya WhatsApp di layar */
 function kfWaHtml(t){ const BT=String.fromCharCode(96), F=BT+BT+BT;
@@ -6346,41 +6391,345 @@ function kfWaHtml(t){ const BT=String.fromCharCode(96), F=BT+BT+BT;
       else { h=inl(esc(l)); blk=false; }
       out+=h+((blk||k===L.length-1)?'':'\n'); });
     return out; }).join(''); }
-function kfWaOpen(id){ const L=kfList(kfDay()).filter(kfWaOk); if(!L.length){ toast('Belum ada JC yang dikonfirmasi hari ini',1); return; }
-  const p=L.find(x=>String(x.id)===String(id))||L.find(x=>String(x.id)===String(window._kfLast))||L[L.length-1]; window._kfWaId=p.id;
-  const chips=L.map(x=>`<button type="button" class="kfw-chip${String(x.id)===String(p.id)?' on':''}" onclick="kfWaOpen(${kfIdArg(x.id)})"><b>${esc(x.machine||x.line||'—')}</b> #${esc(x.typeJob||'—')}</button>`).join('');
-  const txt=kfWaText(p);
-  document.getElementById('cbox').innerHTML=`<div class="kfw">
-    <div class="cbh"><span class="mh-t">Kirim ke WhatsApp</span><button class="x" onclick="closeCmodal()" aria-label="Tutup">✕</button></div>
-    ${L.length>1?`<div class="kfw-chips">${chips}</div>`:''}
-    <div class="kfw-l">Pratinjau di WhatsApp</div>
-    <div class="kfw-bub">${kfWaHtml(txt)}</div>
-    <div class="kfw-act"><button type="button" class="kf-b" onclick="kfWaCopy()">Salin teks</button><button type="button" class="kf-b kfw-go" onclick="kfWaSend()">Buka WhatsApp</button></div>
-    <div class="kfw-n">Salin teks → tempel di chat / grup. Atau <b>Buka WhatsApp</b> → pilih chat, teks sudah terisi.</div></div>`;
-  document.getElementById('cmodal').classList.add('show'); }
 function kfWaCur(){ return kfWaText(kfPlan(window._kfWaId)); }
 function kfWaCopy(){ const txt=kfWaCur(); if(!txt) return; const ok=()=>toast('✓ Teks disalin — tempel di WhatsApp');
   const fb=()=>{ try{ const ta=document.createElement('textarea'); ta.value=txt; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); const s=document.execCommand('copy'); ta.remove(); s?ok():toast('Gagal menyalin',1); }catch(e){ toast('Gagal menyalin',1); } };
   if(navigator.clipboard&&window.isSecureContext) navigator.clipboard.writeText(txt).then(ok,fb); else fb(); }
 function kfWaSend(){ const txt=kfWaCur(); if(!txt) return; window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank','noopener'); }
 function kfUndoId(id){ const p=kfPlan(id); if(!p||!p.conf) return;
-  if(!confirm('Batalkan konfirmasi JC '+(p.machine||'')+' ?\nIsian kembali ke plan asli'+((p.varApplied||p.roasterApplied)?' dan record yang tercatat disesuaikan':'')+'. Ceklist tekanan tetap tersimpan.')) return;
+  if(!confirm('Batalkan verifikasi JC '+(p.machine||'')+' ?\nIsian kembali ke plan asli'+((p.varApplied||p.roasterApplied)?' dan record yang tercatat disesuaikan':'')+'. Ceklist tekanan tetap tersimpan.')) return;
   const before=auditSnap('jcplan',p), oldM=p.machine||p.line, oldD=p.jcDate;
   if(p.plan0){ KF_FIELDS.forEach(k=>{ if(Object.prototype.hasOwnProperty.call(p.plan0,k)) p[k]=kfClone(p.plan0[k]); }); delete p.plan0; }
   if(p.conf.st==='tunda') p.postponed=false; delete p.conf;
   kfResync(p,oldM,oldD);
-  auditLog('edit','jcplan',(oldM||'-')+' · '+(oldD||'-'),before,auditSnap('jcplan',p),'Konfirmasi JC dibatalkan');
-  saveAll(); window._kfEdit=null; window._jccEdit=null; toast('Konfirmasi dibatalkan — kembali ke plan'); render(); }
+  auditLog('edit','jcplan',(oldM||'-')+' · '+(oldD||'-'),before,auditSnap('jcplan',p),'Verifikasi JC dibatalkan');
+  saveAll(); window._kfEdit=null; window._jccEdit=null; toast('Verifikasi dibatalkan — kembali ke plan'); render(); }
 function kfUndo(){ const e=window._kfEdit; if(e) kfUndoId(e.id); }
 /* ceklist untuk JC ini = bagian 2 form konfirmasi */
 function kfCeklist(id){ kfOpen(id,'ck'); }
 function jccAfter(){ if(APP_MODE==='jcc'&&current!=='konf'){ window._kfBack=null; current='konf'; buildNav(); } render(); }
 
+/* ---------- bagian 2 · tambahan perbaikan (selalu terlihat, tombol & pilihan besar) ---------- */
+function kfAdAll(){ const e=window._kfEdit; if(!e) return; const p=kfPlan(e.id)||{}, all=sectionsOf(p.machine||p.line);
+  e.adSecs=(e.adSecs||[]).length>=all.length?[]:all.slice(); render(); }
+/* isian tambahan yang belum ditekan "Tambah" saat Simpan: lengkap → ikut disimpan · 'bad' = belum lengkap */
+function kfAdPend(e){ const ket=String(e.adKet||'').trim(); if(!ket) return 'none'; const part=e.adPart; if(!part) return 'bad';
+  const ns=jcRoIsNs(part), secs=ns?[]:(e.adSecs||[]).slice().sort(kfSecCmp); if(!ns&&!secs.length) return 'bad';
+  e.add.push({part,sections:secs,ns,ket}); e.adSecs=[]; e.adKet=''; return 'ok'; }
+function kfAdHTML(e,p){ const secsAll=sectionsOf(p.machine||p.line||'');
+  const mg=kfMechGroups(e.ro.map(r=>r.part)), flat=[].concat(...mg.map(g=>g.parts));
+  if(flat.indexOf(e.adPart)<0) e.adPart=flat[0]||'';
+  const ns=!!e.adPart&&jcRoIsNs(e.adPart), sel=e.adSecs||[], allOn=!!secsAll.length&&sel.length>=secsAll.length;
+  const list=e.add.map((a,j)=>`<div class="kf-ad2"><span class="kf-ad2n">${j+1}</span><div class="kf-ad2t"><div><b>${esc(a.part)}</b><span class="kf-adsec">${a.ns?'non-section':esc(kfSecTxt(a.sections))}</span></div>${a.ket?`<small>${esc(a.ket)}</small>`:''}</div><button type="button" class="kf-x" onclick="kfAdDel(${j})" aria-label="Hapus ${esc(a.part)}" title="Hapus">✕</button></div>`).join('');
+  const form=!mg.length?'<div class="kf-hint">Belum ada mech preventive di Settings (area &amp; grup part).</div>'
+    :`<div class="kf-adf">
+      <label class="kf-f"><span>Mech / part yang diperbaiki</span><select class="kf-big" onchange="kfFld('adPart',this.value);kfFld('adSecs',[]);render()" aria-label="Mech yang diperbaiki">${mg.map(g=>`<optgroup label="${esc(g.label)}">${g.parts.map(x=>`<option${x===e.adPart?' selected':''}>${esc(x)}</option>`).join('')}</optgroup>`).join('')}</select></label>
+      <div class="kf-f"><span>Section${ns?'':`<button type="button" class="kf-adall" onclick="kfAdAll()">${allOn?'Kosongkan':'Pilih semua'}</button>`}</span>${ns?'<div class="kf-rns kf-rns2">non-section — tidak perlu pilih section</div>':`<div class="kf-secs kf-secs2">${secsAll.map(s=>`<button type="button" class="kf-sc${sel.indexOf(s)>=0?' on':''}" aria-pressed="${sel.indexOf(s)>=0}" onclick="kfAdSec('${esc(s)}')">${esc(s)}</button>`).join('')}</div>`}</div>
+      <label class="kf-f"><span>Keterangan perbaikan</span><input id="kfAdKet" class="kf-big" value="${esc(e.adKet||'')}" oninput="kfFld('adKet',this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();kfAdAdd();}" enterkeyhint="done" placeholder="mis. ganti seal, setting ulang cushion" aria-label="Keterangan perbaikan" autocomplete="off"></label>
+      <button type="button" class="kf-b kf-adgo" onclick="kfAdAdd()">＋ Tambah ke daftar</button></div>`;
+  return `<div class="kf-box kf-adbox"><div class="kf-h3"><span class="kf-n">2</span>Tambahan perbaikan<small>${e.add.length?e.add.length+' item':'di luar plan · opsional'}</small></div>
+    <div class="kf-hint">Mech preventive yang dikerjakan di luar plan. Yang sudah ada di plan cukup dipilih Sama / Ganti di atas.</div>
+    ${list?`<div class="kf-ads2">${list}</div>`:''}${form}</div>`; }
+
+/* ---------- bagian 3 · data mesin & temuan pengingat (tersimpan di p.conf: speed, shear, temu{feeder,section,wh,op}) ---------- */
+const KF_TEMU=[['feeder','Feeder','mis. orifice ring mulai aus'],['section','Section','mis. baffle S3 sering macet'],['wh','Ware Handling','mis. finger pusher S5 longgar'],['op','Operational','mis. siapkan scoop cadangan']];
+function kfTemu(k,v){ const e=window._kfEdit; if(!e) return; if(!e.temu||typeof e.temu!=='object') e.temu={}; e.temu[k]=v; }
+function kfTemuHTML(e){ const c=window._jccEdit, t=e.temu||{};
+  return `<div class="kf-box"><div class="kf-h3"><span class="kf-n">3</span>Data mesin &amp; temuan<small>opsional · yang kosong tidak ikut di laporan</small></div>
+    <div class="kf-2c"><label class="kf-f"><span>Machine speed</span><input value="${esc(e.speed||'')}" oninput="kfFld('speed',this.value)" placeholder="mis. 120 bpm" aria-label="Machine speed" autocomplete="off"></label>
+      <label class="kf-f"><span>Shear cut</span><input value="${esc(e.shear||'')}" oninput="kfFld('shear',this.value)" placeholder="mis. 60 cpm" aria-label="Shear cut" autocomplete="off"></label></div>
+    <div class="kf-gl kf-tmh">Temuan / pengingat untuk job ke depan</div>
+    <div class="kf-tms">${KF_TEMU.map(([k,l,ph])=>`<label class="kf-tm"><span>${esc(l)}</span><textarea rows="1" oninput="kfTemu('${k}',this.value)" placeholder="${esc(ph)}" aria-label="Temuan ${esc(l)}">${esc(t[k]||'')}</textarea></label>`).join('')}</div>
+    ${c?`<label class="kf-f"><span>Perbaikan / temuan setelah JC</span><textarea rows="2" oninput="jccHdr('perbaikan',this.value)" placeholder="mis. ganti seal plunger S3, setting ulang timing">${esc(c.perbaikan||'')}</textarea></label>`:''}</div>`; }
+
+/* ---------- bagian 4 · tekanan per section: bisa disembunyikan (pilihan terakhir diingat per perangkat) ---------- */
+function kfCkPref(){ try{ return localStorage.getItem('pm_kf_ckopen')==='1'; }catch(e){ return false; } }
+function kfCkTog(){ const e=window._kfEdit; if(!e) return; e.ckOpen=!e.ckOpen; try{ localStorage.setItem('pm_kf_ckopen',e.ckOpen?'1':'0'); }catch(_){}
+  render(); if(e.ckOpen) setTimeout(()=>{ try{ const el=document.getElementById('kfCkTg'); if(el) el.scrollIntoView({block:'start',behavior:'smooth'}); }catch(_){} },40); }
+
+/* =====================================================================
+   📄 LAPORAN VERIFIKASI JC — dokumen A4 landscape (PDF / foto) + teks WhatsApp
+   Dokumen digambar langsung di canvas (tanpa library) → foto PNG tajam & PDF (gambar JPEG per halaman).
+   Bagian / isian yang kosong tidak ditampilkan. Tabel panjang otomatis lanjut ke halaman berikutnya.
+   ===================================================================== */
+function kfRepOpen(id,tab){ const L=kfList(kfDay()).filter(kfWaOk);
+  let p=(id!=null&&id!=='')?kfPlan(id):null; if(p&&!kfWaOk(p)) p=null;
+  if(!p) p=L.find(x=>String(x.id)===String(window._kfWaId))||L.find(x=>String(x.id)===String(window._kfLast))||L[L.length-1]||null;
+  if(!p){ toast('Belum ada JC yang diverifikasi hari ini',1); return; }
+  const list=L.some(x=>String(x.id)===String(p.id))?L:[p].concat(L), A=kfIdArg(p.id);
+  window._kfWaId=p.id; tab=tab||window._kfRepTab||'doc'; window._kfRepTab=tab;
+  const chips=list.map(x=>`<button type="button" class="kfw-chip${String(x.id)===String(p.id)?' on':''}" onclick="kfRepOpen(${kfIdArg(x.id)})"><b>${esc(x.machine||x.line||'—')}</b> #${esc(x.typeJob||'—')}</button>`).join('');
+  const seg=`<div class="kf-rpseg" role="tablist"><button type="button" role="tab" aria-selected="${tab!=='wa'}" class="${tab!=='wa'?'on':''}" onclick="kfRepOpen(${A},'doc')">📄 Dokumen</button><button type="button" role="tab" aria-selected="${tab==='wa'}" class="${tab==='wa'?'on':''}" onclick="kfRepOpen(${A},'wa')">💬 Teks WA</button></div>`;
+  let body;
+  if(tab==='wa') body=`<div class="kfw-l">Pratinjau di WhatsApp</div><div class="kfw-bub">${kfWaHtml(kfWaText(p))}</div>
+    <div class="kfw-act"><button type="button" class="kf-b" onclick="kfWaCopy()">Salin teks</button><button type="button" class="kf-b kfw-go" onclick="kfWaSend()">Buka WhatsApp</button></div>
+    <div class="kfw-n">Salin teks → tempel di chat / grup. Atau <b>Buka WhatsApp</b> → pilih chat, teks sudah terisi.</div>`;
+  else body=`<div class="kfw-l kf-rpl2"><span>Pratinjau · A4 landscape</span><span id="kfRpN"></span></div>
+    <div class="kf-rppv" id="kfRpPv" onclick="kfRepZoom()" title="Ketuk untuk perbesar"><span class="kf-rpzh">🔍 ketuk untuk perbesar</span></div>
+    <div class="kf-rpact"><button type="button" class="kf-rpbt pdf" onclick="kfRepPdf()"><i>📄</i><span>PDF</span><small>A4 landscape</small></button><button type="button" class="kf-rpbt img" onclick="kfRepPng()"><i>🖼️</i><span>Foto</span><small>PNG tajam</small></button><button type="button" class="kf-rpbt wa" onclick="kfWaSend()"><i>💬</i><span>WhatsApp</span><small>teks</small></button></div>
+    <div class="kf-rpdl"><button type="button" onclick="kfRepPdf(1)">⬇ Simpan PDF</button><button type="button" onclick="kfRepPng(1)">⬇ Simpan foto</button></div>
+    <div class="kfw-n">Bagian yang tidak diisi otomatis tidak ditampilkan. Isi laporan = data yang sudah disimpan.</div>`;
+  document.getElementById('cbox').innerHTML=`<div class="kfw kf-rp"><div class="cbh"><span class="mh-t">📄 Laporan Verifikasi JC</span><button class="x" onclick="closeCmodal()" aria-label="Tutup">✕</button></div>${list.length>1?`<div class="kfw-chips">${chips}</div>`:''}${seg}${body}</div>`;
+  document.getElementById('cmodal').classList.add('show');
+  if(tab==='wa') return;
+  const pv=document.getElementById('kfRpPv');
+  try{ const pg=kfRepPages(p); window._kfRep={id:p.id,pages:pg}; pg.forEach(cv=>pv.insertBefore(cv,pv.lastChild));
+    const nEl=document.getElementById('kfRpN'); if(nEl) nEl.textContent=pg.length+' halaman'; }
+  catch(err){ console.error('kfRepPages',err); window._kfRep=null; pv.innerHTML='<div class="kf-hint">Dokumen gagal dibuat: '+esc(err&&err.message||err)+'</div>'; } }
+function kfWaOpen(id){ kfRepOpen(id,'wa'); }
+function kfRepName(p,ext){ return ('Verifikasi_JC_'+[p.machine||p.line||'',p.typeJob||'',p.jcDate||''].filter(Boolean).join('_')).replace(/[^\w.-]+/g,'_')+'.'+ext; }
+function kfRepCur(){ const p=kfPlan(window._kfWaId); if(!p){ toast('Plan JC tidak ditemukan',1); return null; }
+  const R=window._kfRep; if(!R||String(R.id)!==String(p.id)) window._kfRep={id:p.id,pages:kfRepPages(p)};
+  return {p,pages:window._kfRep.pages}; }
+/* HP: share sheet (WA, Drive, galeri) · desktop / "Simpan": unduh file */
+async function kfRepShare(blob,name,save){
+  if(!save){ try{ const f=new File([blob],name,{type:blob.type});
+      if(navigator.canShare&&navigator.canShare({files:[f]})&&window.matchMedia&&matchMedia('(pointer:coarse)').matches){ await navigator.share({files:[f],title:name}); return; } }
+    catch(e){ if(e&&e.name==='AbortError') return; } }
+  dl(blob,name); }
+async function kfRepPdf(save){ let R=null; try{ R=kfRepCur(); if(!R) return; await kfRepShare(kfPdfBlob(R.pages),kfRepName(R.p,'pdf'),save); }
+  catch(e){ console.error('kfRepPdf',e); toast('Export PDF gagal: '+(e&&e.message||e),1); } }
+async function kfRepPng(save){ try{ const R=kfRepCur(); if(!R) return; const cv=kfRepStack(R.pages);
+    const blob=await new Promise(res=>cv.toBlob(res,'image/png')); if(!blob) throw new Error('gambar tidak bisa dibuat');
+    await kfRepShare(blob,kfRepName(R.p,'png'),save); }
+  catch(e){ console.error('kfRepPng',e); toast('Export foto gagal: '+(e&&e.message||e),1); } }
+/* lebih dari 1 halaman → foto disusun ke bawah jadi 1 gambar */
+function kfRepStack(pages){ if(pages.length===1) return pages[0]; const gap=24, w=pages[0].width, h=pages.reduce((a,c)=>a+c.height,0)+gap*(pages.length-1);
+  const cv=document.createElement('canvas'); cv.width=w; cv.height=h; const g=cv.getContext('2d'); g.fillStyle='#d5dae1'; g.fillRect(0,0,w,h);
+  let y=0; pages.forEach(c=>{ g.drawImage(c,0,y); y+=c.height+gap; }); return cv; }
+function kfRepZoom(){ const R=window._kfRep; if(!R||!R.pages||!R.pages.length) return;
+  const o=document.createElement('div'); o.className='kf-rpzm'; o.innerHTML='<button type="button" class="kf-rpzx" aria-label="Tutup">✕</button><div class="kf-rpzs"></div>';
+  const s=o.querySelector('.kf-rpzs'); R.pages.forEach(cv=>{ const im=new Image(); im.alt='Halaman laporan'; im.src=cv.toDataURL('image/jpeg',0.92); s.appendChild(im); });
+  const close=()=>{ o.remove(); document.removeEventListener('keydown',esc2); }, esc2=ev=>{ if(ev.key==='Escape') close(); };
+  o.querySelector('.kf-rpzx').onclick=close; document.addEventListener('keydown',esc2); document.body.appendChild(o); }
+/* PDF minimal: 1 gambar JPEG per halaman A4 landscape (tanpa library) */
+function kfPdfStr(s){ const b=new Uint8Array(s.length); for(let i=0;i<s.length;i++) b[i]=s.charCodeAt(i)&255; return b; }
+function kfPdfB64(s){ const bin=atob(s), b=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) b[i]=bin.charCodeAt(i); return b; }
+function kfPdfBlob(pages){ const parts=[], offs=[]; let len=0;
+  const put=x=>{ const b=(typeof x==='string')?kfPdfStr(x):x; parts.push(b); len+=b.length; };
+  const obj=s=>{ offs.push(len); put(offs.length+' 0 obj\n'+s+'\nendobj\n'); };
+  const PW='841.89', PH='595.28', N=pages.length, kids=[];
+  for(let i=0;i<N;i++) kids.push((3+i*3)+' 0 R');
+  put('%PDF-1.4\n%âãÏÓ\n');
+  obj('<< /Type /Catalog /Pages 2 0 R >>');
+  obj('<< /Type /Pages /Kids ['+kids.join(' ')+'] /Count '+N+' >>');
+  pages.forEach((cv,i)=>{ const pn=3+i*3, cn=pn+1, im=pn+2, cs='q '+PW+' 0 0 '+PH+' 0 0 cm /Im'+i+' Do Q';
+    obj('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+PW+' '+PH+'] /Resources << /XObject << /Im'+i+' '+im+' 0 R >> /ProcSet [/PDF /ImageC] >> /Contents '+cn+' 0 R >>');
+    obj('<< /Length '+cs.length+' >>\nstream\n'+cs+'\nendstream');
+    const jb=kfPdfB64(cv.toDataURL('image/jpeg',0.92).split(',')[1]);
+    offs.push(len); put(im+' 0 obj\n<< /Type /XObject /Subtype /Image /Width '+cv.width+' /Height '+cv.height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+jb.length+' >>\nstream\n'); put(jb); put('\nendstream\nendobj\n'); });
+  const xo=len, n=offs.length+1;
+  put('xref\n0 '+n+'\n0000000000 65535 f \n'+offs.map(o=>String(o).padStart(10,'0')+' 00000 n \n').join('')+'trailer\n<< /Size '+n+' /Root 1 0 R >>\nstartxref\n'+xo+'\n%%EOF\n');
+  return new Blob(parts,{type:'application/pdf'}); }
+
+/* ----- data laporan dari plan + p.conf + ceklist (yang kosong dibuang) ----- */
+function kfRpCl(s){ return String(s==null?'':s).replace(/\s+/g,' ').trim(); }
+function kfRepData(p){ const c=p.conf||{}, tunda=!!(p.postponed||c.st==='tunda'), ck=kfCkOf(p), P=kfPlanOf(p), cl=kfRpCl;
+  const D={mc:cl(p.machine||p.line)||'—', title:'VERIFIKASI PENGECEKAN JOB CHANGE', sub:'IS Machine · Rekap plan vs aktual + ceklist tekanan after JC', tunda, why:cl(c.note), trial:!!p.trial,
+    groups:[], nS:0, nG:0, add:[], ck:null, bad:[], temu:[], mp:[]};
+  if(c.at){ const d=new Date(c.at), H3=['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+    D.when=(tunda?'Ditunda: ':'Diverifikasi: ')+H3[d.getDay()]+', '+fmtD(d)+' · '+kfWaJam(c.at)+(cl(c.by)?' · '+cl(c.by):''); }
+  const nd=tunda?0:kfDiff(p).filter(x=>x.k!=='mp').length;
+  D.chip=tunda?{t:'DITUNDA',c:'#c0262f',bg:'#fff0f0',bd:'#f6c4c4'}
+    :c.st==='berubah'?{t:'ADA PERUBAHAN'+(nd?' · '+nd+' BEDA DARI PLAN':''),c:'#1e63c4',bg:'#e6efff',bd:'#c7dafc'}
+    :{t:'SESUAI PLAN',c:'#14684e',bg:'#e3f6ee',bd:'#bfe8d6'};
+  const sh=kfWaShift(p.shift), psh=kfWaShift(P.shift), cd=cl(p.cd||(ck&&ck.cd)), wt=cl(p.weight||(ck&&ck.weight));
+  D.info=[['Line / Mesin',D.mc],['Job / Type',p.typeJob?'#'+cl(p.typeJob)+(p.trial?' (trial)':''):''],['Tanggal Job Change',p.jcDate?kfWaHari(parseD(p.jcDate)):''],
+    ['Shift',sh?sh+(!tunda&&psh&&psh!==sh?' (plan: '+psh+')':''):''],['Produk',cl(p.description||p.bottleSize),1],
+    ['Proses · CD',[cl(p.process),cd?'CD '+cd:''].filter(Boolean).join(' · ')],['Berat',wt?(/[a-z]/i.test(wt)?wt:wt+' gr'):''],
+    ['Machine speed',tunda?'':cl(c.speed)],['Shear cut',tunda?'':cl(c.shear)]].filter(f=>f[1]);
+  if(tunda) return kfRepFoot(D,p);
+  /* rekap plan: hanya baris yang dipilih Sama / Ganti */
+  const E=kfMkEdit(p), AS=p.specs||{};
+  E.groups.forEach(gp=>{ const it=[];
+    gp.idx.forEach(i=>{ const r=E.rows[i];
+      if(r.t==='s'){ const x=E.chk[r.part]; if(!x||!x.st) return; const pv=kfSpecTxt(r.pv), av=kfSpecTxt(AS[r.part]), df=x.st==='ganti'&&jcfKey(pv)!==jcfKey(av);
+        it.push({n:r.part,pl:pv,strike:df&&!!pv,st:x.st,act:df?(av||'dilepas'):'',ket:cl(x.ket)}); }
+      else { const o=E.ro[r.i]; if(!o||!o.st) return; const a=o.ns?'non-section':(kfSecTxt(o.ps)||'—'), b=kfSecTxt(o.sections), df=o.st==='ganti'&&!o.ns&&a!==(b||'—');
+        it.push({n:o.part,pl:a,strike:df,st:o.st,act:df?(b||'tidak dikerjakan'):'',ket:cl(o.ket)}); } });
+    if(it.length) D.groups.push({a:gp.ro?'ROASTER PLAN':String(gp.area||'').toUpperCase(),it}); });
+  D.groups.forEach(gp=>gp.it.forEach(x=>{ if(x.st==='ganti') D.nG++; else D.nS++; }));
+  D.add=(E.add||[]).filter(a=>a&&a.part).map(a=>({n:cl(a.part),s:a.ns?'non-section':kfSecTxt(a.sections),k:cl(a.ket)}));
+  /* ceklist tekanan: jenis / section tanpa isian tidak ditampilkan */
+  if(ck){ const has=v=>v!==''&&v!=null, sec=ck.sec||{}, cols=jccCols(ck.cd||cd), cell=(s,t)=>((sec[s]||{})[t]||{});
+    const secs=sectionsOf(p.machine||p.line||ck.machine).concat(Object.keys(sec)).filter((s,i,a)=>a.indexOf(s)===i);
+    const T=JCC_PT.filter(([t])=>secs.some(s=>cols.some(k=>has(cell(s,t)[k])||cell(s,t)[k+'Bad'])));
+    const rows=secs.filter(s=>T.some(([t])=>cols.some(k=>has(cell(s,t)[k])||cell(s,t)[k+'Bad'])))
+      .map(s=>({s,v:T.map(([t])=>cols.map(k=>{ const x=cell(s,t); return {v:has(x[k])?jccDisp(x[k]):'',bad:!!x[k+'Bad']}; }))}));
+    const GL={hp:'HIGH P.',lp:'LOW P.',sb:'SETTLE BLOW',fb:'FINAL BLOW',fcg:'FIN. COOLING',moc:'MOC'};
+    const glob=JCC_GP.map(([k,nm])=>{ const g=(ck.glob||{})[k]; return g&&(has(g.v)||g.bad)?{l:GL[k]||String(nm).toUpperCase(),v:has(g.v)?jccDisp(g.v):'–',bad:!!g.bad}:null; }).filter(Boolean);
+    if(rows.length||glob.length) D.ck={cols,T:T.map(x=>x[1]),rows,glob,filled:jccCounts(ck).filled};
+    D.bad=kfWaBad(ck); }
+  const tm=c.temu||{}; D.temu=KF_TEMU.map(([k,l])=>({l,v:cl(tm[k])})).filter(x=>x.v);
+  const pb=ck?cl(ck.perbaikan):''; if(pb) D.temu.push({l:'Temuan setelah JC',v:pb});
+  D.mp=jcfMpGroups().map(g=>{ const nm=mpSplit((p.manpower||{})[g.key]).map(cl).filter(Boolean); if(!nm.length) return null; const h=(p.mpHours||{})[g.key];
+    return {l:kfWaTitle(g.label),n:nm.join(', '),h:h?String(h).replace('.',',')+'\u00a0jam':''}; }).filter(Boolean);
+  return kfRepFoot(D,p); }
+function kfRepFoot(D,p){ const now=new Date(); D.footL='IS Machine · Verifikasi Pengecekan Job Change · '+D.mc+(p.typeJob?' #'+kfRpCl(p.typeJob):'');
+  D.made=fmtD(now)+' '+kfWaJam(now.getTime()); return D; }
+
+/* ----- alat gambar canvas ----- */
+const KF_RP={W:1123,H:794,S:2,M:30,F:'Inter,Roboto,"Segoe UI","Helvetica Neue",Arial,sans-serif',ink:'#1e2632',mut:'#6b7686',fnt:'#8792a2',ln:'#e1e6ed'};
+function kfRpF(w,s,it){ return (it?'italic ':'')+w+' '+s+'px '+KF_RP.F; }
+function kfRpRR(g,x,y,w,h,r){ r=Math.max(0,Math.min(r,w/2,h/2)); g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); }
+function kfRpBox(g,x,y,w,h,r,fill,stroke,lw){ kfRpRR(g,x,y,w,h,r); if(fill){ g.fillStyle=fill; g.fill(); } if(stroke){ g.lineWidth=lw||1; g.strokeStyle=stroke; g.stroke(); } }
+function kfRpFit(g,s,maxW){ s=String(s==null?'':s); if(!(maxW>0)||g.measureText(s).width<=maxW) return s;
+  let lo=0, hi=s.length; while(lo<hi){ const m=(lo+hi+1)>>1; if(g.measureText(s.slice(0,m)+'…').width<=maxW) lo=m; else hi=m-1; }
+  return s.slice(0,lo).replace(/\s+$/,'')+'…'; }
+function kfRpT(g,s,x,y,font,color,align,maxW){ g.font=font; g.fillStyle=color; g.textAlign=align||'left'; const t=kfRpFit(g,s,maxW); g.fillText(t,x,y); const w=g.measureText(t).width; g.textAlign='left'; return w; }
+function kfRpMark(g,x,y,c){ kfRpBox(g,x,y,8,8,2,c); }
+/* teks kaya (beberapa gaya) dibungkus per kata → baris [{t,f,c}] */
+function kfRpWrap(g,segs,maxW,maxL){ const L=[[]]; let w=0;
+  segs.forEach(sg=>{ if(sg.t==null||sg.t==='') return; g.font=sg.f;
+    String(sg.t).split(/([ \t\n\r]+)/).forEach(tk=>{ if(!tk) return; const sp=/^[ \t\n\r]+$/.test(tk); if(sp){ if(!w) return; tk=' '; }
+      let tw=g.measureText(tk).width;
+      if(!sp&&w>0&&w+tw>maxW){ L.push([]); w=0; }
+      if(!sp&&tw>maxW){ let b=''; for(const ch of tk){ if(w+g.measureText(b+ch).width>maxW&&(b||w)){ if(b) L[L.length-1].push({t:b,f:sg.f,c:sg.c}); L.push([]); w=0; b=ch; } else b+=ch; }
+        tk=b; tw=g.measureText(tk).width; }
+      L[L.length-1].push({t:tk,f:sg.f,c:sg.c}); w+=tw; }); });
+  L.forEach(l=>{ while(l.length&&/^[ \t\n\r]+$/.test(l[l.length-1].t)) l.pop(); });
+  if(maxL&&L.length>maxL){ L.length=maxL; const l=L[maxL-1], last=l[l.length-1]||{f:segs[0].f,c:segs[0].c}; l.push({t:'…',f:last.f,c:last.c});
+    const lw=()=>l.reduce((a,r)=>{ g.font=r.f; return a+g.measureText(r.t).width; },0);
+    while(lw()>maxW&&l.length>1){ const r=l[l.length-2]; if(r.t.length>1) r.t=r.t.slice(0,-1); else l.splice(l.length-2,1); } }
+  return L; }
+function kfRpLines(g,L,x,y,lh){ g.textAlign='left'; L.forEach((l,i)=>{ let cx=x; l.forEach(r=>{ g.font=r.f; g.fillStyle=r.c; g.fillText(r.t,cx,y+i*lh); cx+=g.measureText(r.t).width; }); }); }
+
+/* ----- blok kolom kiri / kanan. blok = {head?, box?, items:[{h,d,keep}], rep?} ----- */
+function kfRpBlocks(D,g,LW,RW){ const K=KF_RP, ink=K.ink, mut=K.mut, fnt=K.fnt, ln=K.ln, L=[], R=[];
+  /* info JC */
+  if(D.info.length){ const rows=[]; let pend=null;
+    D.info.forEach(f=>{ if(f[2]) rows.push([f]); else if(pend){ pend.push(f); pend=null; } else { pend=[f]; rows.push(pend); } });
+    const iw=LW-28;
+    L.push({id:'info',box:{fill:'#f6f8fb',stroke:ln,r:10,pt:9,pb:3,px:14},items:rows.map(r=>{
+      if(r[0][2]){ const lines=kfRpWrap(g,[{t:r[0][1],f:kfRpF(700,13),c:ink}],iw,2);
+        return {h:13+16*lines.length+5,d:(g,x,y,w)=>{ kfRpT(g,r[0][0].toUpperCase(),x,y+9,kfRpF(800,8.5),fnt,'left',w); kfRpLines(g,lines,x,y+25,16); }}; }
+      return {h:34,d:(g,x,y,w)=>{ const cw=(w-14)/2; r.forEach((f,k)=>{ const cx=x+k*(cw+14); kfRpT(g,f[0].toUpperCase(),cx,y+9,kfRpF(800,8.5),fnt,'left',cw); kfRpT(g,f[1],cx,y+25,kfRpF(700,13),ink,'left',cw); }); }}; })}); }
+  /* kotak angka */
+  const tiles=[]; if(D.nS||D.nG){ tiles.push(['SAMA',D.nS,'#ecf8f3','#b9e4d2','#14684e']); tiles.push(['GANTI',D.nG,'#edf3ff','#c3d6fb','#1e58b8']); }
+  if(D.add.length) tiles.push(['TAMBAHAN',D.add.length,'#fff7e8','#f5d9a3','#9a5a00']);
+  if(D.ck||D.bad.length) tiles.push(D.bad.length?['GAUGE TROUBLE',D.bad.length,'#fff0f0','#f6c4c4','#c0262f']:['GAUGE TROUBLE',0,'#f6f8fb','#e1e6ed','#6b7686']);
+  if(tiles.length) L.push({id:'cnt',items:[{h:42,d:(g,x,y,w)=>{ const n=tiles.length, tw=(w-(n-1)*7)/n;
+    tiles.forEach((t,i)=>{ const tx=x+i*(tw+7); kfRpBox(g,tx+.75,y+.75,tw-1.5,40,9,t[2],t[3],1.5); kfRpT(g,t[0],tx+tw/2,y+14,kfRpF(800,8.5),t[4],'center',tw-8); kfRpT(g,String(t[1]),tx+tw/2,y+34,kfRpF(900,19),t[4],'center',tw-8); }); }}]});
+  /* ceklist tekanan */
+  if(D.ck){ const C=D.ck, nc=C.T.length*C.cols.length, iw=LW-20, sw=30, cw=nc?(iw-sw)/nc:0, LB={l:'Luar',m:'Tengah',d:'Dalam'};
+    const title={h:22,keep:true,d:(g,x,y,w,cont)=>{ kfRpMark(g,x,y+5,'#1d8464'); kfRpT(g,'CEKLIST AFTER JC'+(cont?' (lanjutan)':''),x+13,y+13,kfRpF(900,10.5),ink,'left',w-110); if(C.filled) kfRpT(g,C.filled+' titik · bar',x+w,y+13,kfRpF(700,9.5),fnt,'right'); }};
+    const items=[title]; let hdr=null;
+    if(C.rows.length){ const nCol=C.cols.length;
+      hdr={h:32,keep:true,d:(g,x,y,w)=>{ C.T.forEach((t,ti)=>{ const gx=x+sw+ti*nCol*cw; kfRpBox(g,gx+1,y,nCol*cw-2,14,3,'#f1f4f8'); kfRpT(g,String(t).toUpperCase(),gx+nCol*cw/2,y+10.5,kfRpF(800,8.5),mut,'center',nCol*cw-6);
+          C.cols.forEach((k,ci)=>kfRpT(g,LB[k]||k,gx+ci*cw+cw/2,y+26,kfRpF(800,8.5),mut,'center',cw-2)); }); kfRpT(g,'SEC',x+4,y+26,kfRpF(800,8.5),mut,'left'); }};
+      items.push(hdr);
+      C.rows.forEach(r=>items.push({h:16,d:(g,x,y,w)=>{ g.fillStyle='#eef1f5'; g.fillRect(x,y,w,1); kfRpT(g,r.s,x+4,y+12,kfRpF(800,10),mut,'left',sw-4);
+        r.v.forEach((tv,ti)=>tv.forEach((c,ci)=>{ const cx=x+sw+(ti*nCol+ci)*cw;
+          if(ci===0&&ti>0){ g.fillStyle='#f1f4f8'; g.fillRect(cx-1,y,2,16); }
+          if(c.bad){ g.fillStyle='#ffe3e3'; g.fillRect(cx+1,y+1,cw-2,14); }
+          kfRpT(g,c.v?c.v+(c.bad?' !':''):(c.bad?'!':'–'),cx+cw/2,y+12,kfRpF(c.bad?900:500,10.5),c.bad?'#c0262f':(c.v?ink:'#b6bec9'),'center',cw-2); })); }})); }
+    if(C.glob.length){ const per=Math.min(6,C.glob.length), gw=(iw-(per-1)*4)/per, nr=Math.ceil(C.glob.length/per);
+      items.push({h:6+nr*30,d:(g,x,y,w)=>{ C.glob.forEach((o,i)=>{ const gx=x+(i%per)*(gw+4), gy=y+6+Math.floor(i/per)*30;
+        kfRpBox(g,gx,gy,gw,26,6,o.bad?'#fff0f0':'#f6f8fb',o.bad?'#f6c4c4':'#e6eaf0'); kfRpT(g,o.l,gx+gw/2,gy+9.5,kfRpF(800,7.5),fnt,'center',gw-4);
+        kfRpT(g,o.v+(o.bad?' !':''),gx+gw/2,gy+21.5,kfRpF(700,11),o.bad?'#c0262f':ink,'center',gw-4); }); }}); }
+    if(D.bad.length){ const lines=kfRpWrap(g,[{t:'Gauge trouble:',f:kfRpF(800,10),c:'#c0262f'},{t:' '+D.bad.join(', '),f:kfRpF(500,10),c:'#c0262f'}],iw,4);
+      items.push({h:8+lines.length*13,d:(g,x,y)=>kfRpLines(g,lines,x,y+16,13)}); }
+    L.push({id:'ck',mv:1,box:{stroke:ln,r:10,pt:8,pb:6,px:10},items,rep:hdr?[title,hdr]:[title]}); }
+  else if(D.bad.length){ const lines=kfRpWrap(g,[{t:'Gauge trouble:',f:kfRpF(800,10),c:'#c0262f'},{t:' '+D.bad.join(', '),f:kfRpF(500,10),c:'#c0262f'}],LW-20,4);
+    L.push({id:'ck',mv:1,box:{fill:'#fff0f0',stroke:'#f6c4c4',r:10,pt:4,pb:4,px:10},items:[{h:8+lines.length*13,d:(g,x,y)=>kfRpLines(g,lines,x,y+16,13)}]}); }
+  /* daftar bernomor dalam kotak kuning (tambahan perbaikan / temuan) */
+  const yList=(id,ttl,cnt,arr,segOf,fill,bd)=>{ const iw=LW-20;
+    const title={h:25,keep:true,d:(g,x,y,w,cont)=>{ kfRpMark(g,x,y+5,'#d98a00'); kfRpT(g,ttl+(cont?' (lanjutan)':''),x+13,y+13,kfRpF(900,10.5),'#8a4b00','left',w-70); if(cnt) kfRpT(g,cnt,x+w,y+13,kfRpF(700,9.5),'#b07a2a','right'); g.fillStyle='#f2e2b0'; g.fillRect(x,y+19,w,1); }};
+    const items=[title].concat(arr.map((a,i)=>{ const lines=kfRpWrap(g,segOf(a,i),iw-16,8), h=lines.length*14+7;
+      return {h:h+4,d:(g,x,y,w)=>{ kfRpBox(g,x,y,w,h,6,'#fffdf6','#f4e7c3'); kfRpLines(g,lines,x+8,y+14,14); }}; }));
+    L.push({id,mv:1,box:{fill,stroke:bd,lw:1.5,r:10,pt:7,pb:3,px:10},items,rep:[title]}); };
+  if(D.add.length) yList('add','TAMBAHAN PERBAIKAN',D.add.length+' item',D.add,(a,i)=>[{t:(i+1)+'. '+a.n,f:kfRpF(800,10.5),c:'#8a4b00'},{t:a.s?' '+a.s:'',f:kfRpF(800,10),c:'#6b4b00'},{t:a.k?' — '+a.k:'',f:kfRpF(500,10.5),c:ink}],'#fff7e8','#f5d9a3');
+  const TC={'Feeder':'#8a4b00','Section':'#1e4fa8','Ware Handling':'#6b2fa0','Operational':'#14684e'};
+  if(D.temu.length) yList('temu','TEMUAN & PENGINGAT JOB KE DEPAN','',D.temu,(a,i)=>[{t:(i+1)+'. '+a.l+':',f:kfRpF(800,10.5),c:TC[a.l]||ink},{t:' '+a.v,f:kfRpF(500,10.5),c:ink}],'#fffaeb','#f2d27a');
+  /* kanan: ditunda */
+  if(D.tunda){ const lines=kfRpWrap(g,[{t:'Alasan:',f:kfRpF(800,12),c:'#7a1d22'},{t:' '+(D.why||'-'),f:kfRpF(500,12),c:ink}],RW-28,10);
+    R.push({box:{fill:'#fff0f0',stroke:'#f6c4c4',lw:1.5,r:10,pt:12,pb:10,px:14},items:[{h:26,d:(g,x,y,w)=>kfRpT(g,'JC TIDAK JADI / DITUNDA',x,y+14,kfRpF(900,13),'#c0262f','left',w)},{h:lines.length*17+4,d:(g,x,y)=>kfRpLines(g,lines,x,y+14,17)}]}); }
+  /* kanan: rekap plan vs aktual */
+  if(D.groups.length){ const nT=D.nS+D.nG, C1=34, C2=228, C3=350, C4=414, kw=RW-C4-8;
+    const head={h:26,d:(g,x,y,w,cont)=>{ kfRpMark(g,x,y+7,'#1d8464'); kfRpT(g,'RINCIAN REKAP PLAN VS AKTUAL'+(cont?' (lanjutan)':''),x+13,y+15,kfRpF(900,11.5),ink,'left',w-240);
+      let rx=x+w; const chip=(t,bg,c)=>{ g.font=kfRpF(800,9); const cw=g.measureText(t).width+12; rx-=cw; kfRpBox(g,rx,y+5,cw,15,7.5,bg); kfRpT(g,t,rx+6,y+15.5,kfRpF(800,9),c); rx-=5; };
+      if(D.nG) chip(D.nG+' GANTI','#1e63c4','#fff'); if(D.nS) chip(D.nS+' SAMA','#e3f4ec','#1a7357'); kfRpT(g,nT+' item ·',rx-1,y+15.5,kfRpF(600,9.5),fnt,'right'); }};
+    const hdr={h:20,keep:true,d:(g,x,y,w)=>{ g.fillStyle='#f1f4f8'; g.fillRect(x,y,w,20); g.fillStyle=ln; g.fillRect(x,y+19,w,1); const f=kfRpF(800,9), c='#5b6676';
+      kfRpT(g,'No',x+13,y+13.5,f,c,'center'); kfRpT(g,'Item',x+C1,y+13.5,f,c); kfRpT(g,'Plan',x+C2,y+13.5,f,c); kfRpT(g,'Status',x+C3,y+13.5,f,c); kfRpT(g,'Aktual / Keterangan',x+C4,y+13.5,f,c); }};
+    const items=[hdr]; let no=0;
+    D.groups.forEach(gp=>{ items.push({h:16,keep:true,d:(g,x,y,w)=>{ g.fillStyle='#f7f9fc'; g.fillRect(x,y,w,16); g.fillStyle='#e4e8ee'; g.fillRect(x,y,w,1); kfRpT(g,gp.a,x+10,y+11.5,kfRpF(900,8.5),'#5b6676','left',w-20); }});
+      gp.it.forEach(it=>{ const N=++no, gt=it.st==='ganti', segs=[];
+        if(it.act) segs.push({t:it.act,f:kfRpF(800,10.5),c:'#1e58b8'});
+        if(it.ket) segs.push({t:(it.act?' · ':'')+it.ket,f:kfRpF(500,10.5,1),c:gt?'#3a4a60':'#5b6676'});
+        if(!segs.length) segs.push(gt?{t:'diganti',f:kfRpF(600,10.5,1),c:'#1e58b8'}:{t:'–',f:kfRpF(400,10.5),c:'#b6bec9'});
+        const lines=kfRpWrap(g,segs,kw,3), h=Math.max(19,6+lines.length*13);
+        items.push({h,d:(g,x,y,w)=>{ if(gt){ g.fillStyle='#f0f5ff'; g.fillRect(x,y,w,h); } g.fillStyle='#eef1f5'; g.fillRect(x,y,w,1); const by=y+13;
+          kfRpT(g,String(N),x+13,by,kfRpF(500,9.5),'#a0a9b6','center');
+          kfRpT(g,it.n,x+C1,by,kfRpF(600,11),gt?'#1e58b8':ink,'left',C2-C1-8);
+          const pw=kfRpT(g,it.pl||'–',x+C2,by,kfRpF(500,10.5),it.strike?'#97a1ae':(it.pl?'#4a5566':'#b6bec9'),'left',C3-C2-10);
+          if(it.strike){ g.fillStyle='#97a1ae'; g.fillRect(x+C2,by-3.5,pw,1); }
+          kfRpBox(g,x+C3,y+2.25,54,15,4,gt?'#1e63c4':'#e3f4ec'); kfRpT(g,gt?'GANTI':'SAMA',x+C3+27,by,kfRpF(900,8.5),gt?'#fff':'#1a7357','center');
+          kfRpLines(g,lines,x+C4,by,13); }}); }); });
+    R.push({id:'rk',head,box:{stroke:ln,r:10,pt:0,pb:0,px:0},items,rep:[hdr]}); }
+  /* kanan: man power */
+  if(D.mp.length){ const segs=[{t:'MAN POWER',f:kfRpF(900,10.5),c:ink}];
+    D.mp.forEach((m,i)=>{ segs.push({t:(i?'  ·  ':'  ')+m.l+':',f:kfRpF(800,10.5),c:ink}); segs.push({t:' '+m.n,f:kfRpF(500,10.5),c:ink}); if(m.h) segs.push({t:' ('+m.h+')',f:kfRpF(600,10),c:mut}); });
+    const lines=kfRpWrap(g,segs,RW-20,5);
+    R.push({id:'mp',box:{stroke:ln,r:10,pt:7,pb:5,px:10},items:[{h:lines.length*15+4,d:(g,x,y)=>kfRpLines(g,lines,x,y+13,15)}]}); }
+  return {L,R}; }
+/* susun blok ke halaman: segmen = potongan blok di 1 halaman; header tabel diulang di halaman lanjutan */
+function kfRpFlow(blocks,top,bot){ const pages=[[]]; let y=top;
+  blocks.forEach(B=>{ const bx=B.box||{pt:0,pb:0}, its=B.items||[]; let i=0, cont=false;
+    while(i<its.length){ const headH=B.head?B.head.h:0, repH=(cont&&B.rep)?B.rep.reduce((a,t)=>a+t.h,0):0;
+      let h=headH+(bx.pt||0)+repH+(bx.pb||0), j=i;
+      while(j<its.length&&y+h+its[j].h<=bot){ h+=its[j].h; j++; }
+      while(j>i+1&&j<its.length&&its[j-1].keep){ j--; h-=its[j].h; }   /* judul / header jangan tertinggal sendirian di bawah */
+      if(j===i){ if(y>top+0.5){ pages.push([]); y=top; continue; } h+=its[j].h; j++; }
+      pages[pages.length-1].push({B,from:i,to:j,cont,y,h}); y+=h+(B.gap==null?10:B.gap); i=j;
+      if(i<its.length){ pages.push([]); y=top; cont=true; } } });
+  return pages; }
+function kfRpSeg(g,sg,x,w){ const B=sg.B, bx=B.box, pt=bx?bx.pt||0:0, px=bx?bx.px||0:0; let y=sg.y;
+  if(B.head){ B.head.d(g,x,y,w,sg.cont); y+=B.head.h; }
+  const bh=sg.y+sg.h-y;
+  if(bx){ g.save(); if(bx.fill) kfRpBox(g,x,y,w,bh,bx.r||10,bx.fill); kfRpRR(g,x,y,w,bh,bx.r||10); g.clip(); }
+  let yy=y+pt; const ix=x+px, iw=w-2*px;
+  if(sg.cont&&B.rep) B.rep.forEach(t=>{ t.d(g,ix,yy,iw,true); yy+=t.h; });
+  for(let k=sg.from;k<sg.to;k++){ const t=B.items[k]; t.d(g,ix,yy,iw); yy+=t.h; }
+  if(bx){ g.restore(); if(bx.stroke) kfRpBox(g,x,y,w,bh,bx.r||10,null,bx.stroke,bx.lw||1); } }
+function kfRpHead(g,D,W){ const K=KF_RP, M=K.M; W=W||K.W;
+  kfRpBox(g,M,26,30,30,8,'#1d8464'); g.strokeStyle='#fff'; g.lineWidth=3.2; g.lineCap='round'; g.lineJoin='round';
+  g.beginPath(); g.moveTo(M+9.5,41.5); g.lineTo(M+13.6,45.6); g.lineTo(M+21,36.6); g.stroke(); g.lineCap='butt'; g.lineJoin='miter';
+  g.font=kfRpF(900,24); const mw=Math.min(190,Math.max(86,g.measureText(D.mc).width+32)), bx=W-M-mw;
+  kfRpBox(g,bx,22,mw,58,10,'#e3f6ee','#bfe8d6'); kfRpT(g,'MESIN',bx+mw/2,40,kfRpF(800,9),'#3c8a70','center'); kfRpT(g,D.mc,bx+mw/2,68,kfRpF(900,24),'#14684e','center',mw-12);
+  let left=bx-8;
+  if(D.when){ g.font=kfRpF(700,11.5); const pw=Math.min(g.measureText(D.when).width+24,420), px=bx-8-pw; kfRpBox(g,px,22,pw,26,7,'#1e2632'); kfRpT(g,D.when,px+12,39,kfRpF(700,11.5),'#fff','left',pw-24); left=Math.min(left,px); }
+  g.font=kfRpF(800,10.5); const sw=g.measureText(D.chip.t).width+22, sx=bx-8-sw, sy=D.when?54:30;
+  kfRpBox(g,sx,sy,sw,22,11,D.chip.bg,D.chip.bd); kfRpT(g,D.chip.t,sx+11,sy+15,kfRpF(800,10.5),D.chip.c); left=Math.min(left,sx);
+  if(D.trial){ const tw=46, tx=sx-6-tw; kfRpBox(g,tx,sy,tw,22,11,'#fff7e8','#f5d9a3'); kfRpT(g,'TRIAL',tx+tw/2,sy+15,kfRpF(800,10),'#9a5a00','center'); left=Math.min(left,tx); }
+  const tx=M+42, maxT=left-tx-14; let fs=23; g.font=kfRpF(900,fs); while(fs>15&&g.measureText(D.title).width>maxT){ fs-=.5; g.font=kfRpF(900,fs); }
+  kfRpT(g,D.title,tx,49,kfRpF(900,fs),K.ink,'left',maxT); kfRpT(g,D.sub,tx,67,kfRpF(500,11.5),K.mut,'left',maxT);
+  g.fillStyle='#e4e8ee'; g.fillRect(M,93,W-2*M,1.5); }
+/* tata letak 1 skala: lebar & tinggi halaman "virtual" = A4 ÷ skala (isi diperkecil rata, tetap tajam) */
+function kfRpLayout(D,mc,sc){ const K=KF_RP, W=K.W/sc, H=K.H/sc, top=108, bot=H-30, LW=396, gap=20, RW=W-2*K.M-LW-gap;
+  let {L,R}=kfRpBlocks(D,mc,LW,RW); const alt=kfRpBlocks(D,mc,RW,RW).L, pick=ids=>alt.filter(b=>ids.indexOf(b.id)>=0);
+  if(!R.length&&L.some(b=>b.mv)){ R=pick(L.filter(b=>b.mv).map(b=>b.id)); L=L.filter(b=>!b.mv); }   /* kanan kosong → ceklist & temuan pindah ke kanan */
+  let lp=kfRpFlow(L,top,bot), rp=kfRpFlow(R,top,bot);
+  if(lp.length>1&&rp.length===1){   /* kiri meluber → blok paling bawah (tambahan / temuan) pindah ke bawah kolom kanan bila muat */
+    for(let k=L.length-1;k>0&&L[k].mv;k--){ const L2=L.slice(0,k), R2=R.concat(pick(L.slice(k).map(b=>b.id))), l2=kfRpFlow(L2,top,bot), r2=kfRpFlow(R2,top,bot);
+      if(l2.length===1&&r2.length===1){ lp=l2; rp=r2; break; } } }
+  return {sc,W,H,LW,RW,gap,lp,rp,n:Math.max(lp.length,rp.length,1)}; }
+function kfRepPages(p){ const K=KF_RP, D=kfRepData(p), mc=document.createElement('canvas').getContext('2d');
+  let T=null; for(const sc of [1,.95,.9,.85,.8]){ const t=kfRpLayout(D,mc,sc); if(t.n===1){ T=t; break; } }
+  if(!T) T=kfRpLayout(D,mc,1);   /* isi sangat banyak → lanjut ke halaman berikutnya (ukuran normal) */
+  const lx=K.M, rx=K.M+T.LW+T.gap, out=[];
+  for(let i=0;i<T.n;i++){ const cv=document.createElement('canvas'); cv.width=K.W*K.S; cv.height=K.H*K.S; const g=cv.getContext('2d');
+    g.fillStyle='#fff'; g.fillRect(0,0,cv.width,cv.height); g.scale(K.S*T.sc,K.S*T.sc); g.textBaseline='alphabetic';
+    kfRpHead(g,D,T.W); (T.lp[i]||[]).forEach(s=>kfRpSeg(g,s,lx,T.LW)); (T.rp[i]||[]).forEach(s=>kfRpSeg(g,s,rx,T.RW));
+    kfRpT(g,D.footL,K.M,T.H-12,kfRpF(500,8.5),'#a0a9b6','left',T.W/2);
+    kfRpT(g,'Dibuat '+D.made+' · halaman '+(i+1)+'/'+T.n,T.W-K.M,T.H-12,kfRpF(500,8.5),'#a0a9b6','right');
+    out.push(cv); }
+  return out; }
+
 /* ---------- penanda di IS Machine (Planning JC) ---------- */
 function kfChip(p){ if(!p||!p.jcDate) return '';
-  if(p.conf&&p.conf.st==='sesuai') return `<span class="kfp on" title="Dikonfirmasi sesuai plan${p.conf.by?' · '+esc(p.conf.by):''}" onclick="event.stopPropagation();appGo(KONF_FILE,'plan=${encodeURIComponent(p.id)}')">✓ aktual</span>`;
-  if(p.conf&&p.conf.st==='berubah'){ const n=kfDiff(p).length; return `<span class="kfp chg" title="Dikonfirmasi — ${n} beda dari plan (data aktual dipakai)" onclick="event.stopPropagation();appGo(KONF_FILE,'plan=${encodeURIComponent(p.id)}')">✏️ aktual · ${n} beda</span>`; }
-  if(!p.conf&&!p.postponed&&p.jcDate<=ymd(TODAY)) return `<span class="kfp need" title="JC sudah lewat / hari ini — konfirmasi hasilnya" onclick="event.stopPropagation();appGo(KONF_FILE,'plan=${encodeURIComponent(p.id)}')">⚠ konfirmasi</span>`;
+  if(p.conf&&p.conf.st==='sesuai') return `<span class="kfp on" title="Diverifikasi sesuai plan${p.conf.by?' · '+esc(p.conf.by):''}" onclick="event.stopPropagation();appGo(KONF_FILE,'plan=${encodeURIComponent(p.id)}')">✓ aktual</span>`;
+  if(p.conf&&p.conf.st==='berubah'){ const n=kfDiff(p).length; return `<span class="kfp chg" title="Diverifikasi — ${n} beda dari plan (data aktual dipakai)" onclick="event.stopPropagation();appGo(KONF_FILE,'plan=${encodeURIComponent(p.id)}')">✏️ aktual · ${n} beda</span>`; }
+  if(!p.conf&&!p.postponed&&p.jcDate<=ymd(TODAY)) return `<span class="kfp need" title="JC sudah lewat / hari ini — verifikasi hasilnya" onclick="event.stopPropagation();appGo(KONF_FILE,'plan=${encodeURIComponent(p.id)}')">⚠ verifikasi</span>`;
   return ''; }
 
 /* =====================================================================
@@ -6604,8 +6953,8 @@ function previewLive(){
   const n=secs.length*parts.length;
   const date=$('#i_date')?$('#i_date').value:'', reason=curReason();
   if(!secs.length||!parts.length){pv.innerHTML='<span style="color:var(--orange)">Select at least 1 section & 1 part.</span>';return;}
-  const part=parts[0]; const lt=lifetimeOf(part);
-  let due=''; if(date){const nd=new Date(parseD(date).getTime()+lt*86400000);const rem=daysBetween(TODAY,nd);due=` · Next Due ${part}: <b>${fmtD(nd)}</b> (sisa ${rem}h) ${pill(statusOf(rem,part))}`;}
+  const part=parts[0]; const mc=addCurMachine(); const lt=lifetimeOf(part,mc);
+  let due=''; if(date){const nd=new Date(parseD(date).getTime()+lt*86400000);const rem=daysBetween(TODAY,nd);due=` · Next Due ${part}: <b>${fmtD(nd)}</b> (sisa ${rem}h) ${pill(statusOf(rem,part,mc))}`;}
   pv.innerHTML=`Akan membuat <b style="color:var(--accent2)">${n} record</b> (${secs.length} section × ${parts.length} part) · Category: <b>${classifyCat(reason)}</b>${due}`;
 }
 function addRec(close){
@@ -6670,7 +7019,7 @@ function rowMon(x){
   return `<tr data-m="${x.machine}" data-s="${x.section}" data-p="${x.part}" data-st="${x.status}" data-q="${(x.machine+x.section+x.part).toLowerCase()}" style="cursor:pointer" onclick="openComboHistory('${x.machine}','${x.section}','${x.part}')" title="Klik untuk lihat riwayat & tren">
   <td><b>${x.machine}</b></td><td>${x.section}</td><td>${x.part}</td><td class="mono">${x.lt}h</td>
   <td class="mono">${fmtD(x.last)}</td><td class="mono">${fmtD(x.nextDue)}</td>
-  <td class="remain" style="color:${x.rem<0?'#ff5a5a':x.rem<=urgentDaysFor(x.part)?'#ff8c3b':x.rem<=warnDaysFor(x.part)?'#ffd23f':'#3fd77a'}">${x.rem}</td>
+  <td class="remain" style="color:${x.rem<0?'#ff5a5a':x.rem<=urgentDaysFor(x.part,x.machine)?'#ff8c3b':x.rem<=warnDaysFor(x.part,x.machine)?'#ffd23f':'#3fd77a'}">${x.rem}</td>
   <td>${pill(x.status)}</td><td>${x.count}</td><td>${x.trouble>0?'<span style="color:#ff5a5a">'+x.trouble+'</span>':'0'}</td>
   <td style="color:var(--txt2);font-size:11.5px">${act}</td></tr>`;
 }
@@ -6702,10 +7051,10 @@ function setPIC(k,v){toast('Shift logged: '+(v||'—'));}
 
 /* ---- PLANNING ---- */
 function roasterCov(machine,part){
-  const lt=lifetimeOf(part);
+  const lt=lifetimeOf(part,machine);
   const en=enriched().filter(r=>r.machine===machine&&r.part===part&&r.planned);
   const bySec={}; en.forEach(r=>{const o=bySec[r.section]; if(!o||r.d>o)bySec[r.section]=r.d;});
-  return sectionsOf(machine).map(s=>{const last=bySec[s]||null; const due=last?new Date(last.getTime()+lt*86400000):null; const rem=last?daysBetween(TODAY,due):null; const st=last?statusOf(rem,part):'NODATA'; return {section:s,last,due,rem,status:st};});
+  return sectionsOf(machine).map(s=>{const last=bySec[s]||null; const due=last?new Date(last.getTime()+lt*86400000):null; const rem=last?daysBetween(TODAY,due):null; const st=last?statusOf(rem,part,machine):'NODATA'; return {section:s,last,due,rem,status:st};});
 }
 function jcTotalParts(){return Object.values(CFG.jcAreas||{}).reduce((a,arr)=>a+arr.length,0);}
 function vPlan(){
@@ -6714,7 +7063,7 @@ function vPlan(){
   const pm=window._planM||CFG.machines[0]; window._planM=pm;
   const defPart=CFG.parts.find(p=>/atridge|cartridge/i.test(p))||CFG.parts[0];
   const pp=window._planPart||defPart; window._planPart=pp;
-  const cov=roasterCov(pm,pp); const lt=lifetimeOf(pp);
+  const cov=roasterCov(pm,pp); const lt=lifetimeOf(pp,pm);
   const withinN=cov.filter(r=>r.last&&r.rem>=0).length, overdueN=cov.filter(r=>r.last&&r.rem<0).length, neverN=cov.filter(r=>!r.last).length;
   const totalSec=cov.length; const pctCov=totalSec?Math.round(withinN/totalSec*100):0;
   after.push(jpFitScroll); after.push(jtlDraw); window._jpMobLast=jpMob();
@@ -6746,7 +7095,7 @@ function vPlan(){
     <div class="tblwrap rcov-wrap"><table class="rcov-tbl"><thead><tr><th>Section</th><th>Last Roaster</th><th>Window Berakhir</th><th>Days Left</th><th>Status</th></tr></thead><tbody>
     ${cov.map(r=>`<tr><td><b>${r.section}</b></td><td class="mono">${r.last?fmtD(r.last):'<span style="color:var(--red)">never</span>'}</td>
       <td class="mono">${r.due?fmtD(r.due):'—'}</td>
-      <td class="mono" style="color:${r.rem==null?'#ff5a5a':r.rem<0?'#ff5a5a':r.rem<=urgentDaysFor(pp)?'#ff8c3b':r.rem<=warnDaysFor(pp)?'#ffd23f':'#3fd77a'};font-weight:700">${r.rem==null?'—':r.rem}</td>
+      <td class="mono" style="color:${r.rem==null?'#ff5a5a':r.rem<0?'#ff5a5a':r.rem<=urgentDaysFor(pp,pm)?'#ff8c3b':r.rem<=warnDaysFor(pp,pm)?'#ffd23f':'#3fd77a'};font-weight:700">${r.rem==null?'—':r.rem}</td>
       <td>${r.last?pill(r.status):'<span class="pill pNODATA">NO DATA</span>'}</td></tr>`).join('')}
     </tbody></table></div>
     </div>
@@ -6931,7 +7280,7 @@ function jaRoasterRecs(opt){ opt=opt||{}; const c=jaCfg(); if(opt.horizon) c.hor
       .map(p=>({p:p,d:daysBetween(TODAY,parseD(p.jcDate))})).filter(x=>x.d>=0&&x.d<=c.horizon)
       .sort((a,b)=>a.d-b.d||((a.p.id||0)-(b.p.id||0)));
     const pend=PL.filter(p=>(p.machine||p.line)===mc&&!p.roasterApplied&&(p.jcDate||'')>=today);
-    parts.forEach(part=>{ const lt=lifetimeOf(part);
+    parts.forEach(part=>{ const lt=lifetimeOf(part,mc);
       const sched=new Set(); pend.forEach(p=>(p.roasterPlan||[]).forEach(r=>{ if(r&&r.part===part) (r.sections||[]).forEach(s=>sched.add(s)); }));
       const cap=new Map(jcs.map(x=>[x.p.id,Math.max(0,c.roMax-(x.p.roasterPlan||[]).filter(r=>r&&r.part===part).reduce((a,r)=>a+(r.sections||[]).length,0))]));
       const due=[], nev=[];
@@ -7185,7 +7534,7 @@ function jcSelSet(el,v){ if(!el) return; v=String(v==null?'':v).trim(); let opt=
   if(!opt&&v){ opt=document.createElement('option'); opt.value=v; opt.textContent=v+' · belum di master'; const nw=[...el.options].find(o=>o.value==='__new'); el.insertBefore(opt,nw||null); }
   el.value=opt?opt.value:''; el.dataset.prev=el.value; el.classList.toggle('empty',!el.value); }
 function jcValPick(el){ const part=el.getAttribute('data-k'), fn=window[el.getAttribute('data-fn')]; let v=el.value;
-  if(v==='__new'){ const t=(prompt('Nilai baru untuk "'+part+'"\n(otomatis masuk Settings → Master Isian Variabel JC)','')||'').trim();
+  if(v==='__new'){ const t=(prompt('Nilai baru untuk "'+part+'"\n(otomatis masuk Settings → Master List → Isian Variabel JC)','')||'').trim();
     if(!t){ el.value=el.dataset.prev||''; return; } jcValAdd(part,t,true); toast('✓ "'+t+'" ditambahkan ke master '+part); jcSelSet(el,t); v=el.value; }
   el.dataset.prev=v; el.classList.toggle('empty',!v); if(typeof fn==='function') fn(part,v); }
 /* ---- Settings: kelola daftar nilai per part ---- */
@@ -7195,7 +7544,7 @@ function jcValAddIn(inp){ if(!inp) return; const part=inp.getAttribute('data-k')
   const n=jcValAdd(part,vals,true); toast(n?'✓ '+n+' nilai ditambahkan ke '+part:'Nilai sudah ada di daftar',n?0:1); render();
   setTimeout(()=>{ const el=document.querySelector('.jv-in[data-k="'+CSS.escape(part)+'"]'); if(el) el.focus(); },30); }
 function jcValUse(part,v){ let n=0; const k=jcfKey(v); (JCPLANS||[]).forEach(x=>{ if(x&&x.specs&&jcfKey(x.specs[part])===k) n++; }); (CFG.jcMaster||[]).forEach(x=>{ if(x&&x.specs&&jcfKey(x.specs[part])===k) n++; }); return n; }
-function jcValsSettingsHTML(){ const M=jcValsMap(), open=window._jvOpen||(window._jvOpen={});
+function jcValsPaneHTML(){ const M=jcValsMap(), open=window._jvOpen||(window._jvOpen={});
   const body=Object.keys(CFG.jcAreas||{}).map(a=>{ const parts=CFG.jcAreas[a]||[]; const n=parts.reduce((s,p)=>s+(M[p]||[]).length,0);
     return `<details class="jv-area"${open[a]?' open':''} ontoggle="(window._jvOpen=window._jvOpen||{})[${jcValArg(a)}]=this.open"><summary><b>${areaIcon(a)} ${esc(a)}</b><span>${parts.length} part · ${n} nilai</span></summary>
       ${parts.map(p=>{ const L=(M[p]||[]).slice().sort(jcValSort), auto=jcValCdOpts(p);
@@ -7203,10 +7552,9 @@ function jcValsSettingsHTML(){ const M=jcValsMap(), open=window._jvOpen||(window
           <div class="jv-vals">${L.map(v=>`<span class="jv-chip" title="dipakai di ${jcValUse(p,v)} plan / master">${esc(v)}<button type="button" onclick="jcValDel(${jcValArg(p)},${jcValArg(v)})" aria-label="Hapus ${esc(v)}">✕</button></span>`).join('')||'<span class="jv-none">belum ada nilai</span>'}
             <span class="jv-add"><input class="jv-in" data-k="${esc(p)}" placeholder="+ nilai baru (pisah ;)" onkeydown="if(event.key==='Enter'){event.preventDefault();jcValAddIn(this)}" autocomplete="off"><button type="button" class="btn sec sm" onclick="jcValAddIn(this.previousElementSibling)">Tambah</button></span></div></div>`; }).join('')}
     </details>`; }).join('');
-  return `<div class="card" style="margin-top:14px"><h3>🔢 Master Isian Variabel JC</h3>
-    <div class="note" style="margin:0 0 10px">Daftar pilihan untuk isian part variabel <b>Plunger Clay … Middle Section</b> di <b>Planning JC</b>, <b>Master JC</b> dan ukuran <b>Stock</b>.
+  return `<div class="note" style="margin:0 0 10px">Daftar pilihan untuk isian part variabel <b>Plunger Clay … Middle Section</b> di <b>Planning JC</b>, <b>Master JC</b> dan ukuran <b>Stock</b>.
       Ketik nilai lalu Enter (bisa sekaligus, pisahkan dengan <b>;</b> mis. <i>49; 52; 83 offset</i>). Menghapus nilai tidak mengubah data lama — nilainya tetap tampil di form sebagai “belum di master”.</div>
-    ${body}</div>`; }
+    ${body}`; }
 
 function jcmList(){ return (CFG.jcMaster||[]); }
 function jcmFiltered(){
@@ -7685,7 +8033,7 @@ function renderJCForm(){
       <div style="font-size:18px;font-weight:800">🧰 ${c.id?'Edit':'Buat'} Plan Jobchange</div>
       <button class="x" onclick="closeJC()" style="margin-left:auto">✕</button></div>
     <div class="mscroll">
-    ${kfIsConf(c)?`<div class="kf-banner${c.conf.st==='berubah'?' chg':''}">${c.conf.st==='berubah'?'✏️':'✅'} <span>JC ini sudah <b>dikonfirmasi</b>${c.conf.st==='berubah'?' dengan perubahan':' sesuai plan'} — isian di bawah adalah <b>data aktual</b> (plan asli tersimpan).</span><button type="button" class="btn sec sm" onclick="closeJC();appGo(KONF_FILE,'plan='+encodeURIComponent(${kfIdArg(c.id)}))">Plan vs aktual ↗</button></div>`:''}
+    ${kfIsConf(c)?`<div class="kf-banner${c.conf.st==='berubah'?' chg':''}">${c.conf.st==='berubah'?'✏️':'✅'} <span>JC ini sudah <b>diverifikasi</b>${c.conf.st==='berubah'?' dengan perubahan':' sesuai plan'} — isian di bawah adalah <b>data aktual</b> (plan asli tersimpan).</span><button type="button" class="btn sec sm" onclick="closeJC();appGo(KONF_FILE,'plan='+encodeURIComponent(${kfIdArg(c.id)}))">Plan vs aktual ↗</button></div>`:''}
     <div class="jcf-sec"><div class="jcf-h">📍 Jadwal</div>
     <div class="form jcf-grid jcf-g1">
       <div class="fg"><label>Machine</label><select onchange="window._jcEdit.machine=this.value;jcMachineChanged()">${CFG.machines.map(mm=>`<option ${mm===c.machine?'selected':''}>${mm}</option>`).join('')}</select></div>
@@ -9596,8 +9944,8 @@ function anaData(opt){
   const machs=(opt&&opt.machs)?opt.machs.slice():(F.mc==='all'?CFG.machines.slice():[F.mc]);
   const avg=a=>a.length?(a.reduce((x,y)=>x+y,0)/a.length):null;
   // 1) lifetime per part
-  const life=CFG.parts.map(p=>{ const lt=lifetimeOf(p), vals=en.filter(r=>r.part===p&&r.actual!=null).map(r=>r.actual);
-    const a=avg(vals); return {p,lt,vals,n:vals.length,a,mn:vals.length?Math.min(...vals):null,mx:vals.length?Math.max(...vals):null,
+  const life=CFG.parts.map(p=>{ const sc=lifetimeScope(p,machs,en), lt=sc.lt, vals=en.filter(r=>r.part===p&&r.actual!=null).map(r=>r.actual);
+    const a=avg(vals); return {p,lt,ltTxt:sc.txt,mixed:sc.mixed,vals,n:vals.length,a,mn:vals.length?Math.min(...vals):null,mx:vals.length?Math.max(...vals):null,
       ach:a!=null?a/lt*100:null,st:anaStatus(a,lt)}; })
     .sort((x,y)=>(x.n===0)-(y.n===0)||(x.ach||0)-(y.ach||0));
   // 2) MTBF & prediksi trouble per mesin
@@ -9648,7 +9996,7 @@ function anaDrawLife(W){ const A=window._ANA, rows=A.life, T=anaTgt();
       inner+=anaT(W,cy-1,anaNum(r.a,1)+' hr',{a:'end',fs:12,c:'var(--txt)',fw:700,cls:'ana-num'});
       inner+=anaT(W,cy+12,r.mn+'–'+r.mx+(narrow?' · n'+r.n:' hr · '+r.n+' data'),{a:'end',fs:10,cls:'ana-num'}); }
     else inner+=anaT(LW,cy+4,'belum ada data interval',{fs:11});
-    g+=anaHit(i,y+2,RH-4,W,r.n?`${r.p}: rata-rata ${anaNum(r.a,1)} hr dari target ${r.lt} hr (${Math.round(r.ach)}%) · ${r.n} data · tap untuk detail`:`${r.p}: belum ada interval lifetime`,inner,!r.n); });
+    g+=anaHit(i,y+2,RH-4,W,r.n?`${r.p}: rata-rata ${anaNum(r.a,1)} hr dari target ${ltLabel(r)} hr (${Math.round(r.ach)}%) · ${r.n} data · tap untuk detail`:`${r.p}: belum ada interval lifetime`,inner,!r.n); });
   return `<svg class="ana-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg>`; }
 
 /* ---------- 2 · MTBF — timeline prediksi ---------- */
@@ -9804,7 +10152,7 @@ async function anaXlsx(){ const o=window._anaPop, R=anaPlainRows(); if(!o||!R) r
 /* ---------- isi pop-up per chart ---------- */
 function anaRecRow(r,cols){ // cols: subset of ['date','mc','sec','part','iv','pct','grp','reason','gap']
   const map={date:[anaDShort(r.d),r.d],mc:[esc(r.machine),r.machine],sec:[esc(r.section),r.section],part:[esc(r.part),r.part],
-    iv:[r.actual!=null?r.actual+' hr':'—',r.actual!=null?r.actual:''],pct:[r.actual!=null?Math.round(r.actual/lifetimeOf(r.part)*100)+'%':'—',r.actual!=null?Math.round(r.actual/lifetimeOf(r.part)*100)+'%':''],
+    iv:[r.actual!=null?r.actual+' hr':'—',r.actual!=null?r.actual:''],pct:[r.actual!=null?Math.round(r.actual/lifetimeOf(r.part,r.machine)*100)+'%':'—',r.actual!=null?Math.round(r.actual/lifetimeOf(r.part,r.machine)*100)+'%':''],
     grp:[anaGrpCell(r),rgById(r.gid).name],reason:[esc(r.reason||'—'),r.reason||''],gap:[r._gap!=null?r._gap+' hr':'—',r._gap!=null?r._gap:'']};
   return {cells:cols.map(c=>map[c][0]),plain:cols.map(c=>map[c][1]),go:()=>anaGo(r.machine,r.section,r.part)}; }
 function anaDShort(d){ return d?String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getFullYear()).slice(2):'—'; }
@@ -9815,7 +10163,7 @@ function anaDetail(kind,key){ const A=window._ANA; if(!A) return; const per=A.pe
   if(kind==='life'){ const r=A.life[+key]; if(!r) return;
     const recs=A.en.filter(x=>x.part===r.p&&x.actual!=null).sort((a,b)=>b.d-a.d), C=['date','mc','sec','iv','pct','reason'];
     anaPopOpen({title:'⏱️ '+r.p,sub:'Interval antar penggantian (mesin · section · part sama) · '+per,file:'Lifetime_'+r.p,sheet:r.p,
-      sum:[['Rata-rata',anaNum(r.a,1)+' hr',anaStCol(r.st)],['Min–maks',r.n?r.mn+'–'+r.mx+' hr':'—'],['Target lifetime',r.lt+' hr'],['Capaian',r.ach!=null?Math.round(r.ach)+'%':'—',anaStCol(r.st)],['Data',r.n]],
+      sum:[['Rata-rata',anaNum(r.a,1)+' hr',anaStCol(r.st)],['Min–maks',r.n?r.mn+'–'+r.mx+' hr':'—'],['Target lifetime',ltLabel(r)+' hr'],['Capaian',r.ach!=null?Math.round(r.ach)+'%':'—',anaStCol(r.st)],['Data',r.n]],
       cols:anaCols(C),rows:recs.map(x=>anaRecRow(x,C)),
       note:'Interval = jarak hari dari penggantian sebelumnya pada kombinasi mesin · section · part yang sama. Tap baris → detail mesin & riwayat section.',
       foot:[{label:'⏱️ Per mesin',fn:()=>{ closeAnaPop(); openAvgLifePop(); }}]}); return; }
@@ -9848,7 +10196,7 @@ function anaDetail(kind,key){ const A=window._ANA; if(!A) return; const per=A.pe
 function anaTable(kind){ const A=window._ANA; if(!A) return; const per=A.perLabel||anaPerLabel(), T=anaTgt();
   if(kind==='life'){ anaPopOpen({title:'⏱️ Average Lifetime per Part',sub:per,file:'Lifetime_per_part',sheet:'Lifetime',
       cols:[{h:'Part'},{h:'Target',num:1},{h:'Avg Actual',num:1},{h:'Min',num:1},{h:'Max',num:1},{h:'Data',num:1},{h:'Achievement',num:1},{h:'Status'}],
-      rows:A.life.map((r,i)=>({cells:[`<b>${esc(r.p)}</b>`,r.lt+' hr',r.a!=null?r.a.toFixed(1)+' hr':'—',r.mn!=null?r.mn+' hr':'—',r.mx!=null?r.mx+' hr':'—',r.n,r.ach!=null?Math.round(r.ach)+'%':'—',`<b style="color:${anaStCol(r.st)}">${r.st}</b>`],
+      rows:A.life.map((r,i)=>({cells:[`<b>${esc(r.p)}</b>`,ltLabel(r)+' hr',r.a!=null?r.a.toFixed(1)+' hr':'—',r.mn!=null?r.mn+' hr':'—',r.mx!=null?r.mx+' hr':'—',r.n,r.ach!=null?Math.round(r.ach)+'%':'—',`<b style="color:${anaStCol(r.st)}">${r.st}</b>`],
         plain:[r.p,r.lt,r.a!=null?+r.a.toFixed(1):'',r.mn!=null?r.mn:'',r.mx!=null?r.mx:'',r.n,r.ach!=null?Math.round(r.ach)+'%':'',r.st],go:r.n?()=>anaDetail('life',i):null})),
       note:`Status: <b style="color:var(--red)">CRITICAL</b> &lt;${Math.round(T*0.7)}% · <b style="color:var(--orange)">UNDER TARGET</b> &lt;${T}% · <b style="color:var(--green)">ON TARGET</b> ≥${T}% dari target lifetime. Tap baris → daftar interval part.`}); return; }
   if(kind==='mtbf'){ anaPopOpen({title:'🧮 MTBF & Trouble Prediction',sub:per,file:'MTBF_per_mesin',sheet:'MTBF',
@@ -10094,7 +10442,7 @@ async function exportExcelFull(byPeriod){
     const ps={}; CFG.parts.forEach(p=>ps[p]=[]); enUse.forEach(r=>{ if(r.actual!=null&&ps[r.part])ps[r.part].push(r.actual); });
     wsA.getCell('A'+a).value='AVERAGE PART LIFETIME (all data)'; wsA.getCell('A'+a).font={bold:true,size:12}; a++;
     put(a,['Part','Target (hari)','Avg Aktual','Achievement %','Data'],true); a++;
-    CFG.parts.forEach(p=>{ const arr=ps[p]; const lt=lifetimeOf(p); const av=arr.length?arr.reduce((x,y)=>x+y,0)/arr.length:null; put(a,[p,lt,av!=null?+av.toFixed(1):'',av!=null?Math.round(av/lt*100):'',arr.length]); a++; });
+    CFG.parts.forEach(p=>{ const arr=ps[p]; const sc=lifetimeScope(p,CFG.machines,enUse); const lt=sc.lt; const av=arr.length?arr.reduce((x,y)=>x+y,0)/arr.length:null; put(a,[p,sc.mixed?sc.txt+' (rata² '+lt+')':lt,av!=null?+av.toFixed(1):'',av!=null?Math.round(av/lt*100):'',arr.length]); a++; });
     wsA.views=[{state:'frozen',ySplit:0}];
     // ---------- Plan Jobchange ----------
     sheetFrom('Plan Jobchange',
@@ -10155,7 +10503,7 @@ async function exportExcelFull(byPeriod){
         const recent=enAll.filter(r=>r.part===p&&daysBetween(r.d,TODAY)<=90).length;
         const avgMo=recent/3; const fc=Math.max(d30,Math.ceil(avgMo*1.1)); const smin=Math.max(fc,5);
         const al=d30>5?'HIGH':d30>2?'MEDIUM':d30>0?'LOW':'OK';
-        return {p:p,lt:lifetimeOf(p),av:+avgMo.toFixed(1),d30:d30,d60:d60,d90:d90,fc:fc,sm:smin,al:al};
+        return {p:p,lt:lifetimeRangeTxt(p),av:+avgMo.toFixed(1),d30:d30,d60:d60,d90:d90,fc:fc,sm:smin,al:al};
       }));
 
     // ---------- Master JC (lengkap dengan spesifikasi) ----------
@@ -10170,8 +10518,8 @@ async function exportExcelFull(byPeriod){
     wsS.getColumn(1).width=26; wsS.getColumn(2).width=40;
     wsS.getCell('A'+st).value='KONFIGURASI APLIKASI'; wsS.getCell('A'+st).font={bold:true,size:14}; st+=2;
     wsS.getCell('A'+st).value='LIFETIME TARGET (hari)'; wsS.getCell('A'+st).font={bold:true,size:12}; st++;
-    putS(st,['Part','Target (hari)'],true); st++;
-    CFG.parts.forEach(p=>{ putS(st,[p,lifetimeOf(p)]); st++; }); st++;
+    putS(st,['Part','Default semua mesin (hari)','Khusus per mesin'],true); st++;
+    CFG.parts.forEach(p=>{ const ov=(CFG.machines||[]).map(m=>{ const v=lifetimeMOv(m,p); return v!=null?m+'='+v:null; }).filter(Boolean); putS(st,[p,lifetimeDef(p),ov.join(', ')||'—']); st++; }); st++;
     wsS.getCell('A'+st).value='STATUS THRESHOLD'; wsS.getCell('A'+st).font={bold:true,size:12}; st++;
     putS(st,['Parameter','Nilai'],true); st++;
     [['WARNING (lifetime ÷ N)',CFG.warnDiv||2],['URGENT (lifetime ÷ N)',CFG.urgentDiv||4],['Replacement Target %',(CFG.pmTarget||70)+'%']].forEach(k=>{ putS(st,[k[0],k[1]]); st++; }); st++;
@@ -10205,7 +10553,7 @@ function vFc(){
     const avgMo=recent/3; const fc=Math.max(d30,Math.ceil(avgMo*1.1)); const smin=Math.max(fc,5);
     const al=d30>5?'HIGH':d30>2?'MEDIUM':d30>0?'LOW':'OK';
     const col=al==='HIGH'?'#ff5a5a':al==='MEDIUM'?'#ff8c3b':al==='LOW'?'#ffd23f':'#3fd77a';
-    return `<tr><td><b>${p}</b></td><td class="mono">${lifetimeOf(p)}d</td><td class="mono">${avgMo.toFixed(1)}</td>
+    return `<tr><td><b>${p}</b></td><td class="mono">${lifetimeRangeTxt(p)}d</td><td class="mono">${avgMo.toFixed(1)}</td>
     <td class="mono">${d30}</td><td class="mono">${d60}</td><td class="mono">${d90}</td><td class="mono"><b>${fc}</b></td>
     <td class="mono">${smin} pcs</td><td><span style="color:${col};font-weight:700">${al}</span></td></tr>`}).join('')}
   </tbody></table></div>`;
@@ -10265,15 +10613,21 @@ function setSelect(key,noScroll){ const view=document.querySelector('#main .view
   const box=document.createElement('div'); box.className='set-dcard'; box.appendChild(head); box.appendChild(body); det.appendChild(box);
   if(!noScroll){ const z=parseFloat(document.documentElement.style.zoom)||1, r=det.getBoundingClientRect(); if(r.top/z<70) window.scrollTo({top:Math.max(0,window.pageYOffset+r.top/z-96),behavior:'smooth'}); } }
 (function(){ let last=null, t=null; window.addEventListener('resize',function(){ clearTimeout(t); t=setTimeout(function(){ const on=window.matchMedia(SET_SPLIT_MQ).matches; if(last===null){ last=on; return; } if(on!==last){ last=on; if(typeof current!=='undefined'&&current==='set') render(); } },150); }); })();
+/* Settings → Master List: 2 bagian dalam 1 menu — Mesin & Umum · Isian Variabel JC (pilihan tab diingat) */
+function mlTabCur(){ let t=window._mlTab; if(t==null){ try{ t=localStorage.getItem('pm_ml_tab'); }catch(e){} } return (window._mlTab=(t==='jc'?'jc':'umum')); }
+function mlSegHTML(){ const t=mlTabCur(), nv=Object.keys(jcValsMap()||{}).reduce((s,k)=>s+((jcValsMap()[k]||[]).length),0);
+  const b=(k,lab,sub)=>`<button type="button" role="tab" data-t="${k}" class="${t===k?'on':''}" aria-selected="${t===k}" onclick="mlTab('${k}')">${lab}<small>${sub}</small></button>`;
+  return `<div class="jx-seg ml-seg" role="tablist" aria-label="Bagian Master List">${b('umum','🏭 Mesin & Umum',CFG.machines.length+' mesin')}${b('jc','🔢 Isian Variabel JC',nv+' nilai')}</div>`; }
+function mlTab(t){ t=t==='jc'?'jc':'umum'; window._mlTab=t; try{ localStorage.setItem('pm_ml_tab',t); }catch(e){}
+  document.querySelectorAll('.ml-seg button').forEach(b=>{ const on=b.dataset.t===t; b.classList.toggle('on',on); b.setAttribute('aria-selected',on); });
+  document.querySelectorAll('.ml-pane').forEach(p=>{ p.hidden=p.dataset.t!==t; }); }
 function vSet(){
   after.push(enhanceSettingsCollapse);
   const ADM=isAdminUI();   /* sinkron v3: Operator hanya melihat preferensi perangkat, akses PIN & export */
   return `<h2 class="title">⚙️ Settings & Data</h2><div class="sub">Configure lifetimes, thresholds, master list, and data backup.</div>
   ${ADM?`<div class="setgroup">
   <div class="grid g2">
-    <div class="card"><h3>⏱️ Lifetime Target (days)</h3>
-      ${CFG.parts.map(p=>`<div class="fg" style="flex-direction:row;align-items:center;gap:12px;margin-bottom:9px"><label style="width:130px">${p}</label><input type="number" value="${CFG.lifetimes[p]}" onchange="setLT('${p}',this.value)" style="width:100px"></div>`).join('')}
-    </div>
+    ${ltSettingsHTML()}
     <div class="card"><h3>🎚️ Status Threshold (pembagi lifetime)</h3>
       <div class="note" style="margin:0 0 12px">Threshold otomatis menyesuaikan lifetime tiap part. Mis. lifetime 60h → WARNING di ${Math.round(60/(CFG.warnDiv||2))}h, URGENT di ${Math.round(60/(CFG.urgentDiv||4))}h. Lifetime 730h → WARNING di ${Math.round(730/(CFG.warnDiv||2))}h, URGENT di ${Math.round(730/(CFG.urgentDiv||4))}h.</div>
       <div class="fg" style="flex-direction:row;align-items:center;gap:12px;margin-bottom:9px"><label style="width:150px">WARNING = lifetime ÷</label><input type="number" min="1" step="0.5" value="${CFG.warnDiv||2}" onchange="CFG.warnDiv=Math.max(1,+this.value||2);saveAll();render()" style="width:90px"></div>
@@ -10389,7 +10743,9 @@ function vSet(){
       </div>`;
     }).join('')}
   </div>
-  <div class="card" style="margin-top:14px"><h3>📋 Master List</h3>
+  <div class="card ml-card" style="margin-top:14px"><h3>📋 Master List<span class="tag">mesin · isian JC</span></h3>
+    ${mlSegHTML()}
+    <div class="ml-pane" data-t="umum"${mlTabCur()==='umum'?'':' hidden'}>
     <div class="grid g2">
       <div class="fg"><label>Machines (comma-separated)</label><textarea rows="2" onchange="setList('machines',this.value)">${CFG.machines.join(', ')}</textarea>
         <div style="font-size:11px;color:var(--txt3);margin-top:5px">Line otomatis dari awalan nama mesin (mis. <b>C3.1</b> → line <b>C3</b>). Brand diatur di bawah.</div></div>
@@ -10401,8 +10757,9 @@ function vSet(){
         <datalist id="dlBrands">${brandList().map(b=>`<option value="${esc(b)}">`).join('')}</datalist></div>
       <div class="fg" style="grid-column:1/-1"><label>Consumable Part (single-use on change — others reusable)</label><textarea rows="2" onchange="setList('consumables',this.value)">${(CFG.consumables||[]).join(', ')}</textarea></div>
     </div>
+    </div>
+    <div class="ml-pane" data-t="jc"${mlTabCur()==='jc'?'':' hidden'}>${jcValsPaneHTML()}</div>
   </div>
-  ${jcValsSettingsHTML()}
   </div>`:''}`;
 }
 function removePartReason(part,r){ if(!CFG.partReasons||!CFG.partReasons[part])return; CFG.partReasons[part]=CFG.partReasons[part].filter(x=>x.toLowerCase()!==String(r).toLowerCase()); saveAll(); render(); }
@@ -10411,7 +10768,59 @@ function addPartReasonManual(i){ const part=CFG.parts[i]; const el=$('#pr_in_'+i
   if(CFG.partReasons[part].some(x=>x.toLowerCase()===r.toLowerCase())){toast('Reason already exists',1);return;}
   CFG.partReasons[part].push(r); if(!CFG.reasons.some(x=>x.toLowerCase()===r.toLowerCase()))CFG.reasons.push(r);
   saveAll(); toast('✓ "'+r+'" added to '+part); render(); }
-function setLT(p,v){CFG.lifetimes[p]=+v;saveAll();toast('Lifetime '+p+' = '+v+'h');render();}
+/* ---- Settings: Lifetime Target — pilih mesin (seperti filter) → tampil lifetime tiap part di mesin itu.
+   "Default" = berlaku untuk semua mesin yang tidak diisi khusus. ---- */
+function ltOvCount(){ let n=0; (CFG.machines||[]).forEach(m=>(CFG.parts||[]).forEach(p=>{ if(lifetimeMOv(m,p)!=null) n++; })); return n; }
+function ltOvN(m){ return (CFG.parts||[]).filter(p=>lifetimeMOv(m,p)!=null).length; }
+function ltOvMachN(){ return (CFG.machines||[]).filter(m=>ltOvN(m)>0).length; }
+function ltTagTxt(){ const n=ltOvMachN(); return n?n+' mesin khusus':'semua ikut default'; }
+function ltSelCur(){ let s=window._ltSel; if(s==null){ try{ s=localStorage.getItem('pm_lt_sel'); }catch(e){} }
+  if(s!=='__def'&&(CFG.machines||[]).indexOf(s)<0) s='__def'; return (window._ltSel=s); }
+function ltChipsHTML(){ const cur=ltSelCur(), machs=CFG.machines||[], lines=[...new Set(machs.map(lineOf))];
+  const chip=m=>{ const n=ltOvN(m); return `<button type="button" class="lt-chip${cur===m?' on':''}" data-m="${esc(m)}" onclick="ltSel(this.dataset.m)" aria-pressed="${cur===m}" title="${n?n+' part khusus':'semua part ikut default'}">${esc(m)}${n?`<i>${n}</i>`:''}</button>`; };
+  const def=`<button type="button" class="lt-chip def${cur==='__def'?' on':''}" data-m="__def" onclick="ltSel('__def')" aria-pressed="${cur==='__def'}">Default <small>semua mesin</small></button>`;
+  const grouped=lines.length<machs.length;
+  return `<div class="lt-line">${def}</div>`+(grouped?lines.map(l=>`<div class="lt-line"><b>Line ${esc(l)}</b>${machs.filter(m=>lineOf(m)===l).map(chip).join('')}</div>`).join(''):`<div class="lt-line">${machs.map(chip).join('')}</div>`); }
+function ltDefInfo(p){ const machs=CFG.machines||[], ov=machs.filter(m=>lifetimeMOv(m,p)!=null);
+  return `<em>${machs.length-ov.length} dari ${machs.length} mesin ikut</em>`+(ov.length?`<small>khusus: ${ov.map(m=>esc(m)+' = '+lifetimeMOv(m,p)).join(' · ')}</small>`:''); }
+function ltMInfo(m,p){ return lifetimeMOv(m,p)!=null?`<em class="k">khusus mesin ini</em><small>default ${lifetimeDef(p)} hari</small>`:'<em>ikut default</em>'; }
+function ltHdInfo(m){ if(m==='__def') return 'berlaku untuk semua mesin yang tidak diisi khusus'; const n=ltOvN(m), t=(CFG.parts||[]).length;
+  return n?n+' dari '+t+' part khusus · sisanya ikut default':'semua part ikut default'; }
+function ltBodyHTML(){ const cur=ltSelCur(), parts=CFG.parts||[], D=cur==='__def';
+  const inp=(val,attrs,lab)=>`<input type="number" min="1" step="1" inputmode="numeric" value="${val}" ${attrs} aria-label="${esc(lab)}" onfocus="this.select()">`;
+  const head=`<div class="lt-hd"><b>${D?'Default':esc(cur)}</b><span id="ltHdInfo">${ltHdInfo(cur)}</span>${D?'':`<button type="button" class="btn sec sm lt-rsall" onclick="resetLTM(ltSelCur())"${ltOvN(cur)?'':' hidden'}>↺ Semua ikut default</button>`}</div>`;
+  const rows=parts.map(p=>{ const ov=!D&&lifetimeMOv(cur,p)!=null;
+    return `<div class="lt-row${ov?' ov':''}" data-p="${esc(p)}"><span class="lt-pn">${esc(p)}</span>
+      <label class="lt-iv">${D?inp(lifetimeDef(p),`data-p="${esc(p)}" onchange="setLT(this.dataset.p,this.value)"`,'Default '+p):inp(lifetimeOf(p,cur),`data-m="${esc(cur)}" data-p="${esc(p)}" onchange="setLTM(this)"`,cur+' '+p)}<small>hari</small></label>
+      <span class="lt-st">${D?ltDefInfo(p):ltMInfo(cur,p)}</span>${D?'<span class="lt-rp-x"></span>':`<button type="button" class="lt-rp" onclick="ltRevert(this)" title="Kembalikan ke default" aria-label="${esc(p)} di ${esc(cur)} ikut default">↺</button>`}</div>`; }).join('');
+  return head+`<div class="lt-list">${rows||'<div class="lt-row"><span class="lt-pn">Belum ada part</span></div>'}</div>`; }
+function ltSettingsHTML(){ return `<div class="card lt-card"><h3>⏱️ Lifetime Target (days)<span class="tag" id="ltOvTag">${ltTagTxt()}</span></h3>
+    <div class="note" style="margin:0 0 10px">Pilih mesin untuk melihat &amp; mengubah lifetime-nya. <b>Default</b> berlaku untuk mesin yang tidak diisi khusus (mesin baru otomatis ikut). Angka di chip = jumlah part khusus. Dashboard, Monitoring &amp; Planning otomatis memakai lifetime mesinnya.</div>
+    <div class="lt-chips" id="ltChips" role="group" aria-label="Pilih mesin">${ltChipsHTML()}</div>
+    <div class="lt-body" id="ltBody">${ltBodyHTML()}</div></div>`; }
+function ltSel(m){ window._ltSel=m; try{ localStorage.setItem('pm_lt_sel',m); }catch(e){}
+  const c=document.getElementById('ltChips'), b=document.getElementById('ltBody'); if(c) c.innerHTML=ltChipsHTML(); if(b) b.innerHTML=ltBodyHTML(); }
+/* perbarui tampilan tanpa render ulang (kotak yang sedang diketik tidak hilang fokus) */
+function ltPaint(){ const t=document.getElementById('ltOvTag'); if(t) t.textContent=ltTagTxt();
+  const c=document.getElementById('ltChips'); if(c) c.innerHTML=ltChipsHTML();
+  const cur=ltSelCur(), D=cur==='__def', h=document.getElementById('ltHdInfo'); if(h) h.textContent=ltHdInfo(cur);
+  const ra=document.querySelector('#ltBody .lt-rsall'); if(ra) ra.hidden=!ltOvN(cur);
+  document.querySelectorAll('#ltBody .lt-row[data-p]').forEach(r=>{ const p=r.dataset.p, st=r.querySelector('.lt-st'), i=r.querySelector('input');
+    if(D){ if(st) st.innerHTML=ltDefInfo(p); if(i&&document.activeElement!==i) i.value=lifetimeDef(p); }
+    else { r.classList.toggle('ov',lifetimeMOv(cur,p)!=null); if(st) st.innerHTML=ltMInfo(cur,p); if(i&&document.activeElement!==i) i.value=lifetimeOf(p,cur); } }); }
+function setLT(p,v){ v=Math.round(+v); const el=document.querySelector('#ltBody input[data-p="'+CSS.escape(p)+'"]:not([data-m])');
+  if(!(v>0)){ toast('Lifetime harus lebih dari 0 hari',1); if(el) el.value=lifetimeDef(p); return; }
+  CFG.lifetimes[p]=v; if(el) el.value=v;
+  /* isian khusus yang sama dengan default baru → jadi ikut default */
+  Object.keys(CFG.lifetimesM||{}).forEach(m=>{ const o=CFG.lifetimesM[m]; if(o&&+o[p]===v){ delete o[p]; if(!Object.keys(o).length) delete CFG.lifetimesM[m]; } });
+  saveAll(); toast('Default lifetime '+p+' = '+v+' hari · mesin tanpa isian khusus ikut'); ltPaint(); }
+function setLTM(el){ const m=el.dataset.m, p=el.dataset.p, raw=String(el.value).trim(), v=Math.round(+raw), M=CFG.lifetimesM=CFG.lifetimesM||{};
+  if(raw===''||!(v>0)||v===lifetimeDef(p)){ if(M[m]){ delete M[m][p]; if(!Object.keys(M[m]).length) delete M[m]; } el.value=lifetimeDef(p);
+    if(raw!==''&&!(v>0)) toast('Lifetime harus lebih dari 0 hari — '+m+' · '+p+' ikut default',1); else toast(m+' · '+p+' ikut default ('+lifetimeDef(p)+' hari)'); }
+  else { (M[m]=M[m]||{})[p]=v; el.value=v; toast('Lifetime '+p+' di '+m+' = '+v+' hari'); }
+  saveAll(); ltPaint(); }
+function ltRevert(btn){ const r=btn.closest('.lt-row'), i=r&&r.querySelector('input'); if(!i) return; i.value=''; setLTM(i); }
+function resetLTM(m){ if(!CFG.lifetimesM||!CFG.lifetimesM[m]) return; delete CFG.lifetimesM[m]; saveAll(); toast(m+' kembali ikut lifetime default'); ltPaint(); }
 function addPartArea(idx){
   const area=areaListAll()[idx]; if(!area)return; const d=areaDef(area); if(!d||d.mode!=='section')return;
   const el=document.getElementById('np_'+idx); if(!el)return;
@@ -10482,7 +10891,12 @@ function toggleMachineSec(m,s){ if(!CFG.machineSecs)CFG.machineSecs={};
   const i=cur.indexOf(s); if(i<0)cur.push(s); else{ if(cur.length<=1){toast('At least 1 section per machine',1);return;} cur.splice(i,1); }
   cur=CFG.sections.filter(x=>cur.includes(x)); CFG.machineSecs[m]=cur; saveAll(); toast(m+': '+cur.length+' section'); render(); }
 function resetMachineSec(m){ if(CFG.machineSecs){delete CFG.machineSecs[m];} saveAll(); toast(m+' reset to default'); render(); }
-function setList(k,v){CFG[k]=v.split(',').map(s=>s.trim()).filter(Boolean);saveAll();toast('Master '+k+' diupdate');render();}
+function setList(k,v){ const old=(CFG[k]||[]).slice(); CFG[k]=v.split(',').map(s=>s.trim()).filter(Boolean);
+  if(k==='machines'){ try{ ltMachRename(old,CFG[k]); }catch(e){} }
+  saveAll();toast('Master '+k+' diupdate');render();}
+/* mesin diganti nama (posisi sama di Master List) → lifetime khusus ikut pindah ke nama baru.
+   Mesin dihapus → isian khususnya disimpan (muncul lagi bila nama itu ditambahkan kembali). */
+function ltMachRename(a,b){ const M=CFG.lifetimesM||{}; a.forEach((x,i)=>{ const y=b[i]; if(y!=null&&x!==y&&b.indexOf(x)<0&&a.indexOf(y)<0){ if(M[x]&&!M[y]){ M[y]=M[x]; delete M[x]; } if(window._ltSel===x){ window._ltSel=y; try{ localStorage.setItem('pm_lt_sel',y); }catch(e){} } } }); }
 function exportJSON(){const blob=new Blob([JSON.stringify({db:DB,cfg:CFG,actions:actionStatus,jc:JCPLANS,stock:STOCK,jccheck:JCCHECKS,audit:AUDIT},null,2)],{type:'application/json'});dl(blob,'pm_data_'+Date.now()+'.json');}
 function exportCSV(){const en=enriched();const h=['Date','Machine','Section','Part','Category','Reason','ActualLifetime','Shift'];
   const rows=en.map(r=>[r.date,r.machine,r.section,r.part,r.cat,r.reason,r.actual??'',r.pic]);
@@ -11082,7 +11496,7 @@ function jccFlatPoints(r){ const out={}; const sec=r.sec||{};
 function jccArrow(d){ if(d>0.05)return '<span style="color:var(--orange);font-weight:800">▲ +'+jccDisp(d.toFixed(1))+'</span>'; if(d<-0.05)return '<span style="color:var(--blue);font-weight:800">▼ '+jccDisp(d.toFixed(1))+'</span>'; return '<span style="color:var(--txt3)">= 0</span>'; }
 function jccMachineCard(machine){
   const list=jccForMachine(machine);
-  if(!list.length){ return '<div class="card noswipe" style="padding:14px;margin-top:14px"><h3>🧪 Kondisi dari Ceklist JC</h3><div class="note" style="margin:6px 0 10px">Belum ada ceklist JC untuk '+machine+'. Catat tekanan setelah job change supaya kondisi mesin bisa dipantau di sini.</div><button class="btn sec sm" onclick="closeMmodal();go(\'jccheck\')">✅ Konfirmasi JC ↗</button></div>'; }
+  if(!list.length){ return '<div class="card noswipe" style="padding:14px;margin-top:14px"><h3>🧪 Kondisi dari Ceklist JC</h3><div class="note" style="margin:6px 0 10px">Belum ada ceklist JC untuk '+machine+'. Catat tekanan setelah job change supaya kondisi mesin bisa dipantau di sini.</div><button class="btn sec sm" onclick="closeMmodal();go(\'jccheck\')">✅ Verifikasi JC ↗</button></div>'; }
   const latest=list[list.length-1]; const prev=list.length>1?list[list.length-2]:null;
   const lf=jccFlatPoints(latest); const pf=prev?jccFlatPoints(prev):{};
   const filled=Object.keys(lf).length;
@@ -11186,7 +11600,7 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
   try{ syncLayout(); }catch(e){ console.error(e); }
   try{ window.PMBoot&&PMBoot.done(); }catch(e){}   /* QW-P4: boot selesai \u2192 splash memudar */
   try{ window._seenMod=parseInt(localStorage.getItem('pm_lastmod'),10)||0; }catch(e){}
-  if(APP_MODE==='jcc'){ try{ document.title='Konfirmasi JC — IS Machine'; const nm=document.querySelector('.tb-nm'); if(nm) nm.innerHTML='Konfirmasi JC<small>IS Machine · PM</small>';
+  if(APP_MODE==='jcc'){ try{ document.title='Verifikasi Pengecekan Job Change — IS Machine'; const nm=document.querySelector('.tb-nm'); if(nm) nm.innerHTML='Verifikasi JC<small>IS Machine · PM</small>';
       const lg=document.querySelector('.tb-logo'); if(lg) lg.title='Kembali ke IS Machine'; }catch(e){} }
   try{ appRouteParams(); }catch(e){ console.error('appRouteParams',e); }   /* ?plan= / ?ck= / ?go= dari halaman satunya */
   if(APP_MODE!=='jcc'){ try{ setTimeout(jaAutoPop,1100); }catch(e){} }   /* Asisten JC: pengingat muncul otomatis saat app dibuka */
@@ -12023,6 +12437,72 @@ body.light .kf-sgb.s.on{color:#fff}
 .kf-adb{display:flex;flex-direction:column;gap:8px;padding:8px 12px 12px}
 .kf-adb .kf-b{align-self:flex-start}
 @media(max-width:380px){ .kf-sgb{min-width:52px;padding:0 9px} }
+/* bagian 2 · tambahan perbaikan: selalu terlihat, pilihan & tombol besar */
+.kf-ads2{display:flex;flex-direction:column;gap:6px}
+.kf-ad2{display:flex;align-items:flex-start;gap:10px;padding:10px 8px 10px 10px;border-radius:14px;background:color-mix(in srgb,var(--orange) 10%,var(--panel2));border:1px solid color-mix(in srgb,var(--orange) 30%,transparent)}
+.kf-ad2n{flex:0 0 auto;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--orange);color:#fff;font-size:13px;font-weight:800}
+.kf-ad2t{flex:1 1 auto;min-width:0}
+.kf-ad2t>div{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 8px}
+.kf-ad2t b{font-size:15px;font-weight:800}
+.kf-ad2 .kf-adsec{margin-left:0;font-size:13px}
+.kf-ad2t small{display:block;font-size:13.5px;color:var(--txt2);margin-top:2px;overflow-wrap:anywhere}
+.kf-ad2 .kf-x{width:34px;height:34px;font-size:14px}
+.kf-adf{display:flex;flex-direction:column;gap:11px;padding:12px;border-radius:14px;background:var(--panel2);border:1.5px dashed color-mix(in srgb,var(--txt3) 38%,transparent)}
+.kf-form .kf-big,body.soft .kf-form .kf-big{min-height:46px;font-size:16px!important;font-weight:600}
+.kf-secs2{gap:6px}
+.kf-secs2 .kf-sc{min-width:48px;height:42px;font-size:14.5px;border-radius:11px}
+.kf-adall{border:0;background:none;padding:0 0 0 10px;color:var(--accent2);font-family:inherit;font-size:12px;font-weight:800;text-transform:none;letter-spacing:0;cursor:pointer}
+.kf-rns2{font-size:13px;padding:6px 0}
+.kf-b.kf-adgo{width:100%;min-height:48px;font-size:15.5px;font-weight:800;background:var(--orange);color:#fff}
+/* bagian 3 · data mesin & temuan */
+.kf-2c{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.kf-tmh{margin-top:2px}
+.kf-tms{display:flex;flex-direction:column;gap:6px}
+.kf-tm{display:grid;grid-template-columns:118px minmax(0,1fr);gap:8px;align-items:start;margin:0}
+.kf-tm>span{font-size:13px;font-weight:800;color:var(--txt2);padding-top:9px}
+@media(max-width:520px){ .kf-tm{grid-template-columns:minmax(0,1fr);gap:3px} .kf-tm>span{padding-top:0;font-size:11px;color:var(--txt3);text-transform:uppercase;letter-spacing:.3px} }
+/* bagian 4 · tekanan per section bisa disembunyikan */
+.kf-cktg{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line2);background:var(--panel2);color:var(--txt);font-family:inherit;text-align:left;cursor:pointer;scroll-margin-top:70px}
+.kf-cktg.on{border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+.kf-cktt{flex:1 1 auto;min-width:0;font-size:14px;font-weight:800}
+.kf-cktt small{display:block;font-size:11.5px;font-weight:600;color:var(--txt3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kf-ckmo{flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:800;color:var(--accent2)}
+.kf-ckmo::after{content:"▾";font-size:13px;transition:transform .15s}
+.kf-cktg.on .kf-ckmo::after{transform:rotate(180deg)}
+.kf-ckbd{display:flex;flex-direction:column;gap:9px}
+/* laporan: tombol di daftar & form */
+.kf-rpb::before{-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/%3E%3Cpath d='M14 2v6h6M8 13h8M8 17h6'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/%3E%3Cpath d='M14 2v6h6M8 13h8M8 17h6'/%3E%3C/svg%3E") center/contain no-repeat}
+.kf-c3{display:flex;align-items:center;gap:8px;margin-top:2px;min-width:0}
+.kf-c3 .kf-go{margin:0 0 0 auto}
+.kf-rpl{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:800;color:var(--txt);border:1.5px solid var(--line2);border-radius:999px;padding:4px 11px;background:var(--panel2);white-space:nowrap}
+.kf-rpl:active{transform:scale(.96)}
+.kf-cbt{margin-left:auto;display:inline-flex;align-items:center;gap:14px;flex-wrap:wrap}
+.kf-cbt .kf-lnk{margin-left:0}
+.kf-lnk.kf-lnr{color:var(--accent2)}
+/* modal laporan */
+.cbox:has(.kf-rp){max-width:860px}
+.kf-rpseg{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:3px;border-radius:12px;background:var(--panel2)}
+.kf-rpseg button{border:0;background:transparent;border-radius:9px;padding:8px 6px;font-family:inherit;font-size:13px;font-weight:800;color:var(--txt3);cursor:pointer}
+.kf-rpseg button.on{background:var(--panel);color:var(--txt);box-shadow:0 1px 4px rgba(0,0,0,.18)}
+.kf-rpl2{display:flex;justify-content:space-between;gap:8px}
+.kf-rppv{position:relative;display:flex;flex-direction:column;gap:8px;cursor:zoom-in;min-height:60px}
+.kf-rppv canvas{display:block;width:100%;height:auto;border-radius:8px;background:#fff;box-shadow:0 4px 18px rgba(0,0,0,.28)}
+.kf-rpzh{position:absolute;right:8px;bottom:8px;font-size:11px;font-weight:800;background:rgba(30,38,50,.85);color:#fff;border-radius:999px;padding:4px 10px;pointer-events:none}
+.kf-rpact{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.kf-rpbt{display:flex;flex-direction:column;align-items:center;gap:2px;border-radius:14px;padding:10px 4px 9px;border:1.5px solid transparent;cursor:pointer;font-family:inherit;line-height:1.15;min-width:0}
+.kf-rpbt i{font-style:normal;font-size:21px;line-height:1.1}
+.kf-rpbt span{font-size:14.5px;font-weight:800}
+.kf-rpbt small{font-size:10.5px;font-weight:600;opacity:.85}
+.kf-rpbt.pdf{background:color-mix(in srgb,var(--red) 12%,var(--panel));border-color:color-mix(in srgb,var(--red) 35%,transparent);color:var(--red)}
+.kf-rpbt.img{background:color-mix(in srgb,var(--blue) 12%,var(--panel));border-color:color-mix(in srgb,var(--blue) 35%,transparent);color:var(--blue)}
+.kf-rpbt.wa{background:#1fa855;border-color:#1fa855;color:#fff;box-shadow:0 4px 14px rgba(31,168,85,.35)}
+.kf-rpbt:active{transform:scale(.97)}
+.kf-rpdl{display:flex;justify-content:center;gap:18px}
+.kf-rpdl button{border:0;background:none;color:var(--txt3);font-family:inherit;font-size:12px;font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:2px}
+.kf-rpzm{position:fixed;inset:0;z-index:10050;background:rgba(10,12,16,.94);overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.kf-rpzs{display:flex;flex-direction:column;gap:14px;padding:58px 14px 30px;width:max(100%,1200px);box-sizing:border-box}
+.kf-rpzs img{display:block;width:100%;height:auto;border-radius:6px}
+.kf-rpzx{position:fixed;top:12px;right:12px;z-index:2;width:42px;height:42px;border-radius:50%;border:0;background:rgba(255,255,255,.18);color:#fff;font-size:18px;cursor:pointer}
 /* halaman konfirmasi: tanpa lonceng notifikasi; HP/tablet tanpa navbar bawah */
 html[data-app="jcc"] #bellBtn,html[data-app="jcc"] #bellPop,html[data-app="jcc"] #bellPopBack{display:none!important}
 @media(max-width:680px){ html[data-app="jcc"] header .tb-icons{display:none!important} }   /* isinya (lonceng) sudah tidak ada di HP */
