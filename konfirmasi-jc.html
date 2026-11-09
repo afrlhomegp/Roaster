@@ -6000,6 +6000,7 @@ function vKonf(){ if(window._kfEdit) return kfFormHTML();
   const d=kfDay(), L=kfList(d), nOk=L.filter(p=>!kfNeed(p)).length, pct=L.length?Math.round(nOk/L.length*100):0;
   return `<h2 class="title">✅ Konfirmasi JC</h2><div class="sub">Rekap ulang plan + ceklist tekanan setelah JC — data aktual otomatis jadi acuan di IS Machine.</div>
   <div class="kf-top"><div class="kf-date">📅 ${esc(jcDayName(d)||'')}, ${fmtD(parseD(d))}</div>
+    ${L.some(kfWaOk)?`<button type="button" class="kf-wab" onclick="kfWaOpen()">Kirim ke WhatsApp</button>`:''}
     ${L.length?`<div class="kf-prog"><span><b>${nOk}</b> / ${L.length} selesai</span><i><s style="width:${pct}%"></s></i></div>`:''}</div>
   ${L.length?`<div class="kf-grid">${L.map(kfCardHTML).join('')}</div>`:'<div class="kf-empty"><b>📭</b>Tidak ada JC yang diplanningkan hari ini</div>'}`; }
 
@@ -6238,9 +6239,99 @@ function kfSaveAll(){ const e=window._kfEdit; if(!e) return; const p=kfPlan(e.id
     if(e.adOpen&&String(e.adKet||'').trim()&&!confirm('Tambahan perbaikan yang sedang diisi belum ditambahkan (tombol ＋ Tambah perbaikan).\n\nOK = simpan tanpa itu\nBatal = kembali')) return; }
   const st=kfCommit(p,e); if(!st) return;
   const ck=st!=='tunda'&&kfCkCommit(p,e.note);
-  saveAll(); window._kfEdit=null; window._jccEdit=null;
+  saveAll(); window._kfEdit=null; window._jccEdit=null; window._kfLast=p.id;
   toast(st==='tunda'?(e.newDate?'⏸ JC dipindah ke '+fmtD(parseD(e.newDate)):'⏸ JC ditandai ditunda'):'✓ '+(p.machine||'JC')+' · '+KF_ST[st].t+(ck?' · ceklist tersimpan':''));
   render(); try{ window.scrollTo(0,0); }catch(_){} }
+/* ---------- kirim ke WhatsApp: detail per JC (format teks WhatsApp: *tebal* _miring_ ~coret~ `kode` ```blok``` - daftar 1. nomor > kutipan) ---------- */
+function kfWaOk(p){ return !!(p&&(kfIsConf(p)||p.postponed||(p.conf&&p.conf.st==='tunda'))); }
+function kfWaCl(s){ return String(s==null?'':s).replace(/[*_~`]/g,'').replace(/\s+/g,' ').trim(); }   /* isian bebas: buang tanda format agar tidak merusak gaya */
+function kfWaHari(d){ const H=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu']; return H[d.getDay()]+', '+fmtD(d); }
+function kfWaJam(t){ const d=new Date(t); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+function kfWaShift(s){ s=kfWaCl(s); return !s?'':/shift/i.test(s)?s:'Shift '+s; }
+function kfWaKet(k){ k=kfWaCl(k); return k?' — _'+k+'_':''; }
+function kfWaDiff(p){ const P=kfPlanOf(p), C=(p.conf&&p.conf.chk)||null, L=[];
+  if(kfWaCl(P.shift)!==kfWaCl(p.shift)) L.push('- Shift: ~'+(kfWaCl(P.shift)||'-')+'~ → *'+(kfWaCl(p.shift)||'-')+'*');
+  if(C){
+    Object.keys(C.specs||{}).forEach(k=>{ const c=C.specs[k]; if(!c||c.st!=='ganti') return; const a=kfWaCl((P.specs||{})[k]), b=kfWaCl((p.specs||{})[k]);
+      L.push('- '+kfWaCl(k)+': '+(b&&jcfKey(b)!==jcfKey(a)?(a?'~'+a+'~ → ':'')+'*'+b+'*':(a?'`'+a+'` ':'')+'*diganti*')+kfWaKet(c.ket)); });
+    (C.ro||[]).forEach(r=>{ if(!r||r.st!=='ganti') return; const pr=(P.roasterPlan||[]).find(q=>q&&q.part===r.part)||{}, a=kfSecTxt(pr.sections), b=kfSecTxt(r.sections);
+      L.push('- Roaster '+kfWaCl(r.part)+': '+(a?'~'+a+'~ → ':'')+'*'+(b||'tidak dikerjakan')+'*'+kfWaKet(r.ket)); });
+    (C.add||[]).forEach(a=>{ if(!a||!a.part) return; const s=kfSecTxt(a.sections);
+      L.push('- Tambahan: *'+kfWaCl(a.part)+(s?' '+s:'')+'*'+kfWaKet(a.ket)); });
+  } else kfDiff(p).filter(d=>d.k!=='mp'&&d.k!=='date'&&d.k!=='shift').forEach(d=>L.push('- '+kfWaCl(d.l)+': ~'+kfWaCl(d.plan)+'~ → *'+kfWaCl(d.act)+'*'));
+  return L; }
+/* tabel tekanan rata kolom (blok monospace). 2 kolom (Luar/Dalam) → 1 tabel PU|CB|VB · 3 kolom (ada Tengah) → 1 tabel per jenis agar tidak terpotong di HP */
+function kfWaTable(ck,machine){ const secs=sectionsOf(machine), cols=jccCols(ck.cd), sw=Math.max(2,...secs.map(s=>s.length))+1;
+  const cell=(t,s,col)=>{ const c=((ck.sec||{})[s]||{})[t]||{}, v=c[col]?String(c[col]):'-'; return v.padStart(3,' ')+(c[col+'Bad']?'!':' '); };
+  const tbl=T=>{ const w=cols.length*4; let h1=' '.repeat(sw), h2=' '.repeat(sw);
+    T.forEach(t=>{ const nm=t.toUpperCase(), pad=w-nm.length; h1+=' '.repeat(Math.floor(pad/2))+nm+' '.repeat(Math.ceil(pad/2)); h2+=cols.map(c=>' '+c.toUpperCase()+'  ').join(''); });
+    const rows=secs.map(s=>s.padEnd(sw,' ')+T.map(t=>cols.map(col=>cell(t,s,col)).join('')).join(''));
+    return '```\n'+[h1,h2].concat(rows).map(r=>r.replace(/\s+$/,'')).join('\n')+'\n```'; };
+  const T=JCC_PT.map(x=>x[0]); return cols.length>2?T.map(t=>tbl([t])).join('\n'):tbl(T); }
+function kfWaBad(ck){ const out=[]; if(!ck) return out; const sec=ck.sec||{};
+  sectionsOf(ck.machine).concat(Object.keys(sec)).filter((s,i,a)=>a.indexOf(s)===i).forEach(s=>JCC_PT.forEach(([t])=>{ const c=(sec[s]||{})[t]||{};
+    ['l','m','d'].forEach(col=>{ if(c[col+'Bad']) out.push(t.toUpperCase()+' '+s+' '+jccColLabel(col)); }); }));
+  JCC_GP.forEach(([k,n])=>{ const g=(ck.glob||{})[k]; if(g&&g.bad) out.push(n); }); return out; }
+function kfWaText(p){ if(!p) return ''; const c=p.conf||{}, ck=kfCkOf(p), L=[], tunda=p.postponed||c.st==='tunda';
+  const st=tunda?'Ditunda':c.st==='berubah'?'Ada perubahan dari plan':c.st==='sesuai'?'Sesuai plan':'Belum dikonfirmasi';
+  L.push('*KONFIRMASI JOB CHANGE*');
+  L.push('*'+kfWaCl(p.machine||p.line||'-')+' · Job #'+kfWaCl(p.typeJob||'-')+'*'+(p.trial?' _(trial)_':''));
+  L.push('_'+[kfWaHari(parseD(p.jcDate)),kfWaShift(p.shift)].filter(Boolean).join(' · ')+'_');
+  L.push('');
+  const desc=kfWaCl(p.description||p.bottleSize), spec=[kfWaCl(p.process),p.cd?'CD '+kfWaCl(p.cd):'',p.weight?kfWaCl(p.weight)+' gr':''].filter(Boolean).join(' · ');
+  if(desc) L.push('> '+desc); if(spec) L.push('> '+spec); if(desc||spec) L.push('');
+  L.push('*Status:* '+st);
+  if(tunda){ L.push(''); L.push('*ALASAN*'); L.push('> '+(kfWaCl(c.note)||'-')); }
+  else {
+    const df=kfWaDiff(p); L.push('');
+    if(df.length){ L.push('*PERUBAHAN DARI PLAN*'); L.push(...df); } else L.push('_Semua part & roaster sesuai plan_');
+    const ro=(p.roasterPlan||[]).filter(r=>r&&r.part);
+    if(ro.length){ L.push(''); L.push('*ROASTER*'); ro.forEach(r=>{ const s=kfSecTxt(r.sections); L.push('- '+kfWaCl(r.part)+(s?' `'+s+'`':(r.ns?' _(non-section)_':''))); }); }
+    L.push('');
+    if(ck){ const n=jccCounts(ck), bad=kfWaBad(ck);
+      L.push('*CEKLIST AFTER JC* — '+n.filled+' titik (bar)');
+      L.push(kfWaTable(ck,p.machine||p.line||ck.machine));
+      if(bad.length) L.push('_! = gauge trouble_');
+      const G=JCC_GP.map(([k,nm])=>{ const g=(ck.glob||{})[k]; return g&&g.v?'- '+nm+': `'+g.v+'`'+(g.bad?' _gauge trouble_':''):null; }).filter(Boolean);
+      if(G.length){ L.push(''); L.push('*Tekanan global*'); L.push(...G); }
+      if(bad.length){ L.push(''); L.push('*Gauge trouble*'); bad.forEach(b=>L.push('- '+b)); }
+      const pb=kfWaCl(ck.perbaikan); if(pb){ L.push(''); L.push('*TEMUAN / PERBAIKAN*'); L.push('> '+pb); } }
+    else { L.push('*CEKLIST AFTER JC*'); L.push('_Belum diisi_'); }
+    const mp=jcfMpGroups().map(g=>{ const nm=mpSplit((p.manpower||{})[g.key]).map(kfWaCl).filter(Boolean); if(!nm.length) return null; const h=(p.mpHours||{})[g.key];
+      return String(g.label).toLowerCase().replace(/(^|[\s+])\S/g,m=>m.toUpperCase())+': '+nm.join(', ')+(h?' — `'+String(h).replace('.',',')+' jam`':''); }).filter(Boolean);
+    if(mp.length){ L.push(''); L.push('*MAN POWER*'); mp.forEach((m,i)=>L.push((i+1)+'. '+m)); } }
+  if(c.at){ L.push(''); L.push('_Dikonfirmasi '+(kfWaCl(c.by)||'-')+' · '+kfWaJam(c.at)+'_'); }
+  return L.join('\n'); }
+/* pratinjau: tampilkan gaya WhatsApp di layar */
+function kfWaHtml(t){ const BT=String.fromCharCode(96), F=BT+BT+BT;
+  const inl=h=>{ h=h.split(BT).map((x,i)=>i%2?'<code>'+x+'</code>':x).join(''); const E='(?=$|[\\s).,:;—-])';
+    return h.replace(new RegExp('(^|[\\s(>])\\*([^*\\n]+)\\*'+E,'g'),'$1<b>$2</b>').replace(new RegExp('(^|[\\s(>])_([^_\\n]+)_'+E,'g'),'$1<i>$2</i>').replace(new RegExp('(^|[\\s(>])~([^~\\n]+)~'+E,'g'),'$1<s>$2</s>'); };
+  return String(t).split(F).map((s,i)=>{ if(i%2) return '<pre class="kfw-mono">'+esc(s.replace(/^\n|\n$/g,''))+'</pre>';
+    const L=s.split('\n'); let out='';
+    L.forEach((l,k)=>{ let h, blk=true; const m=l.match(/^(\d+)\. (.*)$/);
+      if(/^> /.test(l)) h='<span class="kfw-q">'+inl(esc(l.slice(2)))+'</span>';
+      else if(/^- /.test(l)) h='<span class="kfw-li"><i class="kfw-bu">•</i>'+inl(esc(l.slice(2)))+'</span>';
+      else if(m) h='<span class="kfw-li"><i class="kfw-bu">'+m[1]+'.</i>'+inl(esc(m[2]))+'</span>';
+      else { h=inl(esc(l)); blk=false; }
+      out+=h+((blk||k===L.length-1)?'':'\n'); });
+    return out; }).join(''); }
+function kfWaOpen(id){ const L=kfList(kfDay()).filter(kfWaOk); if(!L.length){ toast('Belum ada JC yang dikonfirmasi hari ini',1); return; }
+  const p=L.find(x=>String(x.id)===String(id))||L.find(x=>String(x.id)===String(window._kfLast))||L[L.length-1]; window._kfWaId=p.id;
+  const chips=L.map(x=>`<button type="button" class="kfw-chip${String(x.id)===String(p.id)?' on':''}" onclick="kfWaOpen(${kfIdArg(x.id)})"><b>${esc(x.machine||x.line||'—')}</b> #${esc(x.typeJob||'—')}</button>`).join('');
+  const txt=kfWaText(p);
+  document.getElementById('cbox').innerHTML=`<div class="kfw">
+    <div class="cbh"><span class="mh-t">Kirim ke WhatsApp</span><button class="x" onclick="closeCmodal()" aria-label="Tutup">✕</button></div>
+    ${L.length>1?`<div class="kfw-chips">${chips}</div>`:''}
+    <div class="kfw-l">Pratinjau di WhatsApp</div>
+    <div class="kfw-bub">${kfWaHtml(txt)}</div>
+    <div class="kfw-act"><button type="button" class="kf-b" onclick="kfWaCopy()">Salin teks</button><button type="button" class="kf-b kfw-go" onclick="kfWaSend()">Buka WhatsApp</button></div>
+    <div class="kfw-n">Salin teks → tempel di chat / grup. Atau <b>Buka WhatsApp</b> → pilih chat, teks sudah terisi.</div></div>`;
+  document.getElementById('cmodal').classList.add('show'); }
+function kfWaCur(){ return kfWaText(kfPlan(window._kfWaId)); }
+function kfWaCopy(){ const txt=kfWaCur(); if(!txt) return; const ok=()=>toast('✓ Teks disalin — tempel di WhatsApp');
+  const fb=()=>{ try{ const ta=document.createElement('textarea'); ta.value=txt; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); const s=document.execCommand('copy'); ta.remove(); s?ok():toast('Gagal menyalin',1); }catch(e){ toast('Gagal menyalin',1); } };
+  if(navigator.clipboard&&window.isSecureContext) navigator.clipboard.writeText(txt).then(ok,fb); else fb(); }
+function kfWaSend(){ const txt=kfWaCur(); if(!txt) return; window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank','noopener'); }
 function kfUndoId(id){ const p=kfPlan(id); if(!p||!p.conf) return;
   if(!confirm('Batalkan konfirmasi JC '+(p.machine||'')+' ?\nIsian kembali ke plan asli'+((p.varApplied||p.roasterApplied)?' dan record yang tercatat disesuaikan':'')+'. Ceklist tekanan tetap tersimpan.')) return;
   const before=auditSnap('jcplan',p), oldM=p.machine||p.line, oldD=p.jcDate;
@@ -11668,6 +11759,28 @@ td.jcp-c{ width:34px; }
 .kf-date{font-size:14px;font-weight:800;color:var(--txt);white-space:nowrap}
 .kf-prog{display:flex;align-items:center;gap:10px;flex:1 1 200px;max-width:360px;margin-left:auto;font-size:12px;color:var(--txt3);font-weight:600}
 .kf-prog>span{flex:0 0 auto;white-space:nowrap}
+/* kirim ke WhatsApp */
+.kf-wab{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border-radius:999px;border:0;cursor:pointer;background:var(--mint);color:var(--mint-ink);font-family:inherit;font-weight:800;font-size:13px;line-height:1.1;box-shadow:var(--mint-glow);white-space:nowrap}
+.kf-wab::before{content:"";width:15px;height:15px;flex:0 0 auto;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 2 11 13'/%3E%3Cpath d='M22 2 15 22l-4-9-9-4 20-7z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 2 11 13'/%3E%3Cpath d='M22 2 15 22l-4-9-9-4 20-7z'/%3E%3C/svg%3E") center/contain no-repeat}
+.kf-wab:active{transform:scale(.97)}
+.kfw{display:flex;flex-direction:column;gap:10px;min-width:0}
+.kfw .cbh{margin:0}
+.kfw-chips{display:flex;flex-wrap:wrap;gap:6px}
+.kfw-chip{border:0;cursor:pointer;padding:7px 12px;border-radius:999px;background:var(--panel);box-shadow:var(--neu-sm);color:var(--txt2);font-family:inherit;font-weight:600;font-size:12.5px;line-height:1.1}
+.kfw-chip.on{background:var(--mint);color:var(--mint-ink);box-shadow:var(--mint-glow)}
+.kfw-l{font-size:12px;color:var(--txt3);font-weight:700}
+.kfw-bub{background:#d9fdd3;color:#111b21;border-radius:12px 3px 12px 12px;padding:10px 12px;font-size:13.5px;line-height:1.42;white-space:pre-wrap;word-wrap:break-word;max-height:min(calc(56vh / var(--uizoom,1)),600px);overflow:auto;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.cbox .kfw-bub b,.cbox .kfw-bub i,.cbox .kfw-bub s,.cbox .kfw-n b,.cbox .kfw-chip b{font-size:inherit!important} .kfw-bub b{font-weight:800} .kfw-bub s{opacity:.75}
+.kfw-bub code{font:12px/1 ui-monospace,Menlo,Consolas,monospace;background:rgba(0,0,0,.07);padding:1px 4px;border-radius:4px}
+.kfw-bub .kfw-q{display:block;border-left:4px solid rgba(0,0,0,.18);padding:1px 0 1px 8px;color:#3b4a54;background:rgba(0,0,0,.035);border-radius:3px}
+.kfw-bub .kfw-li{display:block;padding-left:18px;text-indent:-18px}
+.kfw-bub .kfw-bu{display:inline-block;width:18px;text-indent:0;font-style:normal}
+.kfw-mono{margin:2px 0;font:12px/1.35 ui-monospace,Menlo,Consolas,"Courier New",monospace;white-space:pre;overflow-x:auto;background:none;padding:0;color:#111b21}
+.kfw-act{display:flex;gap:10px}
+.kfw-act .kf-b{flex:1;justify-content:center}
+.kfw-go{background:#1fa855!important;color:#fff!important;box-shadow:0 4px 14px rgba(31,168,85,.35)!important}
+.kfw-n{font-size:11.5px;color:var(--txt3);line-height:1.4}
+@media(max-width:680px){ .kfw-bub{max-height:calc(64vh / var(--uizoom,1))} }
 .kf-prog b{color:var(--txt);font-size:14px}
 .kf-prog i{display:block;flex:1 1 auto;height:6px;border-radius:9px;background:color-mix(in srgb,var(--txt3) 22%,transparent);overflow:hidden}
 .kf-prog s{display:block;height:100%;background:var(--green);border-radius:9px;text-decoration:none;transition:width .3s}
