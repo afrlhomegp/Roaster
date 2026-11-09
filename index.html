@@ -1420,6 +1420,7 @@ body.light .jcf-prev{background:#c3c9d2}
 .jcf-pv:last-child{margin-bottom:0}
 .jcf-host{transform-origin:top left}
 .jcf-chk{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--txt2);cursor:pointer;margin:2px 0 8px;line-height:1.4}
+.jcf-paper-note{font-size:12px;color:var(--txt2);line-height:1.45;margin:0 0 8px;padding:7px 10px;border-radius:10px;background:rgba(127,127,127,.08);border:1px solid var(--line,rgba(127,127,127,.2))}
 .jcf-chk input{width:16px;height:16px;flex:0 0 auto}
 .jcf-kop{margin:4px 0 6px;font-size:12px;color:var(--txt2)}
 .jcf-kop summary{cursor:pointer;font-weight:700;padding:4px 0}
@@ -7799,8 +7800,15 @@ function jcpDelSelected(){
 /* KETERANGAN = O:P → O (3 mm) khusus kurung kurawal "}", P (19 mm) teks; baris biasa digabung O:P */
 const JCF_COLS=[6,23.6,6.4,6.4,6.4,6.4,6.4,6.4,6.4,15.6,12,12,12,3,16,3,17,25];   /* …NG · [kurung|CHANGE] · [kurung|KETERANGAN] · MP */
 const JCF_X={NO:0,NM:1,BOX:2,SZ:8,QTY:10,OK:11,NG:12,CB:13,CHG:14,KB:15,KET:16,MP:17};
-const JCF_PAPER={A4:{w:210,h:297,xl:9,label:'A4'},F4:{w:215,h:330,xl:14,label:'F4 / Folio'}};
-const JCF_MARGIN={x:10,y:8};
+/* w×h = ukuran kertas sebenarnya (isi form dibuat pas di sini) · pg = setelan kertas yang dikirim ke printer / Excel.
+   F4 (21,5 × 33 cm) jarang ada di driver printer & LibreOffice (paperSize Folio sering jatuh ke A4/Letter),
+   jadi F4 dikirim sebagai LEGAL (8,5 × 14 in — ada di semua printer) dengan margin bawah ditambah selisih tingginya:
+   isi tetap pas 33 cm & mulai dari atas → langsung tepat di kertas F4 tanpa mengubah setelan printer. */
+const JCF_PAPER={A4:{w:210,h:297,xl:9,label:'A4',pg:{css:'A4',w:210,h:297}},
+                 F4:{w:215,h:330,xl:5,label:'F4',pg:{css:'legal',w:215.9,h:355.6}}};
+/* margin (mm) — kiri dilebarkan untuk lubang ordner / Bantex */
+const JCF_MARGIN={t:8,b:8,l:20,r:8};
+function jcfPgMargin(P){ return {t:JCF_MARGIN.t,r:JCF_MARGIN.r,l:JCF_MARGIN.l,b:+(JCF_MARGIN.b+Math.max(0,P.pg.h-P.h)).toFixed(1)}; }
 const JCF_DEF={company:'PT. MULIA GLASS',division:'CONTAINER DIVISION',
   title:'FORM PEMERIKSAAN PERALATAN JOB CHANGE',sub:'( PREPARE JOB CHANGE )',docNo:'DOC.NO.QR/ENG/SMS/10, REV:1',
   note:'Persiapan dan pengecekan part dilakukan 1 hari sebelum job change',
@@ -7929,7 +7937,7 @@ function jcfModel(p,opt){
   const areas=Object.keys(CFG.jcAreas||{});
   const body=[]; areas.forEach((a,i)=>{ body.push({k:'area',a:a,no:i+1}); (CFG.jcAreas[a]||[]).forEach(pt=>body.push({k:'part',a:a,pt:pt})); });
   body.push({k:'blank',a:areas[areas.length-1]});
-  const P=JCF_PAPER[opt.paper]||JCF_PAPER.A4; const cw=P.w-2*JCF_MARGIN.x, ch=P.h-2*JCF_MARGIN.y-2;
+  const P=JCF_PAPER[opt.paper]||JCF_PAPER.A4; const cw=P.w-JCF_MARGIN.l-JCF_MARGIN.r, ch=P.h-JCF_MARGIN.t-JCF_MARGIN.b-2;
   /* kotak catatan = minimal 18 mm + tinggi 2 baris (ruang koreksi tulis tangan) */
   let rowH=(ch-JCF_FIX-JCF_NOTES_MIN)/(body.length+2); rowH=Math.max(3.4,Math.min(5.2,rowH));
   const notesH=Math.max(JCF_NOTES_MIN, ch-JCF_FIX-rowH*body.length);
@@ -7959,7 +7967,8 @@ function jcfModel(p,opt){
     add(4.2,cells); });
   add(2.5,[]);
   /* header tabel */
-  const th=(c,cs,rs,v)=>({c:c,cs:cs,rs:rs,s:'th',v:v});
+  const th=(c,cs,rs,v)=>{ let w=0; for(let i=c;i<c+cs;i++) w+=JCF_COLS[i]*cw/190;   /* huruf judul kolom diperkecil bila kolomnya sempit (mis. KETERANGAN) */
+    const fs=Math.min(JCF_ST.th.fs,+((w-1.6)/(String(v).length*0.72*0.3528)).toFixed(1)); const o={c:c,cs:cs,rs:rs,s:'th',v:v}; if(fs<JCF_ST.th.fs) o.fs=Math.max(5.5,fs); return o; };
   add(4.4,[th(X.NO,1,2,'NO'),th(X.NM,X.SZ-X.NM,2,'NAME PART'),th(X.SZ,2,2,'SIZE/TYPE'),th(X.QTY,1,2,'QTY'),th(X.OK,2,1,'KONDISI'),
            th(X.CB,2,2,'CHANGE'),th(X.KB,2,2,'KETERANGAN'),th(X.MP,1,2,'MAN POWER')]);
   add(4.4,[{c:X.OK,s:'ths',v:'OK'},{c:X.NG,s:'ths',v:'TDK OK'}]);
@@ -8013,7 +8022,7 @@ function jcfModel(p,opt){
 function jcfCSS(){
   let css=':host{all:initial;display:block;width:max-content}*{box-sizing:border-box}'
    +'.pg{background:#fff;color:#000;font-family:Arial,Helvetica,"Liberation Sans",sans-serif;width:var(--cw)}'
-   +':host(.paper) .pg{width:var(--pw);height:var(--ph);padding:'+JCF_MARGIN.y+'mm '+JCF_MARGIN.x+'mm;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.3),0 10px 28px rgba(0,0,0,.28)}'
+   +':host(.paper) .pg{width:var(--pw);height:var(--ph);padding:'+JCF_MARGIN.t+'mm '+JCF_MARGIN.r+'mm '+JCF_MARGIN.b+'mm '+JCF_MARGIN.l+'mm;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.3),0 10px 28px rgba(0,0,0,.28)}'
    +'table{table-layout:fixed;border-collapse:collapse;width:var(--cw)}'
    +'td{padding:0 .7mm;font-size:7pt;line-height:1.12;white-space:nowrap;overflow:hidden;vertical-align:middle;color:#000;background:#fff;text-align:left;font-weight:400;font-style:normal}';
   Object.keys(JCF_ST).forEach(k=>{ const s=JCF_ST[k];
@@ -8070,6 +8079,7 @@ function jcfRenderModal(){ const st=window._jcf; const box=document.getElementBy
       +(st.src==='list'&&n===1?'<button class="btn sec" onclick="jcfClose();openJCPlan('+p0.id+')">✏️ Edit Plan</button>':'')
       +'<span class="fchips" style="margin:0">'+Object.keys(JCF_PAPER).map(k=>'<span class="fchip '+(o.paper===k?'on':'')+'" onclick="jcfSetPaper(\''+k+'\')">'+JCF_PAPER[k].label+'</span>').join('')+'</span>'
     +'</div>'
+    +'<div class="jcf-paper-note">📄 '+(o.paper==='F4'?'<b>F4</b> dicetak dengan setelan kertas <b>Legal</b> (ada di semua printer &amp; LibreOffice) — isi dibuat pas 33 cm, jadi langsung pas di kertas F4 tanpa ubah setelan. Masukkan kertas F4 seperti biasa.':'<b>A4</b> — langsung pas di kertas A4.')+' Margin kiri 2 cm untuk lubang Bantex.</div>'
     +(st.src!=='blank'?'<label class="jcf-chk"><input type="checkbox" '+(o.auto?'checked':'')+' onchange="jcfOptSet(\'auto\',this.checked);jcfRenderPreview()"><span>Isi KETERANGAN otomatis: <b>Sama</b> / <b>Ganti</b> / <b>Pasang</b> / <b>Lepas</b> dibanding JC sebelumnya di mesin yang sama</span></label>':'')
     +'<details class="jcf-kop"><summary>⚙️ Kop form (perusahaan, Doc No, logo)</summary><div class="form" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:10px">'
       +'<div class="fg"><label>Nama perusahaan</label><input value="'+esc(kop.company)+'" onchange="jcfKopSet(\'company\',this.value)"></div>'
@@ -8104,7 +8114,7 @@ function jcfPrint(){ const st=window._jcf; if(!st||!st.plans.length) return; con
   let root=document.getElementById('jcfPrintRoot'); if(!root){ root=document.createElement('div'); root.id='jcfPrintRoot'; document.body.appendChild(root); }
   root.innerHTML=''; st.plans.forEach(p=>{ const h=document.createElement('div'); h.className='jcf-host'; root.appendChild(h); jcfMount(h,jcfModel(p,o)); });
   let ps=document.getElementById('jcfPageCss'); if(!ps){ ps=document.createElement('style'); ps.id='jcfPageCss'; document.head.appendChild(ps); }
-  ps.textContent='@page{size:'+P.w+'mm '+P.h+'mm;margin:'+JCF_MARGIN.y+'mm '+JCF_MARGIN.x+'mm}';
+  const g=jcfPgMargin(P); ps.textContent='@page{size:'+P.pg.css+' portrait;margin:'+g.t+'mm '+g.r+'mm '+g.b+'mm '+g.l+'mm}';
   document.documentElement.classList.add('jcf-printing'); document.body.classList.add('jcf-printing');
   const done=()=>{ window.removeEventListener('afterprint',done); jcfPrintCleanup(); };
   window.addEventListener('afterprint',done);
@@ -8112,7 +8122,10 @@ function jcfPrint(){ const st=window._jcf; if(!st||!st.plans.length) return; con
   setTimeout(()=>{ try{ window.print(); }catch(e){ done(); toast('Print tidak didukung di perangkat ini — pakai Export Excel',1); } },80); }
 
 /* ---- EXPORT EXCEL: grid yang sama → .xlsx (1 sheet per JC, muat 1 halaman) ---- */
-function jcfXlW(mm){ return +Math.max(1,(mm*3.7795-5)/7).toFixed(2); }
+/* lebar kolom Excel (satuan karakter) dari mm. Disetel untuk LibreOffice Calc: 1 satuan = lebar angka Calibri 11 = 7,43 px
+   tanpa tambahan padding → lebar form di Calc = persis rencana. (MS Excel menambah 5 px/kolom → form sedikit lebih lebar
+   lalu otomatis diperkecil ±6% oleh "muat 1 halaman", tetap mulai dari margin kiri.) */
+function jcfXlW(mm){ return +Math.max(0.3,mm*3.7795/7.43).toFixed(2); }
 function jcfXlFont(st){ return {name:'Arial',size:st.fs||8,bold:!!st.b,italic:!!st.i,color:{argb:'FF000000'}}; }
 function jcfXlVal(v,st){ if(v==null||v==='') return null;
   if(!Array.isArray(v)){ const s=String(v); return /^(0|[1-9]\d{0,5})$/.test(s)?Number(s):s; }
@@ -8174,8 +8187,8 @@ async function jcfExportXLSX(){ const st=window._jcf; if(!st||!st.plans.length) 
     const used={};
     st.plans.forEach((p,i)=>{ const m=jcfModel(p,o);
       const ws=wb.addWorksheet(jcfSheetName(p,i,used),{views:[{showGridLines:false}],
-        pageSetup:{paperSize:m.P.xl,orientation:'portrait',fitToPage:true,fitToWidth:1,fitToHeight:1,horizontalCentered:true,
-                   margins:{left:0.39,right:0.39,top:0.31,bottom:0.31,header:0,footer:0}}});
+        pageSetup:{paperSize:m.P.xl,orientation:'portrait',fitToPage:true,fitToWidth:1,fitToHeight:1,horizontalCentered:false,verticalCentered:false,
+                   margins:(g=>({left:+(g.l/25.4).toFixed(3),right:+(g.r/25.4).toFixed(3),top:+(g.t/25.4).toFixed(3),bottom:+(g.b/25.4).toFixed(3),header:0,footer:0}))(jcfPgMargin(m.P))}});
       ws._jcfWb=wb; jcfFillSheet(ws,m,logoId); });
     const buf=await wb.xlsx.writeBuffer();
     dl(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),jcfFileName(st.plans,st.src));
