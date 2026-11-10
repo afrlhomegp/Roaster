@@ -2692,11 +2692,14 @@ window._inlineLibs=window._inlineLibs||{};
 function loadInlineLib(id){return new Promise(function(resolve,reject){function go(){var el=document.getElementById(id);if(!el){reject(new Error('Blok library '+id+' tidak ditemukan'));return;}try{var blob=new Blob([el.textContent],{type:'text/javascript'});var url=URL.createObjectURL(blob);var sc=document.createElement('script');sc.onload=function(){URL.revokeObjectURL(url);resolve();};sc.onerror=function(){URL.revokeObjectURL(url);reject(new Error('Gagal memuat '+id));};sc.src=url;document.head.appendChild(sc);}catch(e){reject(e);}}
 /* QW-P1: blok library kini di akhir body — bila belum terparse, tunggu DOM siap dulu */
 if(document.getElementById(id)||document.readyState!=='loading'){go();}else{document.addEventListener('DOMContentLoaded',go,{once:true});}});}
-function ensureLib(id,globalName){if(window[globalName])return Promise.resolve();if(window._inlineLibs[id])return window._inlineLibs[id];var p=loadInlineLib(id).then(function(){if(!window[globalName])throw new Error(globalName+' gagal dimuat');});p.catch(function(){if(window._inlineLibs[id]===p)delete window._inlineLibs[id];});window._inlineLibs[id]=p;return p;}
+/* halaman ringan (konfirmasi-jc.html): blok Excel & grafik tidak disertakan → tampilkan pesan, bukan error */
+function libLiteMsg(){ var t=Date.now(); if(t-(window._libLiteT||0)<3000) return; window._libLiteT=t; try{ toast('Fitur Excel / grafik ada di halaman IS Machine (index.html)',1); }catch(e){} }
+function ensureLib(id,globalName){if(window[globalName])return Promise.resolve();if(window._libsLite&&!document.getElementById(id)){libLiteMsg();return Promise.reject(new Error('fitur Excel / grafik hanya ada di halaman IS Machine'));}if(window._inlineLibs[id])return window._inlineLibs[id];var p=loadInlineLib(id).then(function(){if(!window[globalName])throw new Error(globalName+' gagal dimuat');});p.catch(function(){if(window._inlineLibs[id]===p)delete window._inlineLibs[id];});window._inlineLibs[id]=p;return p;}
 /* ===== QW-C2: lazy Chart.js. mkChart() = pengganti drop-in pembuatan chart.
    Bila lib belum termuat: kembalikan stub aman (destroy/update no-op), muat lib
    di background, lalu render() ulang sekali agar chart tergambar. ===== */
-function ensureChart(){ if(window._chartReady) return window._chartReady;
+function ensureChart(){ if(window._libsLite&&!document.getElementById('lib-chartjs')) return Promise.resolve();   /* halaman ringan: tanpa grafik, lewati preload */
+  if(window._chartReady) return window._chartReady;
   var p = ensureLib('lib-chartjs','Chart')
     .then(function(){ return ensureLib('lib-chartjs-dl','ChartDataLabels').catch(function(){}); });
   p.catch(function(){ if(window._chartReady===p) window._chartReady=null; });   /* QW-P1: gagal ≠ permanen, boleh coba ulang */
@@ -2705,7 +2708,7 @@ function ensureChart(){ if(window._chartReady) return window._chartReady;
 function mkChart(target,cfg){
   if(window._dvNoAnim&&cfg){ cfg.options=cfg.options||{}; cfg.options.animation=false; }   /* pindah Summary ⇄ Summary JC: grafik langsung tampil */
   if(typeof Chart!=='undefined'){ try{ if(typeof _fsChart==='function') _fsChart(cfg); }catch(e){} return new Chart(target,cfg); }
-  if(!window._chartRedrawQueued){ window._chartRedrawQueued=true;
+  if(!window._chartRedrawQueued&&!window._libsLite){ window._chartRedrawQueued=true;
     ensureChart().then(function(){ window._chartRedrawQueued=false; try{ render(); }catch(e){} })
       .catch(function(){ window._chartRedrawQueued=false; }); }
   return { destroy:function(){}, update:function(){}, resize:function(){},
@@ -3889,7 +3892,7 @@ const VIEWS=[
   ['action','🚨','Action Required'],['plan','📅','Planning JC'],['jcm','🍾','Master JC'],['jccheck','🧪','Ceklist JC'],['mp','👷','Man Power'],['ana','📈','Analysis'],
   ['report','📑','Report'],['fc','🔮','Forecast'],['stock','📦','Stock'],['audit','🧾','Log Perubahan'],['set','⚙️','Settings']
 ];
-if(APP_MODE==='jcc'){ VIEWS.length=0; VIEWS.push(['konf','✅','Verifikasi JC'],['ismain','🏭','← IS Machine']); }   /* konfirmasi + ceklist = 1 halaman */
+if(APP_MODE==='jcc'){ VIEWS.length=0; VIEWS.push(['konf','✅','Verifikasi JC']); if(jccFromIS()) VIEWS.push(['ismain','🏭','← IS Machine']); }   /* konfirmasi + ceklist = 1 halaman */
 else { const _ji=VIEWS.findIndex(v=>v[0]==='jccheck'); if(_ji>=0) VIEWS[_ji]=['jccheck','✅','Verifikasi JC ↗']; }   /* main: tautan ke konfirmasi-jc.html */
 const _SVG=(p)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const NAVICON={
@@ -4878,6 +4881,7 @@ function go(id){
   /* pindah halaman: Konfirmasi / Ceklist JC ada di konfirmasi-jc.html; sheet lain ada di index.html */
   if(APP_MODE==='main'&&(id==='jccheck'||id==='konf')){ appGo(KONF_FILE,id==='jccheck'?'go=jccheck':''); return; }
   if(APP_MODE==='jcc'&&id==='jccheck') id='konf';   /* ceklist = bagian form konfirmasi */
+  if(APP_MODE==='jcc'&&id!=='konf'&&!jccFromIS()) id='konf';   /* dibuka langsung: tetap di halaman verifikasi */
   if(APP_MODE==='jcc'&&id!=='konf'){ appGo(MAIN_FILE,id&&id!=='dash'&&id!=='ismain'?'go='+encodeURIComponent(id):''); return; }
   window._liveNav=true; if(id==='konf'||id==='jccheck'){ window._kfEdit=null; window._jccEdit=null; } if(id==='set'&&current!=='set')_setOpen={}; current=id; buildNav(); render(); if(!isDesktop())closeDrawer(); if(typeof closeJcHist==='function')closeJcHist(); if(typeof closeMmodal==='function')closeMmodal(); if(typeof closeHmodal==='function')closeHmodal(); if(typeof closeRack==='function')closeRack(); if(typeof closeBellPop==='function')closeBellPop(); if(typeof closeAmodal==='function')closeAmodal(); if(typeof closeAvgLifePop==='function')closeAvgLifePop(); if(typeof closeChartZoom==='function')closeChartZoom(); }
 
@@ -5617,7 +5621,7 @@ function mssTopClick(ev){ if(ev&&ev.target&&ev.target.closest&&ev.target.closest
 function mssSync(){ const el=document.getElementById('mss');
   if(MSS_ST.ov&&MSS_ST.ovView!==current){ MSS_ST.ov=false; MSS_ST.ovView=null; }   /* pindah halaman → sheet overlay ditutup */
   const dock=mssDockOK(); if(dock&&MSS_ST.ov&&!MSS_ST.open){ MSS_ST.ov=false; MSS_ST.ovView=null; }
-  const on=dock||MSS_ST.ov, mob=!isDesktop(), bl=document.body.classList;
+  const on=!!(dock||MSS_ST.ov), mob=!isDesktop(), bl=document.body.classList;   /* !! → toggle(kelas, undefined) tidak lagi membalik kelas tiap render */
   bl.toggle('mss-on',on); bl.toggle('mss-mob',on&&mob); bl.toggle('mss-dock',on&&dock);
   if(el){ el.hidden=!on; el.classList.toggle('mss-m',mob); el.classList.toggle('ov',on&&!dock); }
   if(!on){ if(MSS_ST.full) mssCloseDetail(true); if(MSS_ST.open) mssSet(false); } }
@@ -6065,7 +6069,7 @@ function kfCardHTML(p){ const mc=p.machine||p.line||'—', c=p.conf, A=kfIdArg(p
     <span class="kf-c2">${esc(p.description||p.bottleSize||'—')}</span>
     ${info.length?`<span class="kf-by">${info.join(' · ')}</span>`:''}
     <span class="kf-c3">${kfWaOk(p)?`<span class="kf-rpl" role="button" tabindex="0" title="Laporan PDF / foto / WhatsApp" onclick="event.stopPropagation();kfRepOpen(${A})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();kfRepOpen(${A});}">📄 Laporan</span>`:''}<span class="kf-go">${kfNeed(p)?'Verifikasi &amp; ceklist':'Lihat / ubah'} <i>›</i></span></span></button>`; }
-function vKonf(){ if(window._kfEdit) return kfFormHTML();
+function vKonf(){ setTimeout(kfStick,0); if(window._kfEdit) return kfFormHTML();
   const d=kfDay(), L=kfList(d), nOk=L.filter(p=>!kfNeed(p)).length, pct=L.length?Math.round(nOk/L.length*100):0;
   return `<h2 class="title">✅ Verifikasi Pengecekan Job Change</h2><div class="sub">Rekap ulang plan + ceklist tekanan setelah JC — data aktual otomatis jadi acuan di IS Machine.</div>
   <div class="kf-top"><div class="kf-date">📅 ${esc(jcDayName(d)||'')}, ${fmtD(parseD(d))}</div>
@@ -6209,6 +6213,14 @@ function kfCkHTML(p){ const c=window._jccEdit; if(!c) return ''; jccEnsureCss();
   return `<div class="kf-box" id="kfCk"><div class="kf-h3"><span class="kf-n">4</span>Ceklist after JC<small id="kfCkN">${n.filled} titik${n.bad?' · <b class="kf-bad">⚠ '+n.bad+' gauge trouble</b>':''}</small></div>
     <div class="kf-hint kf-swh">${jccHint()}</div>
     ${(!c.cd||!p.cd)?cdSel:''}${glob}${tg}${open?`<div class="kf-ckbd">${per}</div>`:''}</div>`; }
+/* posisi beku: tepat di bawah header (header HP = kapsul melayang). --kfStickB untuk penutup di body, --kfStickH di dalam .kf-form (zoom 1,2 di desktop) */
+function kfStick(){ try{ const h=document.querySelector('header'), de=document.documentElement; if(!h) return;
+    const z=parseFloat(de.style.zoom)||1, cs=getComputedStyle(h), r=h.getBoundingClientRect();
+    const B=(cs.position==='sticky'||cs.position==='fixed')?((parseFloat(cs.top)||0)*z+r.height+4*z):0;   /* bawah header (px layar) */
+    const f=document.querySelector('.kf-form'), fz=f?(parseFloat(getComputedStyle(f).zoom)||1):1;
+    de.style.setProperty('--kfStickB',(B/z).toFixed(1)+'px'); de.style.setProperty('--kfStickH',(B/(z*fz)).toFixed(1)+'px');
+    let c=document.getElementById('kfCover'); if(!c){ c=document.createElement('div'); c.id='kfCover'; c.setAttribute('aria-hidden','true'); document.body.appendChild(c); } }catch(e){} }
+if(APP_MODE==='jcc'){ window.addEventListener('resize',()=>{ clearTimeout(window._kfStT); window._kfStT=setTimeout(kfStick,120); }); }
 function kfFormHTML(){ const e=window._kfEdit, p=kfPlan(e.id);
   if(!p){ window._kfEdit=null; window._jccEdit=null; return '<div class="kf-empty"><b>⚠️</b>Plan JC tidak ditemukan<div><button type="button" class="kf-b" onclick="kfClose()">← Kembali</button></div></div>'; }
   const P=kfPlanOf(p), mc=p.machine||p.line||'—', secsAll=sectionsOf(mc), c=p.conf, jd=P.jcDate||p.jcDate;
@@ -6738,7 +6750,9 @@ function kfChip(p){ if(!p||!p.jcDate) return '';
 /* =====================================================================
    NAVIGASI ANTAR HALAMAN  (index.html ⇄ konfirmasi-jc.html)
    ===================================================================== */
-async function appGo(file,q){ try{ await saveLocal(); }catch(e){} try{ syncSaveShadowNow(); }catch(e){}
+/* dibuka dari IS Machine → tandai tab ini boleh kembali ke IS Machine (dibuka langsung = tidak bisa) */
+function jccFromIS(){ try{ return sessionStorage.getItem('pm_from_is')==='1'; }catch(e){ return false; } }
+async function appGo(file,q){ if(file===KONF_FILE&&APP_MODE==='main'){ try{ sessionStorage.setItem('pm_from_is','1'); }catch(e){} } try{ await saveLocal(); }catch(e){} try{ syncSaveShadowNow(); }catch(e){}
   setTimeout(()=>{ location.href=file+(q?('?'+q):''); },180); }
 function appRouteParams(){ let q=null; try{ q=new URLSearchParams(location.search||''); }catch(e){ return; } if(!q||!q.toString()) return;
   const g=q.get('go'), plan=q.get('plan'), ck=q.get('ck'), ckp=q.get('ckplan');
@@ -12362,6 +12376,9 @@ body.soft .kf-card{border:0}
 /* form: rekap plan + ceklist */
 .kf-form{max-width:760px;margin:0 auto;padding-bottom:16px;display:flex;flex-direction:column;gap:10px}
 .kf-head{display:flex;align-items:center;gap:10px}
+/* judul form beku + penutup celah header (hanya halaman verifikasi) */
+html[data-app="jcc"] #kfCover{position:fixed;top:0;left:0;right:0;height:var(--kfStickB,0px);background:var(--bg);z-index:49;pointer-events:none}
+html[data-app="jcc"] .kf-form>.kf-head{position:sticky;top:var(--kfStickH,0px);z-index:45;background:var(--bg);margin:0;padding:6px 0 8px;box-shadow:0 0 0 4000px var(--bg);clip-path:inset(0 -4000px)}
 .kf-back{flex:0 0 auto;width:38px;height:38px;border-radius:50%;border:0;background:var(--panel);color:var(--txt);font-family:inherit;font-size:18px;font-weight:700;cursor:pointer;box-shadow:var(--neu-sm,none)}
 .kf-ht{min-width:0;flex:1 1 auto}
 .kf-ht h2{margin:0;font-size:19px;font-weight:800;letter-spacing:-.4px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -12698,7 +12715,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 <script>
 (function(){
   try{
-    var need=[]; if(!document.getElementById('lib-chartjs'))need.push(['__x__','grafik']);
+    var need=[]; if(!window._libsLite&&!document.getElementById('lib-chartjs'))need.push(['__x__','grafik']);
     var miss=[];
     for(var i=0;i<need.length;i++){ if(typeof window[need[i][0]]==='undefined') miss.push(need[i][1]); }
     if(miss.length){
