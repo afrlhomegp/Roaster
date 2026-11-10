@@ -2771,13 +2771,8 @@ function rgGuess(k){
   k=rgKey(k);
   if(k==='jobchange'||k==='job change'||k==='jc') return 'jc';
   if(k==='roaster') return 'roaster';
-  if(rgJcvSet().has(k)) return 'jc';      // nama variabel JC (record dari Verifikasi JC) = Job Change
   return 'trouble';                       // termasuk bekas kategori "Emergency"
 }
-/* nama variabel JC (Master Isian JC), huruf kecil — dipakai sebagai reason record perubahan variabel */
-function rgJcvSet(){ const A=CFG.jcAreas||{}; let sig=''; try{ sig=JSON.stringify(A); }catch(e){}
-  if(!rgJcvSet._v||rgJcvSet._s!==sig){ const v=new Set(); Object.keys(A).forEach(a=>(A[a]||[]).forEach(x=>{ const k=rgKey(x); if(k) v.add(k); })); rgJcvSet._v=v; rgJcvSet._s=sig; }
-  return rgJcvSet._v; }
 function rgOf(reason){
   var k=rgKey(reason); if(!k) return rgById('trouble');
   var id=(CFG.reasonGroupOf||{})[k];
@@ -2796,11 +2791,7 @@ function rgAllReasons(){
 /* pastikan setiap reason punya induk bab (dipanggil saat load & saat data cloud masuk) */
 function migrateReasonGroups(){
   rgList(); CFG.reasonGroupOf=CFG.reasonGroupOf||{};
-  const fix=!CFG._rgJcvFix;   /* sekali: reason variabel JC yang dulu tertebak "Trouble" dikembalikan ke Job Change */
-  rgAllReasons().forEach(function(r){ var k=rgKey(r), cur=CFG.reasonGroupOf[k];
-    if(!cur) CFG.reasonGroupOf[k]=rgGuess(k);
-    else if(fix&&cur==='trouble'&&rgJcvSet().has(k)) CFG.reasonGroupOf[k]='jc'; });
-  if(fix) CFG._rgJcvFix=1;
+  rgAllReasons().forEach(function(r){ var k=rgKey(r); if(!CFG.reasonGroupOf[k]) CFG.reasonGroupOf[k]=rgGuess(k); });
 }
 /* daftar reason milik satu bab */
 
@@ -3580,14 +3571,14 @@ function enriched(){
   const groups={};
   [...list].sort((a,b)=>a.d-b.d).forEach(r=>{
     const k=r.machine+'|'+r.section+'|'+r.part;
-    r.actual = (groups[k]!==undefined && !jcvAuto(r)) ? daysBetween(groups[k],r.d) : null;   // dilepas karena JC (variabel) bukan umur aktual
+    r.actual = groups[k]!==undefined ? daysBetween(groups[k],r.d) : null;
     groups[k]=r.d;
   });
   return list;
 }
 // monitoring: latest per machine|section|part combo (only combos that exist in data)
 function monitoring(){
-  const list=enriched().filter(jcvCounts); const combo={};   // variabel JC tanpa kaitan & lifetime tidak masuk countdown
+  const list=enriched(); const combo={};
   list.forEach(r=>{
     const k=r.machine+'|'+r.section+'|'+r.part;
     if(!combo[k]||r.d>combo[k].last){ combo[k]=combo[k]||{machine:r.machine,section:r.section,part:r.part,count:0,trouble:0}; }
@@ -5821,11 +5812,8 @@ function syncRoasterPlan(plan){
   // add desired records that don't exist yet
   desired.forEach(k=>{ const idx=k.indexOf('\u0001'); const section=k.slice(0,idx), part=k.slice(idx+1);
     const ex=DB.find(x=>x.machine===machine&&x.section===section&&x.part===part&&x.date===date);
-    if(ex){ if(ex.reason==='Roaster'&&ex._jc==null) ex._jc=plan.id;   // adopt matching, leave manual records untouched
-      else if(ex._jcv===plan.id&&ex._jc==null){ delete ex._jcv; ex.reason='Roaster'; ex.pic=shift; ex._jc=plan.id; added++; } }   // record variabel plan ini sendiri -> jadi record Roaster
+    if(ex){ if(ex.reason==='Roaster'&&ex._jc==null) ex._jc=plan.id; }   // adopt matching, leave manual records untouched
     else { DB.push({id:newRecId(),date,machine,section,part,reason:'Roaster',pic:shift,_jc:plan.id}); added++; } });
-  /* roaster dihapus dari plan: section itu kembali diisi record variabel (bila variabelnya dikaitkan & dicatat) */
-  if(removed&&plan.varApplied){ try{ syncJCVarPlan(plan); }catch(e){ console.error('syncJCVarPlan',e); } }
   return {added,removed};
 }
 /* ============ PERUBAHAN VARIABEL JC -> RECORD ============
@@ -5858,65 +5846,24 @@ function rgRegisterJC(part){
   CFG.reasonGroupOf=CFG.reasonGroupOf||{};
   const k=rgKey(part); if(!CFG.reasonGroupOf[k]) CFG.reasonGroupOf[k]='jc';
 }
-/* ===== Kaitan variabel JC <-> part roaster & countdown =====
-   CFG.jcLink[variabel] = part roaster ('' = sengaja tidak dikaitkan; tidak ada = tebak otomatis dari nama).
-   Hanya variabel area MACHINE (per-section) yang bisa dikaitkan. Record variabel yang dikaitkan disimpan
-   dengan part = part roaster (reason tetap nama variabel), jadi countdown part itu ikut reset.
-   Variabel tanpa kaitan & tanpa lifetime = riwayat JC saja (tidak masuk countdown / dashboard). */
-function jcVarArea(v){ v=String(v==null?'':v).trim(); if(!v) return ''; const A=CFG.jcAreas||{};
-  for(const a of Object.keys(A)){ if((A[a]||[]).indexOf(v)>=0) return a; } return ''; }
-function jcvIsVarName(v){ return !!jcVarArea(v); }
-function jcLinkable(v){ return String(jcVarArea(v)).trim().toUpperCase()==='MACHINE'; }
-function jcLinkNorm(s){ return String(s==null?'':s).toLowerCase().replace(/take\s*-?\s*out|\bt\s*\/\s*o\b/g,'to').replace(/[^a-z0-9]/g,''); }
-function jcLinkGuess(v){ const P=CFG.parts||[], n=jcLinkNorm(v); if(!n) return '';
-  let hit=P.filter(p=>jcLinkNorm(p)===n); if(hit.length===1) return hit[0];
-  const cut=x=>x.replace(/arm$/,''), nc=cut(n); if(nc===n||nc.length<4) return '';
-  hit=P.filter(p=>cut(jcLinkNorm(p))===nc); return hit.length===1?hit[0]:''; }
-function jcLinkAuto(v){ return !Object.prototype.hasOwnProperty.call(CFG.jcLink||{},v); }
-function jcLinkOf(v){ if(!jcLinkable(v)) return '';
-  if(!jcLinkAuto(v)){ const t=String(CFG.jcLink[v]||''); return (t&&(CFG.parts||[]).indexOf(t)>=0)?t:''; }
-  return jcLinkGuess(v); }
-function jcVarRecPart(v){ return jcLinkOf(v)||v; }
-function jcvHasLT(p){ if(+((CFG.lifetimes||{})[p])>0) return true; const M=CFG.lifetimesM||{};
-  return Object.keys(M).some(m=>M[m]&&+M[m][p]>0); }
-/* record otomatis dari perubahan variabel (bukan record manual yang kebetulan diambil alih) */
-function jcvAuto(r){ return !!r&&r._jcv!=null&&jcvIsVarName(r.reason); }
-/* ikut countdown? record variabel tanpa kaitan & tanpa lifetime = riwayat saja */
-function jcvCounts(r){ if(!jcvAuto(r)) return true; return (CFG.parts||[]).indexOf(r.part)>=0||jcvHasLT(r.part); }
-function jcvKind(v){ const l=jcLinkOf(v); if(l) return {k:'link',part:l};
-  return ((CFG.parts||[]).indexOf(v)>=0||jcvHasLT(v))?{k:'lt',part:v}:{k:'hist',part:v}; }
-/* samakan part record variabel lama dengan kaitan sekarang (id tetap -> aman untuk sinkron) */
-function jcLinkNormalize(){ let ren=0, del=0;
-  for(let i=DB.length-1;i>=0;i--){ const r=DB[i]; if(!jcvAuto(r)) continue;
-    const v=String(r.reason).trim(), want=jcVarRecPart(v); if(r.part===want) continue;
-    if(want!==v&&r.section===JCVAR_NOSEC) continue;
-    const dup=DB.some(x=>x!==r&&x.machine===r.machine&&x.section===r.section&&x.part===want&&x.date===r.date);
-    if(dup){ DB.splice(i,1); del++; } else { r.part=want; ren++; } }
-  return {ren,del}; }
-function jcLinkBoot(){ try{ const r=jcLinkNormalize(); if(!r.ren&&!r.del) return;
-    try{ auditLog('edit','record','Kaitan variabel JC',{keterangan:'part = nama variabel'},{keterangan:'part = part roaster terkait'},
-      r.ren+' record variabel JC disesuaikan'+(r.del?(' · '+r.del+' record ganda dihapus'):'')); }catch(e){}
-    saveAll(); }catch(e){ console.error('jcLinkBoot:',e); } }
 /* Samakan record di DB dengan pilihan pada plan (tambah / hapus saat dicentang-ulang) */
 function syncJCVarPlan(plan){
   if(!plan||!plan.varApplied) return {added:0,removed:0};
   const machine=plan.machine||plan.line, date=plan.jcDate, shift=(plan.shift||'');
   const secs=jcVarSecs(plan), picks=jcVarPicked(plan);
-  /* section+part yang di-roaster oleh plan ini sendiri: record Roaster sudah mereset countdown, tidak dibuat dobel */
-  const ro=new Set(); if(plan.roasterApplied) (plan.roasterPlan||[]).forEach(r=>(r.sections||[]).forEach(s=>ro.add(s+'\u0001'+r.part)));
-  const desired=new Map();                                  // section␁part -> nama variabel (reason)
-  picks.forEach(d=>{ const part=jcVarRecPart(d.part);       // variabel yang dikaitkan -> part roaster
-    const keys=jcVarPerSec(d) ? secs.map(sc=>sc+'\u0001'+part) : [JCVAR_NOSEC+'\u0001'+part];   // feeder / ware handling: satu record saja
-    keys.forEach(k=>{ if(!ro.has(k)&&!desired.has(k)) desired.set(k,d.part); });
+  const desired=new Set();
+  picks.forEach(d=>{
+    if(jcVarPerSec(d)) secs.forEach(sc=>desired.add(sc+'\u0001'+d.part));
+    else desired.add(JCVAR_NOSEC+'\u0001'+d.part);          // feeder / ware handling: satu record saja
   });
   let added=0,removed=0;
   for(let i=DB.length-1;i>=0;i--){ const r=DB[i];
     if(r._jcv===plan.id && !(r.machine===machine && r.date===date && desired.has(r.section+'\u0001'+r.part))){ DB.splice(i,1); removed++; } }
-  desired.forEach((v,k)=>{ const ix=k.indexOf('\u0001'); const section=k.slice(0,ix), part=k.slice(ix+1);
+  desired.forEach(k=>{ const ix=k.indexOf('\u0001'); const section=k.slice(0,ix), part=k.slice(ix+1);
     const ex=DB.find(x=>x.machine===machine&&x.section===section&&x.part===part&&x.date===date);
-    if(ex){ if(ex._jcv==null&&ex._jc==null&&jcvIsVarName(ex.reason)) ex._jcv=plan.id; }   // pakai record variabel yang sudah ada; record manual (trouble dll.) tidak diambil alih
-    else { DB.push({id:newRecId(),date,machine,section,part,reason:v,pic:shift,_jcv:plan.id}); added++; }
-    rgRegisterJC(v); });
+    if(ex){ if(ex._jcv==null&&ex._jc==null) ex._jcv=plan.id; }   // pakai yang sudah ada, jangan dobel
+    else { DB.push({id:newRecId(),date,machine,section,part,reason:part,pic:shift,_jcv:plan.id}); added++; }
+    rgRegisterJC(part); });
   return {added,removed};
 }
 /* Tanda di tabel Plan JC — sejajar dengan tanda ♻️ roaster.
@@ -6719,7 +6666,6 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
   try{ await loadAll(); }catch(e){ console.error('loadAll failed:',e); }
   try{ syncInstallGuards(); }catch(e){ console.error(e); }   /* fungsi Admin (Master, impor, reset, denah) → minta PIN Admin bagi Operator */
   try{ jcVarAreaMigrate(); }catch(e){ console.error(e); }
-  try{ jcLinkBoot(); }catch(e){ console.error(e); }
   try{ Cloud.dirty = (localStorage.getItem('pm_dirty')==='1'); }catch(e){}   // pulihkan status "belum tersinkron" setelah reload → lindungi input lokal
   try{ var _lr0=parseInt(localStorage.getItem('pm_lastrev'),10); Cloud.lastRev=isNaN(_lr0)?null:_lr0; }catch(e){}   // pulihkan revisi cloud terakhir yang sudah diserap
   try{ applyTheme(); }catch(e){ console.error(e); }
