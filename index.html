@@ -6093,7 +6093,8 @@ function kfMkEdit(p){ const P=kfPlanOf(p), act=!!(p.conf&&p.conf.st!=='tunda'), 
     mp:kfClone(cur.manpower||{})||{}, hr:kfClone(cur.mpHours||{})||{}, note:(act&&p.conf.note)||(ck&&ck.notes)||'',
     tunda:!!(p.conf&&p.conf.st==='tunda'), newDate:'', why:(p.conf&&p.conf.st==='tunda'&&p.conf.note)||'',
     chk:{}, ro:[], add:[], rows:[], groups:[], adPart:'', adSecs:[], adKet:'', adOpen:false,
-    speed:(act&&p.conf.speed)||'', shear:(act&&p.conf.shear)||'', temu:kfClone((act&&p.conf.temu)||{})||{}, ckOpen:kfCkPref()};
+    speed:(act&&p.conf.speed)||'', shear:(act&&p.conf.shear)||'', temu:kfClone((act&&p.conf.temu)||{})||{}, ckOpen:kfCkPref(),
+    by:String((p.conf&&p.conf.by)||curUser()||'')};
   /* part variabel: semua part Planning JC per area (yang kosong di plan tetap tampil, boleh tidak dipilih) */
   const base=jcBaseOf(p), dp={}; transitionDiff(base,{specs:PS}).forEach(d=>{ dp[d.part]=d; });
   const all=kfParts(Object.keys(Object.assign({},PS,e.specs))), seen=new Set();
@@ -6221,6 +6222,17 @@ function kfStick(){ try{ const h=document.querySelector('header'), de=document.d
     de.style.setProperty('--kfStickB',(B/z).toFixed(1)+'px'); de.style.setProperty('--kfStickH',(B/(z*fz)).toFixed(1)+'px');
     let c=document.getElementById('kfCover'); if(!c){ c=document.createElement('div'); c.id='kfCover'; c.setAttribute('aria-hidden','true'); document.body.appendChild(c); } }catch(e){} }
 if(APP_MODE==='jcc'){ window.addEventListener('resize',()=>{ clearTimeout(window._kfStT); window._kfStT=setTimeout(kfStick,120); }); }
+/* nama yang memverifikasi — diisi paling atas sebelum cek data lain (wajib saat simpan) */
+function kfBySug(){ const out=[], seen=new Set(), add=n=>{ n=String(n||'').trim(); const k=n.toLowerCase(); if(n&&!seen.has(k)&&out.length<6){ seen.add(k); out.push(n); } };
+  add(curUser()); (JCPLANS||[]).filter(p=>p&&p.conf&&p.conf.by&&p.conf.at).sort((a,b)=>b.conf.at-a.conf.at).forEach(p=>add(p.conf.by)); return out; }
+function kfByIn(v){ const e=window._kfEdit; if(!e) return; e.by=v; const ok=!!String(v).trim(), b=document.getElementById('kfBy'), t=document.getElementById('kfByT');
+  if(b) b.classList.toggle('need',!ok); if(t) t.textContent=ok?'':'wajib diisi'; document.querySelectorAll('#kfBy .kf-bych .kf-sc').forEach(x=>x.classList.toggle('on',x.dataset.n===String(v).trim())); }
+function kfByPick(n){ const i=document.getElementById('kfByIn'); if(i) i.value=n; kfByIn(n); }
+function kfByHTML(e){ const v=String(e.by||'').trim(), sug=kfBySug();
+  return `<div class="kf-box kf-bybox${v?'':' need'}" id="kfBy"><div class="kf-h3"><span class="kf-n">👤</span>Diverifikasi oleh<small id="kfByT">${v?'':'wajib diisi'}</small></div>
+    <input id="kfByIn" class="kf-big" value="${esc(v)}" oninput="kfByIn(this.value)" placeholder="Ketik nama yang memverifikasi" list="kfByList" autocomplete="off" enterkeyhint="done" aria-label="Nama yang memverifikasi">
+    ${sug.length?`<div class="kf-bych">${sug.map(n=>`<button type="button" class="kf-sc${n===v?' on':''}" data-n="${esc(n)}" onclick="kfByPick(this.dataset.n)">${esc(n)}</button>`).join('')}</div>`:''}
+    <datalist id="kfByList">${mpPeople().filter(o=>!o.hidden).map(o=>`<option value="${esc(o.name)}">`).join('')}</datalist></div>`; }
 function kfFormHTML(){ const e=window._kfEdit, p=kfPlan(e.id);
   if(!p){ window._kfEdit=null; window._jccEdit=null; return '<div class="kf-empty"><b>⚠️</b>Plan JC tidak ditemukan<div><button type="button" class="kf-b" onclick="kfClose()">← Kembali</button></div></div>'; }
   const P=kfPlanOf(p), mc=p.machine||p.line||'—', secsAll=sectionsOf(mc), c=p.conf, jd=P.jcDate||p.jcDate;
@@ -6251,12 +6263,12 @@ function kfFormHTML(){ const e=window._kfEdit, p=kfPlan(e.id);
       ${kfAdHTML(e,p)}${kfTemuHTML(e)}${kfCkHTML(p)}`;
   }
   const foot=`<div class="kf-foot"><div class="kf-sum" id="kfSum">${kfSumTxt()}</div><button type="button" class="kf-b pri" onclick="kfSaveAll()">💾 Simpan</button></div>`;
-  return `<div class="kf-form">${head}${body}${foot}</div>`; }
+  return `<div class="kf-form">${head}${kfByHTML(e)}${body}${foot}</div>`; }
 /* ---------- simpan / batalkan ---------- */
 function kfResync(p,oldM,oldD){ try{ if(p.varApplied) syncJCVarPlan(p); if(p.roasterApplied) syncRoasterPlan(p); }catch(e){ console.error('kfResync',e); }
   try{ jcSibResync(oldM,oldD,p.id); jcSibResync(p.machine||p.line,p.jcDate,p.id); }catch(e){} }
 /* konfirmasi plan → data aktual (tanpa render). Kembali: status akhir / null bila gagal */
-function kfCommit(p,e){ const before=auditSnap('jcplan',p), oldM=p.machine||p.line, oldD=p.jcDate, ref=(oldM||'-')+' · '+(oldD||'-'), who=curUser()||'';
+function kfCommit(p,e){ const before=auditSnap('jcplan',p), oldM=p.machine||p.line, oldD=p.jcDate, ref=(oldM||'-')+' · '+(oldD||'-'), who=String((e&&e.by)||'').trim()||curUser()||'';
   if(e.tunda){
     if(e.newDate&&!/^\d{4}-\d\d-\d\d$/.test(e.newDate)){ toast('Tanggal jadwal baru tidak valid',1); return null; }
     if(p.plan0){ KF_FIELDS.forEach(k=>{ if(Object.prototype.hasOwnProperty.call(p.plan0,k)) p[k]=kfClone(p.plan0[k]); }); delete p.plan0; }
@@ -6306,6 +6318,7 @@ function kfCkCommit(p,note){ const c=window._jccEdit; if(!c) return false; const
   else { const i=JCCHECKS.findIndex(x=>x.id===c.id); const b=i>=0?auditJccSnap(JCCHECKS[i]):null; if(i>=0) JCCHECKS[i]=c; else JCCHECKS.push(c); auditLog('edit','jccheck',ref,b,auditJccSnap(c)); }
   return true; }
 function kfSaveAll(){ const e=window._kfEdit; if(!e) return; const p=kfPlan(e.id); if(!p){ toast('Plan JC tidak ditemukan',1); return; }
+  if(!String(e.by||'').trim()){ toast('Isi dulu nama yang memverifikasi (paling atas)',1); try{ const i=document.getElementById('kfByIn'); if(i){ i.scrollIntoView({block:'center'}); i.focus({preventScroll:true}); } }catch(_){} return; }
   if(!e.tunda){ const todo=kfTodo();
     if(todo.length){ if(!confirm(todo.length+' item rekap plan belum dipilih Sama / Ganti.\n\nOK = anggap Sama (sesuai plan)\nBatal = cek dulu')){ kfGoRow(todo[0]); return; }
       todo.forEach(i=>kfSetSt(i,'sama')); }
@@ -6363,6 +6376,7 @@ function kfWaText(p){ if(!p) return ''; const c=p.conf||{}, ck=kfCkOf(p), L=[], 
   L.push('*VERIFIKASI PENGECEKAN JOB CHANGE*');
   L.push('*'+kfWaCl(p.machine||p.line||'-')+' · Job #'+kfWaCl(p.typeJob||'-')+'*'+(p.trial?' _(trial)_':''));
   L.push('_'+[kfWaHari(parseD(p.jcDate)),kfWaShift(p.shift)].filter(Boolean).join(' · ')+'_');
+  if(kfWaCl(c.by)) L.push((tunda?'Ditandai oleh: *':'Diverifikasi oleh: *')+kfWaCl(c.by)+'*');
   if(!tunda&&kfWaCl(P.shift)&&kfWaCl(P.shift)!==kfWaCl(p.shift)) L.push('Shift: ~'+kfWaShift(P.shift)+'~ → *'+(kfWaShift(p.shift)||'-')+'*');
   L.push('');
   const desc=kfWaCl(p.description||p.bottleSize), spec=[kfWaCl(p.process),p.cd?'CD '+kfWaCl(p.cd):'',p.weight?kfWaCl(p.weight)+' gr':''].filter(Boolean).join(' · ');
@@ -6388,7 +6402,7 @@ function kfWaText(p){ if(!p) return ''; const c=p.conf||{}, ck=kfCkOf(p), L=[], 
     const mp=jcfMpGroups().map(g=>{ const nm=mpSplit((p.manpower||{})[g.key]).map(kfWaCl).filter(Boolean); if(!nm.length) return null; const h=(p.mpHours||{})[g.key];
       return kfWaTitle(g.label)+': '+nm.join(', ')+(h?' — `'+String(h).replace('.',',')+' jam`':''); }).filter(Boolean);
     if(mp.length){ L.push(''); L.push('*MAN POWER*'); mp.forEach((m,i)=>L.push((i+1)+'. '+m)); } }
-  if(c.at){ L.push(''); L.push('_Diverifikasi '+(kfWaCl(c.by)||'-')+' · '+kfWaJam(c.at)+'_'); }
+  if(c.at){ L.push(''); L.push('_Disimpan '+kfWaJam(c.at)+'_'); }
   return L.join('\n'); }
 /* pratinjau: tampilkan gaya WhatsApp di layar */
 function kfWaHtml(t){ const BT=String.fromCharCode(96), F=BT+BT+BT;
@@ -6486,7 +6500,7 @@ function kfRepOpen(id,tab){ const L=kfList(kfDay()).filter(kfWaOk);
   if(tab==='wa') return;
   const pv=document.getElementById('kfRpPv');
   try{ const pg=kfRepPages(p); window._kfRep={id:p.id,pages:pg}; pg.forEach(cv=>pv.insertBefore(cv,pv.lastChild));
-    const nEl=document.getElementById('kfRpN'); if(nEl) nEl.textContent=pg.length+' halaman'; }
+    const nEl=document.getElementById('kfRpN'); if(nEl) nEl.textContent='1 halaman'+(pg.scale<1?' · diperkecil '+Math.round(pg.scale*100)+'%':''); }
   catch(err){ console.error('kfRepPages',err); window._kfRep=null; pv.innerHTML='<div class="kf-hint">Dokumen gagal dibuat: '+esc(err&&err.message||err)+'</div>'; } }
 function kfWaOpen(id){ kfRepOpen(id,'wa'); }
 function kfRepName(p,ext){ return ('Verifikasi_JC_'+[p.machine||p.line||'',p.typeJob||'',p.jcDate||''].filter(Boolean).join('_')).replace(/[^\w.-]+/g,'_')+'.'+ext; }
@@ -6540,13 +6554,13 @@ function kfRepData(p){ const c=p.conf||{}, tunda=!!(p.postponed||c.st==='tunda')
   const D={mc:cl(p.machine||p.line)||'—', title:'VERIFIKASI PENGECEKAN JOB CHANGE', sub:'IS Machine · Rekap plan vs aktual + ceklist tekanan after JC', tunda, why:cl(c.note), trial:!!p.trial,
     groups:[], nS:0, nG:0, add:[], ck:null, bad:[], temu:[], mp:[]};
   if(c.at){ const d=new Date(c.at), H3=['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
-    D.when=(tunda?'Ditunda: ':'Diverifikasi: ')+H3[d.getDay()]+', '+fmtD(d)+' · '+kfWaJam(c.at)+(cl(c.by)?' · '+cl(c.by):''); }
+    D.when=(tunda?'Ditunda: ':'Diverifikasi: ')+H3[d.getDay()]+', '+fmtD(d)+' · '+kfWaJam(c.at); }
   const nd=tunda?0:kfDiff(p).filter(x=>x.k!=='mp').length;
   D.chip=tunda?{t:'DITUNDA',c:'#c0262f',bg:'#fff0f0',bd:'#f6c4c4'}
     :c.st==='berubah'?{t:'ADA PERUBAHAN'+(nd?' · '+nd+' BEDA DARI PLAN':''),c:'#1e63c4',bg:'#e6efff',bd:'#c7dafc'}
     :{t:'SESUAI PLAN',c:'#14684e',bg:'#e3f6ee',bd:'#bfe8d6'};
   const sh=kfWaShift(p.shift), psh=kfWaShift(P.shift), cd=cl(p.cd||(ck&&ck.cd)), wt=cl(p.weight||(ck&&ck.weight));
-  D.info=[['Line / Mesin',D.mc],['Job / Type',p.typeJob?'#'+cl(p.typeJob)+(p.trial?' (trial)':''):''],['Tanggal Job Change',p.jcDate?kfWaHari(parseD(p.jcDate)):''],
+  D.info=[[tunda?'Ditandai oleh':'Diverifikasi oleh',cl(c.by),1],['Line / Mesin',D.mc],['Job / Type',p.typeJob?'#'+cl(p.typeJob)+(p.trial?' (trial)':''):''],['Tanggal Job Change',p.jcDate?kfWaHari(parseD(p.jcDate)):''],
     ['Shift',sh?sh+(!tunda&&psh&&psh!==sh?' (plan: '+psh+')':''):''],['Produk',cl(p.description||p.bottleSize),1],
     ['Proses · CD',[cl(p.process),cd?'CD '+cd:''].filter(Boolean).join(' · ')],['Berat',wt?(/[a-z]/i.test(wt)?wt:wt+' gr'):''],
     ['Machine speed',tunda?'':cl(c.speed)],['Shear cut',tunda?'':cl(c.shear)]].filter(f=>f[1]);
@@ -6729,16 +6743,17 @@ function kfRpLayout(D,mc,sc){ const K=KF_RP, W=K.W/sc, H=K.H/sc, top=108, bot=H-
       if(l2.length===1&&r2.length===1){ lp=l2; rp=r2; break; } } }
   return {sc,W,H,LW,RW,gap,lp,rp,n:Math.max(lp.length,rp.length,1)}; }
 function kfRepPages(p){ const K=KF_RP, D=kfRepData(p), mc=document.createElement('canvas').getContext('2d');
-  let T=null; for(const sc of [1,.95,.9,.85,.8]){ const t=kfRpLayout(D,mc,sc); if(t.n===1){ T=t; break; } }
-  if(!T) T=kfRpLayout(D,mc,1);   /* isi sangat banyak → lanjut ke halaman berikutnya (ukuran normal) */
+  /* selalu 1 lembar: isi diperkecil bertahap (100% → 20%) sampai muat di 1 halaman A4 landscape */
+  let T=null; for(let sc=1; sc>0.19; sc=Math.round((sc-0.05)*100)/100){ T=kfRpLayout(D,mc,sc); if(T.n===1) break; }
+  const S=K.S*Math.min(1.6,Math.max(1,0.85/T.sc));   /* diperkecil → resolusi gambar dinaikkan supaya teks tetap tajam */
   const lx=K.M, rx=K.M+T.LW+T.gap, out=[];
-  for(let i=0;i<T.n;i++){ const cv=document.createElement('canvas'); cv.width=K.W*K.S; cv.height=K.H*K.S; const g=cv.getContext('2d');
-    g.fillStyle='#fff'; g.fillRect(0,0,cv.width,cv.height); g.scale(K.S*T.sc,K.S*T.sc); g.textBaseline='alphabetic';
+  for(let i=0;i<1;i++){ const cv=document.createElement('canvas'); cv.width=Math.round(K.W*S); cv.height=Math.round(K.H*S); const g=cv.getContext('2d');
+    g.fillStyle='#fff'; g.fillRect(0,0,cv.width,cv.height); g.scale(S*T.sc,S*T.sc); g.textBaseline='alphabetic';
     kfRpHead(g,D,T.W); (T.lp[i]||[]).forEach(s=>kfRpSeg(g,s,lx,T.LW)); (T.rp[i]||[]).forEach(s=>kfRpSeg(g,s,rx,T.RW));
     kfRpT(g,D.footL,K.M,T.H-12,kfRpF(500,8.5),'#a0a9b6','left',T.W/2);
-    kfRpT(g,'Dibuat '+D.made+' · halaman '+(i+1)+'/'+T.n,T.W-K.M,T.H-12,kfRpF(500,8.5),'#a0a9b6','right');
+    kfRpT(g,'Dibuat '+D.made,T.W-K.M,T.H-12,kfRpF(500,8.5),'#a0a9b6','right');
     out.push(cv); }
-  return out; }
+  out.scale=T.sc; return out; }
 
 /* ---------- penanda di IS Machine (Planning JC) ---------- */
 function kfChip(p){ if(!p||!p.jcDate) return '';
@@ -12379,6 +12394,11 @@ body.soft .kf-card{border:0}
 /* judul form beku + penutup celah header (hanya halaman verifikasi) */
 html[data-app="jcc"] #kfCover{position:fixed;top:0;left:0;right:0;height:var(--kfStickB,0px);background:var(--bg);z-index:49;pointer-events:none}
 html[data-app="jcc"] .kf-form>.kf-head{position:sticky;top:var(--kfStickH,0px);z-index:45;background:var(--bg);margin:0;padding:6px 0 8px;box-shadow:0 0 0 4000px var(--bg);clip-path:inset(0 -4000px)}
+.kf-bybox #kfByIn{width:100%}
+.kf-bybox.need{border-color:color-mix(in srgb,var(--orange) 65%,transparent)!important;box-shadow:0 0 0 2px color-mix(in srgb,var(--orange) 22%,transparent)}
+.kf-bybox.need .kf-h3 small{color:var(--orange);font-weight:800}
+.kf-bych{display:flex;flex-wrap:wrap;gap:6px}
+.kf-bych .kf-sc{height:36px;padding:0 13px;font-size:13.5px;border-radius:999px}
 .kf-back{flex:0 0 auto;width:38px;height:38px;border-radius:50%;border:0;background:var(--panel);color:var(--txt);font-family:inherit;font-size:18px;font-weight:700;cursor:pointer;box-shadow:var(--neu-sm,none)}
 .kf-ht{min-width:0;flex:1 1 auto}
 .kf-ht h2{margin:0;font-size:19px;font-weight:800;letter-spacing:-.4px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
