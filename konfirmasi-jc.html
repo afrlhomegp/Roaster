@@ -2800,7 +2800,7 @@ function migrateReasonGroups(){
 
 
 // Hitung reason aktual per part dari DB: {part:{reason:count}}
-function partReasonStats(){ const m={}; DB.forEach(r=>{ const p=r.part, rs=String(r.reason||'').trim(); if(!p||!rs)return; m[p]=m[p]||{}; m[p][rs]=(m[p][rs]||0)+1; }); return m; }
+function partReasonStats(){ const m={}; DB.forEach(r=>{ const p=r.part, rs=String(r.reason||'').trim(); if(!p||!rs||r._jcv!=null)return; m[p]=m[p]||{}; m[p][rs]=(m[p][rs]||0)+1; }); return m; }
 // Bangun daftar reason yang diizinkan per part dari data. merge=true → gabung dgn yang sudah ada (tidak menghapus tambahan manual)
 function analyzePartReasons(merge){ const stats=partReasonStats(); if(!CFG.partReasons||typeof CFG.partReasons!=='object')CFG.partReasons={};
   Object.keys(stats).forEach(p=>{ const cur=merge?(CFG.partReasons[p]||[]).slice():[];
@@ -3566,19 +3566,19 @@ function fmtD(d){ if(!d)return'—'; const x=(d instanceof Date)?d:parseD(d); re
 
 // enrich records with category & sorted; compute actual lifetime
 function enriched(){
-  const list=DB.map((r,i)=>{const g=rgOf(r.reason);return {...r,_i:i,cat:g.name,gid:g.id,planned:!!g.planned,lt:lifetimeOf(r.part),d:parseD(r.date)};});
+  const list=DB.map((r,i)=>{const g=r._jcv!=null?rgById('jc'):rgOf(r.reason);return {...r,_i:i,cat:g.name,gid:g.id,planned:!!g.planned,lt:lifetimeOf(r.part),d:parseD(r.date)};});
   // actual lifetime = gap from previous same combo
   const groups={};
   [...list].sort((a,b)=>a.d-b.d).forEach(r=>{
     const k=r.machine+'|'+r.section+'|'+r.part;
-    r.actual = groups[k]!==undefined ? daysBetween(groups[k],r.d) : null;
+    r.actual = (groups[k]!==undefined && r._jcv==null) ? daysBetween(groups[k],r.d) : null;   // dilepas karena JC ≠ aus → bukan umur aktual
     groups[k]=r.d;
   });
   return list;
 }
 // monitoring: latest per machine|section|part combo (only combos that exist in data)
 function monitoring(){
-  const list=enriched(); const combo={};
+  const P=CFG.parts||[], list=enriched().filter(r=>r._jcv==null||P.indexOf(r.part)>=0); const combo={};   /* variabel JC tanpa part dashboard = riwayat saja */
   list.forEach(r=>{
     const k=r.machine+'|'+r.section+'|'+r.part;
     if(!combo[k]||r.d>combo[k].last){ combo[k]=combo[k]||{machine:r.machine,section:r.section,part:r.part,count:0,trouble:0}; }
@@ -4467,6 +4467,18 @@ function kfPlanOf(p){ const o={}; KF_FIELDS.forEach(k=>{ o[k]=(p&&p.plan0&&Objec
 function kfSpecTxt(v){ return String(v==null?'':v).trim(); }
 function kfRoTxt(rows){ return (rows||[]).filter(r=>r&&r.part).map(r=>r.part+((r.sections||[]).length?' '+jcfSecRange(r.sections):'')).join(' · '); }
 function kfMpTxt(mp){ return jcfMpGroups().map(g=>mpSplit((mp||{})[g.key]).join(', ')).filter(Boolean).join(' · '); }
+/* baris variabel hasil verifikasi (semua versi data) → {part, pv=plan, bv=JC sebelumnya, av=aktual, exp, st, ket, dev}
+   exp / st : 'sama' = sama dengan JC sebelumnya di mesin ini · 'ganti' = diganti.  dev = beda dari plan (perlu alasan).
+   Data verifikasi lama (Sama/Ganti = sesuai / beda dari plan) dibaca dengan arti lamanya. */
+function kfExp(pv,bv,hb){ return (hb&&jcfKey(pv)!==jcfKey(bv))?'ganti':'sama'; }
+function kfVarRows(p){ const P=kfPlanOf(p), PS=P.specs||{}, AS=p.specs||{}, base=jcBaseOf(p), hb=!!base, BS=(base&&base.specs)||{};
+  const cf=(p.conf&&p.conf.st&&p.conf.st!=='tunda')?p.conf:null, C=(cf&&cf.chk&&cf.chk.specs)||null, v2=!!(cf&&cf.v===2);
+  return kfParts(Object.keys(Object.assign({},PS,AS))).map(k=>{ const pv=kfSpecTxt(PS[k]), bv=hb?kfSpecTxt(BS[k]):pv, av=kfSpecTxt(AS[k]), exp=kfExp(pv,bv,hb), c=C&&C[k];
+    let st=''; const ket=(c&&c.ket)?String(c.ket):'';
+    if(c&&(c.st==='sama'||c.st==='ganti')) st=v2?c.st:(c.st==='ganti'?'ganti':exp);
+    else if(cf&&!C&&(av||bv)) st=(hb&&jcfKey(av)===jcfKey(bv))?'sama':'ganti';      /* versi lama sekali: isian angka */
+    const dev=!!st&&(v2?(st!==exp||(st==='ganti'&&jcfKey(av)!==jcfKey(pv))):(!!(c&&c.st==='ganti')||jcfKey(av)!==jcfKey(pv)));
+    return {part:k,pv,bv,av,exp,st,ket,dev}; }); }
 /* daftar perbedaan plan → aktual
    p.conf.chk = pilihan rekap {specs:{part:{st:'sama'|'ganti',ket}}, ro:[{part,st,ket,sections}], add:[{part,sections,ns,ket}]}
    (konfirmasi lama tanpa chk: perbedaan dihitung dari isian aktual vs plan) */
@@ -4474,9 +4486,10 @@ function kfDiff(p){ if(!p||!p.plan0) return []; const P=p.plan0, out=[], C=(p.co
   const add=(k,l,a,b)=>{ if(String(a==null?'':a)!==String(b==null?'':b)) out.push({k,l,plan:a,act:b}); };
   add('date','Tanggal',P.jcDate?fmtD(parseD(P.jcDate)):'',p.jcDate?fmtD(parseD(p.jcDate)):'');
   add('shift','Shift',P.shift||'',p.shift||'');
-  const parts=[]; Object.keys(CFG.jcAreas||{}).forEach(a=>(CFG.jcAreas[a]||[]).forEach(x=>{ if(parts.indexOf(x)<0) parts.push(x); }));
-  Object.keys(P.specs||{}).concat(Object.keys(p.specs||{})).forEach(x=>{ if(parts.indexOf(x)<0) parts.push(x); });
-  parts.forEach(x=>{ const a=kfSpecTxt((P.specs||{})[x]), b=kfSpecTxt((p.specs||{})[x]), c=C&&C.specs&&C.specs[x], beda=jcfKey(a)!==jcfKey(b);
+  const v2=!!(p.conf&&p.conf.v===2);
+  kfVarRows(p).forEach(r=>{ const x=r.part, a=r.pv, b=r.av;
+    if(v2){ if(r.dev) out.push({k:'spec',l:x,plan:(r.exp==='ganti'?'Ganti':'Sama')+(a?' · '+a:''),act:(r.st==='ganti'?'Ganti':'Sama')+(b?' · '+b:'')+(r.ket?' · '+r.ket:'')}); return; }
+    const c=C&&C.specs&&C.specs[x], beda=jcfKey(a)!==jcfKey(b);
     if(c&&c.st==='ganti') out.push({k:'spec',l:x,plan:a||'—',act:'Ganti'+(c.ket?' · '+c.ket:'')+(beda?' ('+(b||'—')+')':'')});
     else if(beda) out.push({k:'spec',l:x,plan:a||'—',act:b||'—'}); });
   if(C&&Array.isArray(C.ro)){
@@ -4538,21 +4551,17 @@ function kfMkEdit(p){ const P=kfPlanOf(p), act=!!(p.conf&&p.conf.st!=='tunda'), 
     chk:{}, ro:[], add:[], rows:[], groups:[], adPart:'', adSecs:[], adKet:'', adOpen:false,
     speed:(act&&p.conf.speed)||'', shear:(act&&p.conf.shear)||'', temu:kfClone((act&&p.conf.temu)||{})||{}, ckOpen:kfCkPref(),
     by:String((p.conf&&p.conf.by)||curUser()||'')};
-  /* part variabel: semua part Planning JC per area (yang kosong di plan tetap tampil, boleh tidak dipilih) */
-  const base=jcBaseOf(p), dp={}; transitionDiff(base,{specs:PS}).forEach(d=>{ dp[d.part]=d; });
+  /* part variabel: semua part Planning JC per area (yang kosong di plan tetap tampil, boleh tidak dipilih)
+     Sama = sama dengan JC sebelumnya di mesin ini · Ganti = diganti (nilai = plan, atau pilih yang terpasang) */
+  const base=jcBaseOf(p), hb=!!base, BS=(base&&base.specs)||{}, VR={}; if(act) kfVarRows(p).forEach(r=>{ VR[r.part]=r; });
   const all=kfParts(Object.keys(Object.assign({},PS,e.specs))), seen=new Set();
   const areas=Object.keys(CFG.jcAreas||{}).map(a=>({area:a,parts:(CFG.jcAreas[a]||[]).filter(x=>x&&!seen.has(x)&&(seen.add(x),true))}));
   const rest=all.filter(x=>!seen.has(x)); if(rest.length) areas.push({area:'LAINNYA',parts:rest});
   areas.forEach(g=>{ if(!g.parts.length) return; const idx=[];
-    g.parts.forEach(pt=>{ const pv=kfSpecTxt(PS[pt]), d=dp[pt], st=d&&d.status;
-      const tag=st==='change'?{c:'chg',t:'ganti dari '+d.oldV}:st==='add'?{c:'add',t:'pasang baru'}:st==='remove'?{c:'rem',t:'dilepas · sebelumnya '+d.oldV}:null;
-      idx.push(e.rows.length); e.rows.push({t:'s',part:pt,pv,tag,req:!!(pv||tag)});
-      const c=C&&C.specs&&C.specs[pt];
-      if(c&&(c.st==='sama'||c.st==='ganti')){ e.chk[pt]={st:c.st,ket:c.ket||''}; return; }
-      if(!act||C) return;
-      const av=kfSpecTxt(e.specs[pt]);   /* konfirmasi versi lama (isian angka) → dipetakan ke Sama / Ganti */
-      if(jcfKey(pv)!==jcfKey(av)) e.chk[pt]={st:'ganti',ket:av?'terpasang: '+av:'tidak terpasang'};
-      else if(pv) e.chk[pt]={st:'sama',ket:''}; });
+    g.parts.forEach(pt=>{ const pv=kfSpecTxt(PS[pt]), bv=hb?kfSpecTxt(BS[pt]):pv, exp=kfExp(pv,bv,hb);
+      const tag=exp!=='ganti'?null:!bv?{c:'add',t:'pasang baru'}:!pv?{c:'rem',t:'dilepas · sebelumnya '+bv}:{c:'chg',t:'ganti dari '+bv};
+      idx.push(e.rows.length); e.rows.push({t:'s',part:pt,pv,bv,exp,tag,req:!!(pv||bv)});
+      const r=VR[pt]; if(r&&r.st){ e.chk[pt]={st:r.st,ket:r.ket||''}; if(r.st==='ganti') e.chk[pt].v=r.av; } });
     e.groups.push({area:g.area,idx}); });
   /* roaster plan */
   const aro=(act?(p.roasterPlan||[]):[]).filter(r=>r&&r.part), used=new Set(), ridx=[];
@@ -4590,12 +4599,31 @@ function kfIsTodo(i){ const e=window._kfEdit, r=e&&e.rows[i]; return !!(r&&r.req
 function kfTodo(){ const e=window._kfEdit, out=[]; if(!e) return out; e.rows.forEach((r,i)=>{ if(kfIsTodo(i)) out.push(i); }); return out; }
 function kfReqN(){ const e=window._kfEdit; return e?e.rows.filter(r=>r.req).length:0; }
 function kfSetSt(i,st){ const e=window._kfEdit, r=e&&e.rows[i]; if(!r) return;
-  if(r.t==='s'){ if(!st){ delete e.chk[r.part]; return; } const c=e.chk[r.part]; e.chk[r.part]={st,ket:(c&&c.ket)||''}; return; }
+  if(r.t==='s'){ if(!st){ delete e.chk[r.part]; return; } const c=e.chk[r.part]; e.chk[r.part]={st,ket:(c&&c.ket)||''};
+    if(st==='ganti') e.chk[r.part].v=(c&&c.st==='ganti'&&c.v!=null)?c.v:r.pv; return; }
   const o=e.ro[r.i]; if(!o) return; o.st=st||''; if(st==='sama') o.sections=o.ps.slice(); }
 function kfPick(i,st){ const was=kfRowSt(i); kfSetSt(i,was===st?'':st); kfRowPaint(i); kfPaintSum();
+  const rw=window._kfEdit&&window._kfEdit.rows[i];
+  if(rw&&rw.t==='s'&&kfRowSt(i)){ if(kfRowDev(i)) kfKetFocus(i); else kfNext(i); return; }   /* beda dari plan → langsung isi alasan */
   if(kfRowSt(i)==='sama') kfNext(i);
   else if(kfRowSt(i)==='ganti'){ try{ const el=document.querySelector('.kf-rw[data-i="'+i+'"]'), r=el&&el.getBoundingClientRect(); if(r&&r.bottom>window.innerHeight-90) el.scrollIntoView({block:'center',behavior:'smooth'}); }catch(_){} } }
-function kfKet(i,v){ const e=window._kfEdit, r=e&&e.rows[i]; if(!r) return; if(r.t==='s'){ if(e.chk[r.part]) e.chk[r.part].ket=v; } else if(e.ro[r.i]) e.ro[r.i].ket=v; }
+function kfKet(i,v,el){ const e=window._kfEdit, r=e&&e.rows[i]; if(!r) return; if(r.t==='s'){ if(e.chk[r.part]) e.chk[r.part].ket=v; } else if(e.ro[r.i]) e.ro[r.i].ket=v;
+  if(el&&el.classList.contains('req')) el.classList.toggle('need',!String(v||'').trim()); }
+/* baris variabel beda dari plan? (plan sama → Ganti, plan ganti → Sama, atau yang terpasang ≠ plan) */
+function kfRowDev(i){ const e=window._kfEdit, r=e&&e.rows[i]; if(!r||r.t!=='s') return false; const c=e.chk[r.part]; if(!c||!c.st) return false;
+  return c.st!==r.exp||(c.st==='ganti'&&jcfKey(c.v!=null?c.v:r.pv)!==jcfKey(r.pv)); }
+function kfNeedKet(i){ const e=window._kfEdit, r=e&&e.rows[i], c=r&&r.t==='s'&&e.chk[r.part]; return kfRowDev(i)&&!String((c&&c.ket)||'').trim(); }
+function kfKetFocus(i){ setTimeout(()=>{ try{ const k=document.querySelector('.kf-rw[data-i="'+i+'"] .kf-ket'); if(!k) return; k.focus({preventScroll:true});
+  const b=k.getBoundingClientRect(); if(b.bottom>window.innerHeight-90||b.top<64) k.scrollIntoView({block:'center',behavior:'smooth'}); }catch(_){} },40); }
+/* Ganti: nilai yang terpasang (default = plan) — dari Master Isian Variabel JC / isian yang pernah dipakai */
+function kfValOpts(r,cur){ const L=[], add=x=>{ x=kfSpecTxt(x); if(x&&!L.some(y=>jcfKey(y)===jcfKey(x))) L.push(x); };
+  add(r.pv); add(cur); let M=[];
+  if(typeof jcValOpts==='function') M=jcValOpts(r.part);
+  else { M=((CFG.jcVals&&CFG.jcVals[r.part])||[]).slice(); (JCPLANS||[]).forEach(q=>{ [q&&q.specs,q&&q.plan0&&q.plan0.specs].forEach(sp=>{ if(sp&&sp[r.part]) M.push(sp[r.part]); }); }); }
+  M.slice().sort((a,b)=>String(a).localeCompare(String(b),'id',{numeric:true})).forEach(add); add(r.bv); return L; }
+function kfVal(i,v){ const e=window._kfEdit, r=e&&e.rows[i], c=r&&r.t==='s'&&e.chk[r.part]; if(!c||c.st!=='ganti') return;
+  if(v==='__new'){ const t=(prompt('Nilai '+r.part+' yang terpasang:',c.v||r.pv||'')||'').trim(); if(!t){ kfRowPaint(i); return; } v=t; }
+  c.v=v; kfRowPaint(i); kfPaintSum(); if(kfNeedKet(i)) kfKetFocus(i); }
 function kfRoSec(i,s){ const e=window._kfEdit, r=e&&e.rows[i], o=r&&r.t==='r'&&e.ro[r.i]; if(!o) return; const a=o.sections||(o.sections=[]), j=a.indexOf(s);
   if(j<0) a.push(s); else a.splice(j,1); a.sort(kfSecCmp); kfRowPaint(i); kfPaintSum(); }
 /* "kalau Sama → lanjut ke bawahnya": sorot & gulir ke item berikutnya yang belum dipilih */
@@ -4607,12 +4635,15 @@ function kfGoRow(j,soft){ const el=document.querySelector('.kf-rw[data-i="'+j+'"
   document.querySelectorAll('.kf-rw.hl').forEach(x=>x.classList.remove('hl')); el.classList.add('hl');
   try{ const r=el.getBoundingClientRect(); if(!soft||r.bottom>window.innerHeight-96||r.top<64) el.scrollIntoView({block:'center',behavior:'smooth'}); }catch(_){}
   clearTimeout(window._kfHlT); window._kfHlT=setTimeout(()=>{ try{ el.classList.remove('hl'); }catch(_){} },1800); }
-function kfAllSama(){ kfTodo().forEach(i=>kfSetSt(i,'sama')); render(); }
+function kfAllSama(){ const e=window._kfEdit; kfTodo().forEach(i=>{ const r=e.rows[i]; kfSetSt(i,r.t==='s'?r.exp:'sama'); }); render(); }   /* sisanya = sesuai plan */
 function kfRowHTML(i){ const e=window._kfEdit, r=e&&e.rows[i]; if(!r) return ''; const st=kfRowSt(i);
   const seg=`<div class="kf-sg" role="group" aria-label="Sama atau ganti"><button type="button" class="kf-sgb s${st==='sama'?' on':''}" aria-pressed="${st==='sama'}" onclick="kfPick(${i},'sama')">Sama</button><button type="button" class="kf-sgb g${st==='ganti'?' on':''}" aria-pressed="${st==='ganti'}" onclick="kfPick(${i},'ganti')">Ganti</button></div>`;
-  if(r.t==='s'){ const c=e.chk[r.part]||{}, tg=r.tag?`<span class="kf-tg ${r.tag.c}">${esc(r.tag.t)}</span>`:'';
-    return `<div class="kf-rw${st?' '+st:''}${r.req?'':' opt'}" data-i="${i}"><div class="kf-rn"><b title="${esc(r.part)}">${esc(r.part)}</b><small>${r.pv?`<span class="kf-pv">${esc(r.pv)}</span>`:'<span class="kf-pv0">tidak diisi di plan</span>'}${tg}</small></div>${seg}`
-      +(st?`<input class="kf-ket" value="${esc(c.ket||'')}" oninput="kfKet(${i},this.value)" placeholder="${st==='ganti'?'Keterangan (boleh kosong) — mis. pakai yang lain':'Keterangan (boleh kosong) — mis. kondisi baik, sudah dicek'}" aria-label="Keterangan ${esc(r.part)}" autocomplete="off">`:'')+`</div>`; }
+  if(r.t==='s'){ const c=e.chk[r.part]||{}, tg=r.tag?`<span class="kf-tg ${r.tag.c}">${esc(r.tag.t)}</span>`:'', dev=kfRowDev(i);
+    const cur=st==='ganti'?kfSpecTxt(c.v!=null?c.v:r.pv):'', ov=st==='ganti'?kfValOpts(r,cur):[];
+    const sel=st==='ganti'?`<label class="kf-gx kf-gxv"><span class="kf-gl">Terpasang</span><select class="kf-val" onchange="kfVal(${i},this.value)" aria-label="${esc(r.part)} yang terpasang">${ov.map(x=>`<option value="${esc(x)}"${jcfKey(x)===jcfKey(cur)?' selected':''}>${esc(x)}${r.pv&&jcfKey(x)===jcfKey(r.pv)?' (plan)':''}</option>`).join('')}<option value=""${cur?'':' selected'}>— dilepas / kosong —</option><option value="__new">✏️ Lainnya (ketik)…</option></select></label>`:'';
+    const why=!dev?'':st!==r.exp?(st==='sama'?'Alasan tidak diganti — plan: ganti':'Alasan diganti — plan: sama'):'Alasan terpasang beda dari plan'+(r.pv?' ('+r.pv+')':'');
+    return `<div class="kf-rw${st?' '+st:''}${dev?' dev':''}${r.req?'':' opt'}" data-i="${i}"><div class="kf-rn"><b title="${esc(r.part)}">${esc(r.part)}</b><small>${r.pv?`<span class="kf-pv">${esc(r.pv)}</span>`:'<span class="kf-pv0">tidak diisi di plan</span>'}${tg}</small></div>${seg}${sel}`
+      +(dev?`<input class="kf-ket req${String(c.ket||'').trim()?'':' need'}" value="${esc(c.ket||'')}" oninput="kfKet(${i},this.value,this)" placeholder="${esc(why)} (wajib)" aria-label="Alasan ${esc(r.part)}" autocomplete="off" enterkeyhint="done">`:'')+`</div>`; }
   const o=e.ro[r.i], mc=(kfPlan(e.id)||{}), secsAll=sectionsOf(mc.machine||mc.line);
   const gx=(st!=='ganti'||o.ns?'':`<div class="kf-gx"><span class="kf-gl">Section yang dikerjakan</span><span class="kf-secs">${secsAll.map(s=>`<button type="button" class="kf-sc${(o.sections||[]).indexOf(s)>=0?' on':''}" onclick="kfRoSec(${i},'${esc(s)}')">${esc(s)}</button>`).join('')}</span></div>`)
     +(st?`<input class="kf-ket" value="${esc(o.ket||'')}" oninput="kfKet(${i},this.value)" placeholder="Keterangan (boleh kosong)" aria-label="Keterangan roaster ${esc(o.part)}" autocomplete="off">`:'');
@@ -4628,20 +4659,20 @@ function kfAdAdd(){ const e=window._kfEdit; if(!e) return; const part=e.adPart; 
 function kfAdDel(j){ const e=window._kfEdit; if(!e||!e.add[j]) return; e.add.splice(j,1); render(); }
 /* ringkasan isian sekarang vs plan */
 function kfDiffNow(){ const e=window._kfEdit; if(!e) return []; const t=[];
-  const n=Object.keys(e.chk).filter(k=>e.chk[k]&&e.chk[k].st==='ganti').length; if(n) t.push(n+' part');
+  const n=e.rows.filter((r,i)=>kfRowDev(i)).length; if(n) t.push(n+' variabel');
   const r=e.ro.filter(x=>x.st==='ganti').length; if(r) t.push(r+' roaster');
   if(e.add.length) t.push(e.add.length+' tambahan');
   return t; }
 function kfRcChip(){ const t=kfDiffNow(), todo=kfTodo().length, req=kfReqN();
-  if(t.length) return `<span class="kf-st" id="kfRcSt" style="--c:var(--blue)">✏️ ganti: ${esc(t.join(', '))}</span>`;
+  if(t.length) return `<span class="kf-st" id="kfRcSt" style="--c:var(--blue)">✏️ beda plan: ${esc(t.join(', '))}</span>`;
   if(todo) return `<span class="kf-st" id="kfRcSt" style="--c:var(--orange)">● ${req-todo}/${req} dicek</span>`;
   return '<span class="kf-st" id="kfRcSt" style="--c:var(--green)">✅ sesuai plan</span>'; }
 function kfPaintSum(){ const el=document.getElementById('kfSum'); if(el) el.innerHTML=kfSumTxt();
   const ch=document.getElementById('kfRcSt'); if(ch) ch.outerHTML=kfRcChip();
-  const b=document.getElementById('kfAllBtn'); if(b){ const n=kfTodo().length; b.hidden=!n; b.textContent='✓ Sisanya sama ('+n+')'; } }
+  const b=document.getElementById('kfAllBtn'); if(b){ const n=kfTodo().length; b.hidden=!n; b.textContent='✓ Sisanya sesuai plan ('+n+')'; } }
 function kfSumTxt(){ const e=window._kfEdit; if(!e) return ''; if(e.tunda) return e.newDate?'⏸ Dipindah ke <b>'+fmtD(parseD(e.newDate))+'</b>':'⏸ Ditandai <b>ditunda</b>';
   const t=kfDiffNow(), todo=kfTodo().length, req=kfReqN(), c=window._jccEdit, n=c?jccCounts(c):{filled:0,bad:0};
-  return (t.length?'✏️ Ganti: <b>'+esc(t.join(', '))+'</b>':todo?'● <b>'+(req-todo)+'/'+req+'</b> dicek':'✅ Sesuai plan')+' · 🧪 '+n.filled+' titik'+(n.bad?' · ⚠ '+n.bad:''); }
+  return (t.length?'✏️ Beda plan: <b>'+esc(t.join(', '))+'</b>':todo?'● <b>'+(req-todo)+'/'+req+'</b> dicek':'✅ Sesuai plan')+' · 🧪 '+n.filled+' titik'+(n.bad?' · ⚠ '+n.bad:''); }
 /* tabel tekanan ringkas: tekan sel lalu geser kiri/kanan (tanpa pop-up) */
 function kfCkHTML(p){ const c=window._jccEdit; if(!c) return ''; jccEnsureCss();
   const e=window._kfEdit||{}, open=!!e.ckOpen, secs=sectionsOf(c.machine), n=jccCounts(c);
@@ -4691,7 +4722,7 @@ function kfFormHTML(){ const e=window._kfEdit, p=kfPlan(e.id);
       <div class="kf-hint">Ada jadwal baru → JC pindah ke tanggal itu. Kosong → ditandai <b>Ditunda</b>.</div>
       <button type="button" class="kf-lnk2" onclick="kfTunda(false)">← JC jadi dikerjakan</button></div>`;
   } else {
-    /* 1 · Rekap plan: tiap item dipilih Sama (sesuai plan) / Ganti (beda → keterangan opsional) */
+    /* 1 · Rekap plan: tiap item dipilih Sama (= JC sebelumnya) / Ganti (diganti) — beda dari plan wajib alasan */
     const grp=e.groups.map(g=>`<div class="kf-grp"><div class="kf-gh">${g.ro?'🔁':areaIcon(g.area)} ${esc(g.area)}</div>${g.idx.map(kfRowHTML).join('')}</div>`).join('');
     const todo=kfTodo().length;
     const mpS=kfMpTxt(e.mp), hrN=Object.values(e.hr||{}).reduce((a,b)=>a+(+b||0),0);
@@ -4699,7 +4730,7 @@ function kfFormHTML(){ const e=window._kfEdit, p=kfPlan(e.id);
       ${e.mpOpen?`<div class="kf-mp">${jcfMpGroups().map(gr=>`<div class="kf-mpr"><span>${esc(gr.label)}</span><input value="${esc(e.mp[gr.key]||'')}" data-k="${esc(gr.key)}" oninput="kfMp(this.dataset.k,this.value)" placeholder="nama (pisah koma)" list="kfPeople" aria-label="${esc(gr.label)}"><input class="kf-hrin" type="text" inputmode="decimal" value="${e.hr[gr.key]?String(e.hr[gr.key]).replace('.',','):''}" data-k="${esc(gr.key)}" oninput="kfHr(this.dataset.k,this.value)" placeholder="jam" aria-label="Jam kerja ${esc(gr.label)}"></div>`).join('')}</div>
       <datalist id="kfPeople">${mpPeople().filter(o=>!o.hidden).map(o=>`<option value="${esc(o.name)}">`).join('')}</datalist>`:''}</details>`;
     body=`<div class="kf-box"><div class="kf-h3"><span class="kf-n">1</span>Rekap plan${kfRcChip()}</div>
-      <div class="kf-rtop"><div class="kf-hint"><b>Sama</b> = terpasang sesuai plan · <b>Ganti</b> = beda dari plan (keterangan boleh kosong).</div><button type="button" class="kf-all" id="kfAllBtn" onclick="kfAllSama()"${todo?'':' hidden'}>✓ Sisanya sama (${todo})</button></div>
+      <div class="kf-rtop"><div class="kf-hint"><b>Sama</b> = sama dengan JC sebelumnya · <b>Ganti</b> = diganti sesuai plan. Beda dari plan → isi alasannya.</div><button type="button" class="kf-all" id="kfAllBtn" onclick="kfAllSama()"${todo?'':' hidden'}>✓ Sisanya sesuai plan (${todo})</button></div>
       ${grp||'<div class="kf-hint">Belum ada part di Settings → Planning JC.</div>'}
       ${mp}
       <button type="button" class="kf-lnk2" onclick="kfTunda(true)">⏸ JC tidak jadi / ditunda?</button></div>
@@ -4710,6 +4741,19 @@ function kfFormHTML(){ const e=window._kfEdit, p=kfPlan(e.id);
 /* ---------- simpan / batalkan ---------- */
 function kfResync(p,oldM,oldD){ try{ if(p.varApplied) syncJCVarPlan(p); if(p.roasterApplied) syncRoasterPlan(p); }catch(e){ console.error('kfResync',e); }
   try{ jcSibResync(oldM,oldD,p.id); jcSibResync(p.machine||p.line,p.jcDate,p.id); }catch(e){} }
+/* isian verifikasi → spec aktual + pilihan Sama/Ganti + roaster aktual
+   part variabel: Sama → nilai JC sebelumnya · Ganti → nilai yang terpasang (default plan) · belum dipilih → plan
+   roaster: Sama → section plan · Ganti → section yang dicentang. Tambahan perbaikan (mech preventive) ikut tercatat */
+function kfBuild(p,e){ const P=kfPlanOf(p), PS=P.specs||{}, base=jcBaseOf(p), hb=!!base, BS=(base&&base.specs)||{}, sp={}, cs={};
+  kfParts(Object.keys(Object.assign({},PS,e.specs||{}))).forEach(k=>{ const c=e.chk&&e.chk[k];
+    const v=kfSpecTxt(c&&c.st==='sama'?(hb?BS[k]:PS[k]):(c&&c.st==='ganti'&&c.v!=null)?c.v:PS[k]); if(v) sp[k]=v;
+    if(c&&c.st){ const kt=String(c.ket||'').trim(), o={st:c.st}; if(kt) o.ket=kt; cs[k]=o; } });
+  const ro=[], put=(part,secs,ns)=>{ const ex=ro.find(x=>x.part===part);
+    if(ex){ if(!ns){ ex.sections=[...new Set((ex.sections||[]).concat(secs))].sort(kfSecCmp); if(ex.sections.length) delete ex.ns; } return; }
+    ro.push(ns?{part,sections:[],ns:true}:{part,sections:secs.slice().sort(kfSecCmp)}); };
+  (e.ro||[]).forEach(r=>{ if(r.ns){ put(r.part,[],true); return; } const s=r.st==='ganti'?(r.sections||[]):(r.ps||[]); if(s.length) put(r.part,s,false); });
+  (e.add||[]).forEach(a=>{ if(a.ns) put(a.part,[],true); else if((a.sections||[]).length) put(a.part,a.sections,false); });
+  return {sp,cs,ro}; }
 /* konfirmasi plan → data aktual (tanpa render). Kembali: status akhir / null bila gagal */
 function kfCommit(p,e){ const before=auditSnap('jcplan',p), oldM=p.machine||p.line, oldD=p.jcDate, ref=(oldM||'-')+' · '+(oldD||'-'), who=String((e&&e.by)||'').trim()||curUser()||'';
   if(e.tunda){
@@ -4720,29 +4764,21 @@ function kfCommit(p,e){ const before=auditSnap('jcplan',p), oldM=p.machine||p.li
       p.resched=(Array.isArray(p.resched)?p.resched:[]).concat([{from,to:e.newDate,why,at:Date.now(),by:who}]);
       p.notes=[String(p.notes||'').trim(),'Dipindah dari '+fmtD(parseD(from))+(why?' ('+why+')':'')].filter(Boolean).join(' · '); }
     else { p.postponed=true; p.conf={st:'tunda',at:Date.now(),by:who,note:why}; }
+    jcRecClear(p);   /* JC tidak jadi → tidak ada pergantian part */
     kfResync(p,oldM,oldD);
     auditLog('edit','jcplan',ref,before,auditSnap('jcplan',p),'Verifikasi JC: ditunda'+(e.newDate?' → '+e.newDate:'')+(why?' · '+why:''));
     return 'tunda'; }
   if(!p.plan0) p.plan0=kfClone({jcDate:p.jcDate,shift:p.shift,specs:p.specs||{},roasterPlan:p.roasterPlan||[],manpower:p.manpower||{},mpHours:p.mpHours||{}});
   const P=p.plan0, PS=P.specs||{};
   p.jcDate=P.jcDate||p.jcDate; p.shift=e.shift||P.shift||''; p.postponed=false;   /* konfirmasi = hari yang sama dengan planning */
-  /* part variabel: Sama → isian plan · Ganti → isian tidak diubah di sini, pilihan + keterangan tercatat di p.conf.chk */
-  const sp={}, cs={};
-  kfParts(Object.keys(Object.assign({},PS,e.specs||{}))).forEach(k=>{ const c=e.chk&&e.chk[k], g=!!(c&&c.st==='ganti'), v=kfSpecTxt(g?(e.specs||{})[k]:PS[k]); if(v) sp[k]=v;
-    if(c&&c.st){ const kt=String(c.ket||'').trim(); cs[k]=kt?{st:c.st,ket:kt}:{st:c.st}; } });   /* keterangan tersimpan untuk Sama maupun Ganti */
-  p.specs=sp;
-  /* roaster: Sama → section plan · Ganti → section yang dicentang. Tambahan perbaikan (mech preventive) ikut tercatat */
-  const ro=[], put=(part,secs,ns)=>{ const ex=ro.find(x=>x.part===part);
-    if(ex){ if(!ns){ ex.sections=[...new Set((ex.sections||[]).concat(secs))].sort(kfSecCmp); if(ex.sections.length) delete ex.ns; } return; }
-    ro.push(ns?{part,sections:[],ns:true}:{part,sections:secs.slice().sort(kfSecCmp)}); };
-  (e.ro||[]).forEach(r=>{ if(r.ns){ put(r.part,[],true); return; } const s=r.st==='ganti'?(r.sections||[]):(r.ps||[]); if(s.length) put(r.part,s,false); });
-  (e.add||[]).forEach(a=>{ if(a.ns) put(a.part,[],true); else if((a.sections||[]).length) put(a.part,a.sections,false); });
-  p.roasterPlan=ro;
+  const B=kfBuild(p,e), cs=B.cs;
+  p.specs=B.sp;
+  p.roasterPlan=B.ro;
   p.manpower=kfClone(e.mp||{}); p.mpHours=kfClone(e.hr||{});
   const chk={specs:cs,
     ro:(e.ro||[]).map(r=>{ const g=r.st==='ganti', o={part:r.part,st:g?'ganti':'sama',sections:(g?(r.sections||[]):(r.ps||[])).slice()}; const kt=String(r.ket||'').trim(); if(kt) o.ket=kt; return o; }),
     add:(e.add||[]).map(a=>({part:a.part,sections:(a.sections||[]).slice(),ns:!!a.ns,ket:String(a.ket||'').trim()}))};
-  p.conf={st:'sesuai',at:Date.now(),by:who,note:String(e.note||'').trim(),rec:true,chk};
+  p.conf={st:'sesuai',at:Date.now(),by:who,note:String(e.note||'').trim(),rec:true,chk,v:2};   /* v2: Sama/Ganti = terhadap JC sebelumnya */
   { const sv=String(e.speed||'').trim(), sc=String(e.shear||'').trim(), tm={}; KF_TEMU.forEach(([k])=>{ const v=String((e.temu||{})[k]||'').trim(); if(v) tm[k]=v; });
     if(sv) p.conf.speed=sv; if(sc) p.conf.shear=sc; if(Object.keys(tm).length) p.conf.temu=tm; }   /* data mesin & temuan pengingat (kosong = tidak disimpan) */
   const nd=kfDiff(p).filter(d=>d.k!=='mp').length, st=nd?'berubah':'sesuai';   /* status otomatis: ada Ganti / tambahan → "Ada perubahan" */
@@ -4763,8 +4799,10 @@ function kfCkCommit(p,note){ const c=window._jccEdit; if(!c) return false; const
 function kfSaveAll(){ const e=window._kfEdit; if(!e) return; const p=kfPlan(e.id); if(!p){ toast('Plan JC tidak ditemukan',1); return; }
   if(!String(e.by||'').trim()){ toast('Isi dulu nama yang memverifikasi (paling atas)',1); try{ const i=document.getElementById('kfByIn'); if(i){ i.scrollIntoView({block:'center'}); i.focus({preventScroll:true}); } }catch(_){} return; }
   if(!e.tunda){ const todo=kfTodo();
-    if(todo.length){ if(!confirm(todo.length+' item rekap plan belum dipilih Sama / Ganti.\n\nOK = anggap Sama (sesuai plan)\nBatal = cek dulu')){ kfGoRow(todo[0]); return; }
-      todo.forEach(i=>kfSetSt(i,'sama')); }
+    if(todo.length){ if(!confirm(todo.length+' item rekap plan belum dipilih Sama / Ganti.\n\nOK = anggap sesuai plan\nBatal = cek dulu')){ kfGoRow(todo[0]); return; }
+      todo.forEach(i=>{ const r=e.rows[i]; kfSetSt(i,r.t==='s'?r.exp:'sama'); }); }
+    const nk=e.rows.map((r,i)=>i).filter(kfNeedKet);   /* beda dari plan wajib ada alasan */
+    if(nk.length){ render(); toast('Isi alasan untuk '+nk.length+' variabel yang beda dari plan',1); setTimeout(()=>{ kfGoRow(nk[0]); kfKetFocus(nk[0]); },60); return; }
     if(kfAdPend(e)==='bad'&&!confirm('Tambahan perbaikan yang sedang diisi belum lengkap (pilih section dulu).\n\nOK = simpan tanpa itu\nBatal = kembali')){ try{ const i=document.getElementById('kfAdKet'); if(i) i.scrollIntoView({block:'center'}); }catch(_){} return; } }
   const st=kfCommit(p,e); if(!st) return;
   const ck=st!=='tunda'&&kfCkCommit(p,e.note);
@@ -4780,13 +4818,21 @@ function kfWaShift(s){ s=kfWaCl(s); return !s?'':/shift/i.test(s)?s:'Shift '+s; 
 function kfWaKet(k){ k=kfWaCl(k); return k?' — _'+k+'_':''; }
 function kfWaTitle(s){ return String(s||'').toLowerCase().replace(/(^|[\s+\/(-])\S/g,m=>m.toUpperCase()); }
 /* part variabel sesuai yang diisi (per area). Yang diganti: ~plan~ → *aktual* — _keterangan_ */
+/* baris WhatsApp variabel (verifikasi v2): ganti → nilai baru · tidak diganti → coret plan · beda plan → alasan */
+function kfWaV2(rows,r){ const nm=kfWaCl(r.part), pv=kfWaCl(r.pv), av=kfWaCl(r.av), bv=kfWaCl(r.bv), ket=kfWaKet(r.ket);
+  if(r.st==='ganti'){ if(jcfKey(pv)!==jcfKey(av)) rows.push('- '+nm+': '+(pv?'~'+pv+'~ → ':'')+'*'+(av||'dilepas')+'* _(ganti)_'+ket);
+    else rows.push('- '+nm+': '+(bv&&jcfKey(bv)!==jcfKey(av)?bv+' → ':'')+'*'+(av||'dilepas')+'* _(ganti'+(r.exp==='sama'?' di luar plan':'')+')_'+ket); }
+  else if(r.st==='sama'&&r.exp==='ganti') rows.push('- '+nm+': '+(pv?'~'+pv+'~ → ':'')+(av||'-')+' _(tidak diganti)_'+ket);
+  else if(av||ket) rows.push('- '+nm+': '+(av||'-')+ket); }
 function kfWaParts(p){ const P=kfPlanOf(p), C=(p.conf&&p.conf.chk)||null, PS=P.specs||{}, AS=p.specs||{}, L=[];
+  const V2=!!(p.conf&&p.conf.v===2), VR={}; if(V2) kfVarRows(p).forEach(r=>{ VR[r.part]=r; });
   const chg={}; if(!C) kfDiff(p).forEach(d=>{ if(d.k!=='mp'&&d.k!=='date'&&d.k!=='shift'&&d.k!=='ro') chg[d.l]=1; });
   const all=kfParts(Object.keys(Object.assign({},PS,AS))), seen=new Set();
   const areas=Object.keys(CFG.jcAreas||{}).map(a=>({area:a,parts:(CFG.jcAreas[a]||[]).filter(x=>x&&!seen.has(x)&&(seen.add(x),true))}));
   const rest=all.filter(x=>!seen.has(x)); if(rest.length) areas.push({area:'Lainnya',parts:rest});
   areas.forEach(g=>{ const rows=[];
-    g.parts.forEach(pt=>{ const pv=kfWaCl(PS[pt]), av=kfWaCl(AS[pt]), c=C&&C.specs&&C.specs[pt];
+    g.parts.forEach(pt=>{ if(V2){ const r=VR[pt]; if(r) kfWaV2(rows,r); return; }
+      const pv=kfWaCl(PS[pt]), av=kfWaCl(AS[pt]), c=C&&C.specs&&C.specs[pt];
       const ganti=c?c.st==='ganti':(!!chg[pt]||jcfKey(pv)!==jcfKey(av)), ket=c?kfWaKet(c.ket):'';
       if(ganti&&jcfKey(pv)!==jcfKey(av)) rows.push('- '+kfWaCl(pt)+': '+(pv?'~'+pv+'~ → ':'')+'*'+(av||'dilepas')+'*'+ket);
       else if(ganti) rows.push('- '+kfWaCl(pt)+': *'+(av||pv||'diganti')+'* _(diganti)_'+ket);
@@ -4866,10 +4912,11 @@ function kfWaCopy(){ const txt=kfWaCur(); if(!txt) return; const ok=()=>toast('�
   if(navigator.clipboard&&window.isSecureContext) navigator.clipboard.writeText(txt).then(ok,fb); else fb(); }
 function kfWaSend(){ const txt=kfWaCur(); if(!txt) return; window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank','noopener'); }
 function kfUndoId(id){ const p=kfPlan(id); if(!p||!p.conf) return;
-  if(!confirm('Batalkan verifikasi JC '+(p.machine||'')+' ?\nIsian kembali ke plan asli'+((p.varApplied||p.roasterApplied)?' dan record yang tercatat disesuaikan':'')+'. Ceklist tekanan tetap tersimpan.')) return;
+  if(!confirm('Batalkan verifikasi JC '+(p.machine||'')+' ?\nIsian kembali ke plan asli'+((p.varApplied||p.roasterApplied)?' dan record JC ini dihapus dari Input Data':'')+'. Ceklist tekanan tetap tersimpan.')) return;
   const before=auditSnap('jcplan',p), oldM=p.machine||p.line, oldD=p.jcDate;
   if(p.plan0){ KF_FIELDS.forEach(k=>{ if(Object.prototype.hasOwnProperty.call(p.plan0,k)) p[k]=kfClone(p.plan0[k]); }); delete p.plan0; }
   if(p.conf.st==='tunda') p.postponed=false; delete p.conf;
+  jcRecClear(p);   /* record JC hanya ada bila JC terverifikasi */
   kfResync(p,oldM,oldD);
   auditLog('edit','jcplan',(oldM||'-')+' · '+(oldD||'-'),before,auditSnap('jcplan',p),'Verifikasi JC dibatalkan');
   saveAll(); window._kfEdit=null; window._jccEdit=null; toast('Verifikasi dibatalkan — kembali ke plan'); render(); }
@@ -5009,11 +5056,11 @@ function kfRepData(p){ const c=p.conf||{}, tunda=!!(p.postponed||c.st==='tunda')
     ['Machine speed',tunda?'':cl(c.speed)],['Shear cut',tunda?'':cl(c.shear)]].filter(f=>f[1]);
   if(tunda) return kfRepFoot(D,p);
   /* rekap plan: hanya baris yang dipilih Sama / Ganti */
-  const E=kfMkEdit(p), AS=p.specs||{};
+  const E=kfMkEdit(p), AS=p.specs||{}, V2=!!(c&&c.v===2);
   E.groups.forEach(gp=>{ const it=[];
     gp.idx.forEach(i=>{ const r=E.rows[i];
-      if(r.t==='s'){ const x=E.chk[r.part]; if(!x||!x.st) return; const pv=kfSpecTxt(r.pv), av=kfSpecTxt(AS[r.part]), df=x.st==='ganti'&&jcfKey(pv)!==jcfKey(av);
-        it.push({n:r.part,pl:pv,strike:df&&!!pv,st:x.st,act:df?(av||'dilepas'):'',ket:cl(x.ket)}); }
+      if(r.t==='s'){ const x=E.chk[r.part]; if(!x||!x.st) return; const pv=kfSpecTxt(r.pv), av=kfSpecTxt(AS[r.part]), df=jcfKey(pv)!==jcfKey(av)&&(V2||x.st==='ganti');
+        it.push({n:r.part,pl:pv,strike:df&&!!pv,st:x.st,act:df?(av||(x.st==='ganti'?'dilepas':'-')):'',ket:cl(x.ket)}); }
       else { const o=E.ro[r.i]; if(!o||!o.st) return; const a=o.ns?'non-section':(kfSecTxt(o.ps)||'—'), b=kfSecTxt(o.sections), df=o.st==='ganti'&&!o.ns&&a!==(b||'—');
         it.push({n:o.part,pl:a,strike:df,st:o.st,act:df?(b||'tidak dikerjakan'):'',ket:cl(o.ket)}); } });
     if(it.length) D.groups.push({a:gp.ro?'ROASTER PLAN':String(gp.area||'').toUpperCase(),it}); });
@@ -5812,8 +5859,10 @@ function syncRoasterPlan(plan){
   // add desired records that don't exist yet
   desired.forEach(k=>{ const idx=k.indexOf('\u0001'); const section=k.slice(0,idx), part=k.slice(idx+1);
     const ex=DB.find(x=>x.machine===machine&&x.section===section&&x.part===part&&x.date===date);
-    if(ex){ if(ex.reason==='Roaster'&&ex._jc==null) ex._jc=plan.id; }   // adopt matching, leave manual records untouched
+    if(ex){ if(ex.reason==='Roaster'&&ex._jc==null) ex._jc=plan.id;   // adopt matching, leave manual records untouched
+      else if(ex._jcv===plan.id){ delete ex._jcv; ex._jc=plan.id; ex.reason='Roaster'; } }   // variabel JC di section yang sama → cukup 1 record Roaster
     else { DB.push({id:newRecId(),date,machine,section,part,reason:'Roaster',pic:shift,_jc:plan.id}); added++; } });
+  if(removed&&plan.varApplied) syncJCVarPlan(plan);   // roaster batal di suatu section → perubahan variabel di section itu tetap tercatat
   return {added,removed};
 }
 /* ============ PERUBAHAN VARIABEL JC -> RECORD ============
@@ -5840,7 +5889,28 @@ function jcVarPerSec(d){ return String(d&&d.area||'').trim().toUpperCase()==='MA
 
 
 
-function jcVarPicked(plan){ return jcVarChanges(plan).list.filter(d=>!jcVarSkipped(plan,d.part)); }
+function jcVarPicked(plan){
+  /* sudah diverifikasi → yang dicatat = variabel yang dipilih GANTI (memang diganti saat JC), apa pun isi plan-nya */
+  const cf=plan&&plan.conf;
+  if(cf&&cf.st&&cf.st!=='tunda'&&cf.chk&&cf.chk.specs)
+    return kfVarRows(plan).filter(r=>r.st==='ganti'&&r.av).map(r=>({area:jcVarAreaOf(r.part),part:r.part,oldV:r.bv,newV:r.av,status:r.bv?'change':'add'}));
+  return jcVarChanges(plan).list.filter(d=>!jcVarSkipped(plan,d.part)); }
+function jcVarAreaOf(v){ const A=CFG.jcAreas||{}; return Object.keys(A).find(a=>(A[a]||[]).indexOf(v)>=0)||'LAINNYA'; }
+/* ===== Variabel JC → part dashboard (tanpa setting tambahan) =====
+   Nama variabel Planning JC dicocokkan dengan nama part dashboard (Settings → area & part). Pencocokan
+   mengabaikan huruf besar/kecil, spasi & tanda baca, dan "T/O" = "Take Out" (mis. "Neck Ring Arm" = "Neckring Arm").
+   Cocok  → record memakai nama part dashboard → countdown part itu reset di tanggal JC.
+   Tidak cocok → record tetap tersimpan sebagai riwayat JC, tapi TIDAK ikut countdown dashboard. */
+function jcVarLinkMap(){ const m={}; (CFG.parts||[]).forEach(p=>{ const k=jcRoNorm(p); if(k&&!(k in m)) m[k]=p; }); return m; }
+function jcVarLinkOf(v,M){ return (M||jcVarLinkMap())[jcRoNorm(v)]||null; }
+/* record yang diinginkan untuk plan: Map 'section␁part' → nama variabel (reason) */
+function jcVarDesired(plan){
+  const secs=jcVarSecs(plan), picks=jcVarPicked(plan), M=jcVarLinkMap(), out=new Map();
+  /* section+part yang di-roaster plan ini: record Roaster sudah mereset countdown → tidak dibuat dobel */
+  const ro=new Set(); if(plan.roasterApplied) (plan.roasterPlan||[]).forEach(r=>(r.sections||[]).forEach(s=>ro.add(s+'\u0001'+r.part)));
+  picks.forEach(d=>{ const lk=M[jcRoNorm(d.part)]||null, part=lk||d.part, per=jcVarPerSec(d)||(lk&&!jcRoIsNs(lk));
+    (per?secs:[JCVAR_NOSEC]).forEach(sc=>{ const k=sc+'\u0001'+part; if(!ro.has(k)&&!out.has(k)) out.set(k,d.part); }); });
+  return out; }
 /* reason = nama variabel yang berubah, otomatis terdaftar di bab Job Change */
 function rgRegisterJC(part){
   CFG.reasonGroupOf=CFG.reasonGroupOf||{};
@@ -5850,20 +5920,16 @@ function rgRegisterJC(part){
 function syncJCVarPlan(plan){
   if(!plan||!plan.varApplied) return {added:0,removed:0};
   const machine=plan.machine||plan.line, date=plan.jcDate, shift=(plan.shift||'');
-  const secs=jcVarSecs(plan), picks=jcVarPicked(plan);
-  const desired=new Set();
-  picks.forEach(d=>{
-    if(jcVarPerSec(d)) secs.forEach(sc=>desired.add(sc+'\u0001'+d.part));
-    else desired.add(JCVAR_NOSEC+'\u0001'+d.part);          // feeder / ware handling: satu record saja
-  });
+  const desired=jcVarDesired(plan);   // section␁part(dashboard) → nama variabel
   let added=0,removed=0;
   for(let i=DB.length-1;i>=0;i--){ const r=DB[i];
     if(r._jcv===plan.id && !(r.machine===machine && r.date===date && desired.has(r.section+'\u0001'+r.part))){ DB.splice(i,1); removed++; } }
-  desired.forEach(k=>{ const ix=k.indexOf('\u0001'); const section=k.slice(0,ix), part=k.slice(ix+1);
+  desired.forEach((v,k)=>{ const ix=k.indexOf('\u0001'); const section=k.slice(0,ix), part=k.slice(ix+1);
     const ex=DB.find(x=>x.machine===machine&&x.section===section&&x.part===part&&x.date===date);
-    if(ex){ if(ex._jcv==null&&ex._jc==null) ex._jcv=plan.id; }   // pakai yang sudah ada, jangan dobel
-    else { DB.push({id:newRecId(),date,machine,section,part,reason:part,pic:shift,_jcv:plan.id}); added++; }
-    rgRegisterJC(part); });
+    if(ex){ if(ex._jcv===plan.id){ if(ex.reason!==v) ex.reason=v; }
+      else if(ex._jcv==null&&ex._jc==null&&rgKey(ex.reason)===rgKey(v)) ex._jcv=plan.id; }   // record manual (trouble dll.) di hari itu tidak diambil alih
+    else { DB.push({id:newRecId(),date,machine,section,part,reason:v,pic:shift,_jcv:plan.id}); added++; }
+    rgRegisterJC(v); });
   return {added,removed};
 }
 /* Tanda di tabel Plan JC — sejajar dengan tanda ♻️ roaster.
@@ -5879,6 +5945,29 @@ function syncJCVarPlan(plan){
 /* Migrasi satu kali: record variabel feeder/ware handling yang terlanjur dibuat
    per-section dirapikan menjadi satu record ber-section '-'. Idempoten (berbasis
    desired-set milik syncJCVarPlan), hanya menyentuh record ber-tanda _jcv. */
+/* Record variabel JC lama (dulu dari tombol Catat) disesuaikan dengan nama part dashboard.
+   Hanya mengubah di tempat / menghapus duplikat (deterministik di semua perangkat) — tidak menambah record baru. */
+function jcvRealign(){
+  try{
+    const M=jcVarLinkMap(), V=new Set(); Object.values(CFG.jcAreas||{}).forEach(a=>(a||[]).forEach(v=>V.add(rgKey(v))));
+    let ren=0, rel=0, del=0;
+    DB.forEach(r=>{ if(!r||r._jcv==null) return; const v=String(r.reason||''), lk=M[jcRoNorm(v)]||null;
+      if(!V.has(rgKey(v))&&r.part!==v&&lk!==r.part){ delete r._jcv; rel++; return; }   // record manual yang dulu terambil alih JC → dilepas
+      const want=lk||v; if(r.part!==want){ r.part=want; ren++; } });
+    const G={}; DB.forEach((r,i)=>{ if(!r) return; const k=r.machine+'|'+r.section+'|'+r.part+'|'+r.date; (G[k]=G[k]||[]).push(i); });
+    const drop=new Set();
+    Object.values(G).forEach(ix=>{ if(ix.length<2) return; const jv=ix.filter(i=>DB[i]._jcv!=null); if(!jv.length) return;
+      if(jv.length<ix.length) jv.forEach(i=>drop.add(i));   // sudah ada record Roaster / manual di hari & section yang sama
+      else jv.sort((a,b)=>String(DB[a].id).localeCompare(String(DB[b].id))).slice(1).forEach(i=>drop.add(i)); });
+    if(drop.size){ DB=DB.filter((r,i)=>!drop.has(i)); del=drop.size; }
+    if(ren||rel||del){
+      try{ auditLog('edit','record','Variabel JC → part dashboard',{keterangan:'nama variabel JC'},{keterangan:'nama part dashboard'},ren+' record memakai nama part dashboard'+(del?' · '+del+' record ganda dihapus':'')+(rel?' · '+rel+' record manual dilepas dari JC':'')); }catch(e){}
+      saveAll(); }
+  }catch(e){ console.error('jcvRealign:',e); } }
+/* hapus semua record JC milik plan (JC ditunda / verifikasi dibatalkan → belum ada pergantian yang sah) */
+function jcRecClear(p){ let n=0; if(!p) return 0;
+  for(let i=DB.length-1;i>=0;i--){ const r=DB[i]; if(r&&(r._jcv===p.id||r._jc===p.id)){ DB.splice(i,1); n++; } }
+  p.varApplied=false; p.roasterApplied=false; return n; }
 function jcVarAreaMigrate(){
   try{
     if(CFG._jcvAreaFix) return;
@@ -6189,14 +6278,13 @@ function jccHdr(field,val,struct){ window._jccEdit[field]=val; if(struct) render
 function jccTypeName(t){ const m={pu:'Plunger Up',cb:'Counter Blow',vb:'Vertiblow'}; return m[t]||t; }
 function jccChipId(kind,a,b,c){ return 'jccchip_'+kind+'_'+a+'_'+(b||'')+'_'+(c||''); }
 /* desktop = perangkat ber-mouse → isi tekanan dengan mengetik angka; HP / tablet (layar sentuh) → tekan & geser */
-function jccHint(){ return jccDesk()
-  ?'<b>Ketik tekanan (bar, 0–5)</b> — Enter = lanjut ke kotak berikutnya · 24 = 2,4 · ↑ ↓ = ±0,1. <b>Klik 2×</b> = ⚠ gauge trouble.'
-  :'<b>Tekan angka lalu geser ◀ ▶</b> — pelan = halus · cepat = loncat · mentok di tepi layar? <b>tahan</b> = terus naik / turun · lepas jari = pilih. <b>Ketuk 2×</b> = ⚠ gauge trouble.'; }
+function jccHint(){ return '<b>Ketik angka tekanan (bar, 0–5)</b> — '+(jccDesk()?'Enter':'Enter / Next')+' = kotak berikutnya · 24 = 2,4. <b>'+(jccDesk()?'Klik':'Ketuk')+' 2×</b> = ⚠ gauge trouble.'; }
 function jccDesk(){ try{ return window.matchMedia('(hover: hover) and (pointer: fine)').matches; }catch(e){ return false; } }
 function jccPresChip(kind,a,b,c,label,val){ const id=jccChipId(kind,a,b,c); const filled=(val!==''&&val!=null); const shown=filled?jccDisp(val):'–';
   let bad=false; try{ bad=kind==='p'?!!jccGetCell(a,b)[c+'Bad']:!!jccGetG(a).bad; }catch(e){}
   const lab=esc(String(label||''));
-  if(jccDesk()) return '<span class="jcc-iw'+(bad?' bad':'')+'" title="'+lab+(bad?' · ⚠ gauge trouble':'')+'"><input type="text" inputmode="decimal" autocomplete="off" spellcheck="false" maxlength="6" id="'+id+'" class="jcc-in'+(filled?' on':'')+'" value="'+(filled?esc(jccDisp(val)):'')+'" placeholder="–" data-kind="'+kind+'" data-a="'+esc(a)+'" data-b="'+esc(b||'')+'" data-c="'+esc(c||'')+'" data-lab="'+lab+'" aria-label="'+lab+' ('+jccSc({kind:kind,a:a}).unit+')"></span>';
+  /* semua perangkat: kotak isian angka (HP → keyboard angka) */
+  if(true) return '<span class="jcc-iw'+(bad?' bad':'')+'" title="'+lab+(bad?' · ⚠ gauge trouble':'')+'"><input type="text" inputmode="'+(jccSc({kind:kind,a:a}).min<0?'text':'decimal')+'" enterkeyhint="next" autocomplete="off" spellcheck="false" maxlength="6" id="'+id+'" class="jcc-in'+(filled?' on':'')+'" value="'+(filled?esc(jccDisp(val)):'')+'" placeholder="–" data-kind="'+kind+'" data-a="'+esc(a)+'" data-b="'+esc(b||'')+'" data-c="'+esc(c||'')+'" data-lab="'+lab+'" aria-label="'+lab+' ('+jccSc({kind:kind,a:a}).unit+')"></span>';
   return '<button type="button" id="'+id+'" class="jcc-chip'+(filled?' on':'')+(bad?' bad':'')+'" data-kind="'+kind+'" data-a="'+esc(a)+'" data-b="'+esc(b||'')+'" data-c="'+esc(c||'')+'" data-lab="'+lab+'" aria-label="'+lab+' ('+jccSc({kind:kind,a:a}).unit+')">'+shown+'</button>'; }
 function jccCell(type,sec,col){ const c=jccGetCell(type,sec); return jccPresChip('p',type,sec,col,jccTypeName(type)+' · '+sec+' · '+jccColLabel(col),c[col]||''); }
 function jccTable(type,label){ const e=window._jccEdit; const secs=sectionsOf(e.machine); const cols=jccCols(e.cd);
@@ -6616,7 +6704,10 @@ function jccSeed(t){ const e=window._jccEdit, sc=jccSc(t); if(!e) return jccValI
     const d={ArrowUp:1,ArrowDown:-1}[ev.key];
     if(d){ ev.preventDefault(); const t=jccChipRef(el), sc=jccSc(t), p=jccParseIn(el.value,sc), cur=jccValIdx(p===null?jccGetVal(t):p,sc);
       const i=cur==null?jccSeed(t):Math.max(0,Math.min(jccScN(sc),cur+d*(ev.shiftKey?5:1))); el.value=jccFmt(i,sc); jccInCommit(el); try{ el.select(); }catch(_){} } });
-  document.addEventListener('dblclick',function(ev){ const el=ev.target; if(!isIn(el)||!window._jccEdit) return; jccToggleBad(jccChipRef(el),el); try{ el.select(); }catch(_){} });
+  document.addEventListener('dblclick',function(ev){ const el=ev.target; if(!isIn(el)||!window._jccEdit) return; if(Date.now()-(window._jccTap2||0)<700) return; jccToggleBad(jccChipRef(el),el); try{ el.select(); }catch(_){} });
+  /* HP: ketuk 2× kotak tekanan = tandai / batal ⚠ gauge trouble */
+  let tap=null; document.addEventListener('pointerup',function(ev){ if(ev.pointerType==='mouse') return; const el=ev.target; if(!isIn(el)||!window._jccEdit) return;
+    const now=Date.now(); if(tap&&tap.el===el&&now-tap.t<350){ tap=null; window._jccTap2=now; jccToggleBad(jccChipRef(el),el); return; } tap={el,t:now}; },true);
 })();
 /* ketik bebas: "2.4" / "2,4" / "24" (= 2,4) / "3" (= 3,0) · batas 0–5 bar · kosong = hapus */
 function jccParseIn(s,sc){ sc=sc||JCC_BAR; s=String(s==null?'':s).trim().replace(',','.'); if(!s) return '';
@@ -6665,6 +6756,7 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
   window.addEventListener('unhandledrejection',function(ev){ try{ console.warn('Promise ditolak (diabaikan, data aman):', ev&&ev.reason); }catch(_){ } });
   try{ await loadAll(); }catch(e){ console.error('loadAll failed:',e); }
   try{ syncInstallGuards(); }catch(e){ console.error(e); }   /* fungsi Admin (Master, impor, reset, denah) → minta PIN Admin bagi Operator */
+  try{ jcvRealign(); }catch(e){ console.error(e); }
   try{ jcVarAreaMigrate(); }catch(e){ console.error(e); }
   try{ Cloud.dirty = (localStorage.getItem('pm_dirty')==='1'); }catch(e){}   // pulihkan status "belum tersinkron" setelah reload → lindungi input lokal
   try{ var _lr0=parseInt(localStorage.getItem('pm_lastrev'),10); Cloud.lastRev=isNaN(_lr0)?null:_lr0; }catch(e){}   // pulihkan revisi cloud terakhir yang sudah diserap
@@ -7398,6 +7490,11 @@ body.soft .kf-box{border:0}
 .kf-tg.add{color:var(--blue);background:color-mix(in srgb,var(--blue) 14%,transparent)}
 .kf-tg.rem{color:var(--red);background:color-mix(in srgb,var(--red) 13%,transparent)}
 .kf-tg.ro{color:var(--accent2);background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.kf-rw.dev{box-shadow:inset 3px 0 0 var(--orange)}
+.kf-gx.kf-gxv{flex-direction:row;align-items:center;gap:8px}
+.kf-gx.kf-gxv .kf-gl{flex:0 0 auto}
+.kf-gx.kf-gxv select.kf-val{flex:1 1 auto;min-width:0;max-width:260px;min-height:34px;padding:4px 10px;border-radius:10px;font-weight:700}
+.kf-rw .kf-ket.need{border:1px solid var(--orange)!important}
 .kf-sg{display:inline-flex;gap:3px;padding:3px;border-radius:999px;background:var(--panel);box-shadow:var(--neu-in-sm,none)}
 .kf-sgb{min-width:60px;height:32px;padding:0 12px;border:0;border-radius:999px;background:transparent;color:var(--txt2);font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;transition:background-color .15s,color .15s}
 .kf-sgb.s.on{background:var(--green);color:#062312}
@@ -7534,7 +7631,8 @@ html[data-app="jcc"] #bellBtn,html[data-app="jcc"] #bellPop,html[data-app="jcc"]
   .kf-gp{grid-template-columns:minmax(0,1fr)}
   .kf-pt .jcc-chip{max-width:none;min-height:44px;font-size:16px}   /* sel lebar & tinggi: mudah ditekan lalu digeser */
   .kf-gpv .jcc-chip{min-width:112px;min-height:42px;font-size:16px}
-  .kf-pt{padding-right:max(10px,14%)}   /* ruang kosong di kanan → jari leluasa geser ke kanan (naik), tidak bentrok gesture tepi layar */
+  .kf-form .kf-pt input.jcc-in,.kf-form .kf-gpv input.jcc-in{min-height:42px;font-size:16px!important}   /* HP: kotak isian mudah diketuk, tanpa zoom */
+  .kf-gpv .jcc-iw{width:112px}
   .kf-gp>div{padding-right:4px}
 }
 @media(max-width:380px){ .kf-pt .jcc-chip{min-width:40px;padding:6px 4px} }

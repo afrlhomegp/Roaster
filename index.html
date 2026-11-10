@@ -2926,7 +2926,7 @@ function rgCount(list){
 function rgMove(reason,gid){ rgSet(reason,gid); saveAll(); toast('"'+reason+'" → bab '+rgById(gid).name); render(); }
 function rgRebuild(){ CFG.reasonGroupOf={}; migrateReasonGroups(); saveAll(); toast('Bab reason disusun ulang'); render(); }
 // Hitung reason aktual per part dari DB: {part:{reason:count}}
-function partReasonStats(){ const m={}; DB.forEach(r=>{ const p=r.part, rs=String(r.reason||'').trim(); if(!p||!rs)return; m[p]=m[p]||{}; m[p][rs]=(m[p][rs]||0)+1; }); return m; }
+function partReasonStats(){ const m={}; DB.forEach(r=>{ const p=r.part, rs=String(r.reason||'').trim(); if(!p||!rs||r._jcv!=null)return; m[p]=m[p]||{}; m[p][rs]=(m[p][rs]||0)+1; }); return m; }
 // Bangun daftar reason yang diizinkan per part dari data. merge=true → gabung dgn yang sudah ada (tidak menghapus tambahan manual)
 function analyzePartReasons(merge){ const stats=partReasonStats(); if(!CFG.partReasons||typeof CFG.partReasons!=='object')CFG.partReasons={};
   Object.keys(stats).forEach(p=>{ const cur=merge?(CFG.partReasons[p]||[]).slice():[];
@@ -3821,19 +3821,21 @@ function fmtD(d){ if(!d)return'—'; const x=(d instanceof Date)?d:parseD(d); re
 
 // enrich records with category & sorted; compute actual lifetime
 function enriched(){
-  const list=DB.map((r,i)=>{const g=rgOf(r.reason);return {...r,_i:i,cat:g.name,gid:g.id,planned:!!g.planned,lt:lifetimeOf(r.part,r.machine),d:parseD(r.date)};});
+  const PP=CFG.parts||[], list=DB.map((r,i)=>{const g=r._jcv!=null?rgById('jc'):rgOf(r.reason);return {...r,_i:i,hist:r._jcv!=null&&PP.indexOf(r.part)<0,cat:g.name,gid:g.id,planned:!!g.planned,lt:lifetimeOf(r.part,r.machine),d:parseD(r.date)};});
   // actual lifetime = gap from previous same combo
   const groups={};
   [...list].sort((a,b)=>a.d-b.d).forEach(r=>{
     const k=r.machine+'|'+r.section+'|'+r.part;
-    r.actual = groups[k]!==undefined ? daysBetween(groups[k],r.d) : null;
+    r.actual = (groups[k]!==undefined && r._jcv==null) ? daysBetween(groups[k],r.d) : null;   // dilepas karena JC ≠ aus → bukan umur aktual
     groups[k]=r.d;
   });
   return list;
 }
+/* record untuk statistik penggantian: tanpa variabel JC yang tidak punya part dashboard (tetap ada di Input Data, Excel & Riwayat JC) */
+function enrichedPM(){ return enriched().filter(r=>!r.hist); }
 // monitoring: latest per machine|section|part combo (only combos that exist in data)
 function monitoring(){
-  const list=enriched(); const combo={};
+  const P=CFG.parts||[], list=enriched().filter(r=>r._jcv==null||P.indexOf(r.part)>=0); const combo={};   /* variabel JC tanpa part dashboard = riwayat saja */
   list.forEach(r=>{
     const k=r.machine+'|'+r.section+'|'+r.part;
     if(!combo[k]||r.d>combo[k].last){ combo[k]=combo[k]||{machine:r.machine,section:r.section,part:r.part,count:0,trouble:0}; }
@@ -3865,7 +3867,7 @@ function normReason(s){ if(!s)return ''; let x=String(s).trim().toLowerCase().re
   return x;
 }
 function comboRecords(machine,section,part){ return enriched().filter(r=>r.machine===machine&&(section==null||section==='*'||r.section===section)&&r.part===part).sort((a,b)=>a.d-b.d); }
-function intervalsOf(recs){ const out=[]; for(let i=1;i<recs.length;i++) out.push({date:recs[i].d,gap:daysBetween(recs[i-1].d,recs[i].d),cat:recs[i].cat,reason:recs[i].reason}); return out; }
+function intervalsOf(recs){ const out=[]; for(let i=1;i<recs.length;i++) if(recs[i]._jcv==null) out.push({date:recs[i].d,gap:daysBetween(recs[i-1].d,recs[i].d),cat:recs[i].cat,reason:recs[i].reason}); return out; }
 function mtbfOf(recs){ if(!recs||recs.length<2)return null; let t=0; for(let i=1;i<recs.length;i++)t+=daysBetween(recs[i-1].d,recs[i].d); return t/(recs.length-1); }
 
 /* ============ UI HELPERS ============ */
@@ -4172,7 +4174,7 @@ function machineSchedule(sel){var list=enriched().filter(function(r){return r.ma
   list.forEach(function(r){var k=r.section+'|'+r.part; if(!g[k])g[k]={section:r.section,part:r.part,sched:[],trbl:[]}; if(r.planned)g[k].sched.push(r); else g[k].trbl.push(r);});
   var map={}; Object.keys(g).forEach(function(k){var o=g[k]; var lt=lifetimeOf(o.part,sel); o.sched.sort(function(a,b){return a.d-b.d;}); o.trbl.sort(function(a,b){return b.d-a.d;});
     var lastSched=o.sched.length?o.sched[o.sched.length-1].d:null; var nd=lastSched?new Date(lastSched.getTime()+lt*86400000):null; var rem=nd?daysBetween(TODAY,nd):null; var status=rem===null?'NO DATA':statusOf(rem,o.part,sel);
-    map[k]={section:o.section,part:o.part,lt:lt,lastSched:lastSched,nextDue:nd,rem:rem,status:status,count:o.sched.length+o.trbl.length,trouble:o.trbl.length,troubleList:o.trbl.map(function(r){return {date:r.date,reason:r.reason};}),schedList:o.sched.slice().reverse().map(function(r){return {date:r.date,reason:r.reason};})};});
+    map[k]={section:o.section,part:o.part,lt:lt,lastSched:lastSched,nextDue:nd,rem:rem,status:status,count:o.sched.length+o.trbl.length,trouble:o.trbl.length,troubleList:o.trbl.map(function(r){return {date:r.date,reason:r.reason};}),schedList:o.sched.slice().reverse().map(function(r){return {date:r.date,reason:r.reason,jc:r._jcv!=null};})};});
   return map; }
 const THEMES=[['dark','🌙 Gelap'],['light','☀️ Terang']];
 function applyTheme(){ let t=CFG.theme||'dark';
@@ -4275,7 +4277,8 @@ function setMpRate(gk,v){ CFG.mpRate=Object.assign({},CFG.mpRate||{}); const n=p
 /* variabel yang berubah di JC ini dibanding JC sebelumnya di mesin yang sama (ganti / pasang / lepas) */
 function mpPrevPlan(p){ return jcBaseOf(p); }   /* aturan pembanding yang sama dgn form JC (trial dulu, tanpa trial/ditunda) */
 /* JC pertama di suatu mesin: kondisi sebelumnya tidak diketahui → variabel tidak dihitung (prev:false) */
-function mpPlanVars(p){ const prev=mpPrevPlan(p); if(!prev) return {by:{},prev:false,tot:0}; const d=transitionDiff(prev,p).filter(x=>x.status!=='same'); const by={}; d.forEach(x=>{ by[x.area]=(by[x.area]||0)+1; }); return {by,prev:true,tot:d.length}; }
+function mpPlanVars(p){ const prev=mpPrevPlan(p), ver=kfIsConf(p)&&p.conf.chk&&p.conf.chk.specs; if(!prev&&!ver) return {by:{},prev:false,tot:0};
+  const d=ver?kfVarRows(p).filter(r=>r.st==='ganti').map(r=>({area:jcVarAreaOf(r.part)})):transitionDiff(prev,p).filter(x=>x.status!=='same'); const by={}; d.forEach(x=>{ by[x.area]=(by[x.area]||0)+1; }); return {by,prev:true,tot:d.length}; }
 function mpGroupVars(V,g){ return g.areas.reduce((a,ar)=>a+(V.by[ar]||0),0); }
 /* kecepatan aktual dari JC yang jam kerjanya diisi: Σ(variabel ÷ jumlah orang) ÷ Σ jam */
 function mpActualRate(gk){ const g=jcfMpGroups().find(x=>x.key===gk); if(!g) return null; let v=0,h=0,n=0; const to=ymd(TODAY);
@@ -4516,13 +4519,15 @@ function updateFsBtn(){ var on=!!fsElement(); document.body.classList.toggle('is
   var b=document.getElementById('fsBtn'); if(b) b.title = on?'Keluar layar penuh (F / Esc)':'Layar penuh (F)'; }
 /* umur aktual antar penggantian vs target lifetime — untuk popup detail cell */
 function withGaps(sched,trbl){ var all=[];
-  (sched||[]).forEach(function(z){all.push({date:z.date,reason:z.reason,t:'s'});});
+  (sched||[]).forEach(function(z){all.push({date:z.date,reason:z.reason,t:'s',jc:!!z.jc});});
   (trbl||[]).forEach(function(z){all.push({date:z.date,reason:z.reason,t:'t'});});
   all.sort(function(a,b){return parseD(a.date)-parseD(b.date);});
   var prev=null;
   all.forEach(function(z){ var d=parseD(z.date); z.gap=(prev!=null)?daysBetween(prev,d):null; prev=d; });
   return all;
 }
+/* part dilepas karena Job Change → bukan umur aktual (sama dengan Analysis) */
+function lifeChipZ(z,lt){ return z&&z.jc?'<span class="mono" style="font-size:11px;white-space:nowrap;color:var(--txt3)" title="Dilepas karena Job Change — tidak dihitung sebagai umur aktual">🔧 JC</span>':lifeChip(z&&z.gap,lt); }
 function lifeChip(gap,lt){ if(gap==null)return'';
   var pct=Math.round(gap/lt*100);
   var c=gap>=lt?'var(--green)':(gap>=lt/2?'var(--yellow)':'var(--red)');
@@ -4532,7 +4537,7 @@ function openCell(sec,part){var k=sec+'|'+part; var x=(window._mSchedMap||{})[k]
   var lt=lifetimeOf(part,sel);
   var all=withGaps(sched,trbl).reverse();
   var S=all.filter(function(z){return z.t==='s';}), T=all.filter(function(z){return z.t==='t';});
-  var rc=function(z,c){return '<div class="xrowc"><span class="mono" style="color:'+c+'">'+fmtD(parseD(z.date))+'</span><span style="color:var(--txt2);flex:1">'+(z.reason||'-')+'</span>'+lifeChip(z.gap,lt)+'</div>';};
+  var rc=function(z,c){return '<div class="xrowc"><span class="mono" style="color:'+c+'">'+fmtD(parseD(z.date))+'</span><span style="color:var(--txt2);flex:1">'+(z.reason||'-')+'</span>'+lifeChipZ(z,lt)+'</div>';};
   var remc=(x.rem<0?'var(--red)':x.rem<=7?'var(--orange)':x.rem<=14?'var(--yellow)':'var(--green)');
   var rp=roasterPlanFor(sel,sec,part);
   document.getElementById('cbox').innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px"><b style="font-size:15px">'+sel+' \u00b7 '+sec+' \u00b7 '+part+'</b><button class="btn sec sm" style="margin-left:auto" onclick="openComboHistory(\''+sel+'\',\''+sec+'\',\''+part+'\')">\ud83d\udcc8 Trend</button><button class="x" onclick="closeCmodal()">\u2715</button></div>'
@@ -4636,7 +4641,7 @@ function machinePartStatus(sel,part){
   var lt=lifetimeOf(part,sel); var lastSched=sched.length?sched[sched.length-1].d:null;
   var nd=lastSched?new Date(lastSched.getTime()+lt*86400000):null; var rem=nd?daysBetween(TODAY,nd):null;
   var status=rem===null?'NO DATA':statusOf(rem,part,sel);
-  return {part:part,lt:lt,lastSched:lastSched,nextDue:nd,rem:rem,status:status,count:sched.length+trbl.length,trouble:trbl.length,troubleList:trbl.map(function(r){return {date:r.date,reason:r.reason};}),schedList:sched.slice().reverse().map(function(r){return {date:r.date,reason:r.reason};})};
+  return {part:part,lt:lt,lastSched:lastSched,nextDue:nd,rem:rem,status:status,count:sched.length+trbl.length,trouble:trbl.length,troubleList:trbl.map(function(r){return {date:r.date,reason:r.reason};}),schedList:sched.slice().reverse().map(function(r){return {date:r.date,reason:r.reason,jc:r._jcv!=null};})};
 }
 function machPartRowHTML(sel,p){
   var x=machinePartStatus(sel,p);
@@ -4677,7 +4682,7 @@ function openMachPart(part){
   var lt=lifetimeOf(part,sel);
   var all=withGaps(sched,trbl).reverse();
   var S=all.filter(function(z){return z.t==='s';}), T=all.filter(function(z){return z.t==='t';});
-  var rc=function(z,c){return '<div class="xrowc"><span class="mono" style="color:'+c+'">'+fmtD(parseD(z.date))+'</span><span style="color:var(--txt2);flex:1">'+(z.reason||'-')+'</span>'+lifeChip(z.gap,lt)+'</div>';};
+  var rc=function(z,c){return '<div class="xrowc"><span class="mono" style="color:'+c+'">'+fmtD(parseD(z.date))+'</span><span style="color:var(--txt2);flex:1">'+(z.reason||'-')+'</span>'+lifeChipZ(z,lt)+'</div>';};
   var remc=(x.rem<0?'var(--red)':x.rem<=7?'var(--orange)':x.rem<=14?'var(--yellow)':'var(--green)');
   document.getElementById('cbox').innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px"><b style="font-size:15px">'+esc(sel)+' \u00b7 '+esc(part)+'</b><button class="btn sec sm" style="margin-left:auto" onclick="openComboHistory(\''+jsAttr(sel)+'\',\'*\',\''+jsAttr(part)+'\')">\ud83d\udcc8 Trend</button><button class="x" onclick="closeCmodal()">\u2715</button></div>'
     +'<div class="sub" style="margin-bottom:8px">Equipment level \u00b7 tanpa section (gabungan seluruh data part ini di mesin '+esc(sel)+').</div>'
@@ -4746,7 +4751,7 @@ function renderMachineModal(){
   const _prevScroll=(function(){const e=document.querySelector('#mbox .mscroll');return e?e.scrollTop:null;})();
   const sel=window._mSel; const schedMap=machineSchedule(sel); window._mSchedMap=schedMap;
   const sc={OVERDUE:0,URGENT:0,WARNING:0,OK:0}; monitoring().forEach(x=>{if(x.machine===sel&&sc[x.status]!==undefined)sc[x.status]++;});
-  const en=enriched().filter(r=>r.machine===sel); const total=en.length;
+  const en=enrichedPM().filter(r=>r.machine===sel); const total=en.length;
   const cat=rgCount(en);
   const troubleTot=cat.unplanned;
   const secs=sectionsOf(sel).filter(s=>window._mSecs.includes(s)); const parts=CFG.parts.filter(p=>window._mParts.includes(p));
@@ -4828,7 +4833,7 @@ function vMachine(){
   const machs=CFG.machines; const sel=window._selM||machs[0]; window._selM=sel;
   const mons=monitoring().filter(x=>x.machine===sel);
   const sc={OVERDUE:0,URGENT:0,WARNING:0,OK:0}; mons.forEach(x=>{if(sc[x.status]!==undefined)sc[x.status]++;});
-  const en=enriched().filter(r=>r.machine===sel);
+  const en=enrichedPM().filter(r=>r.machine===sel);
   const total=en.length, trouble=en.filter(r=>r.cat==='Trouble').length;
   const thisMonth=en.filter(r=>r.d.getMonth()===TODAY.getMonth()&&r.d.getFullYear()===TODAY.getFullYear()).length;
   const byPart={}; CFG.parts.forEach(p=>byPart[p]=0); en.forEach(r=>{byPart[r.part]=(byPart[r.part]||0)+1;});
@@ -5586,7 +5591,7 @@ function mssEl(){ let el=document.getElementById('mss'); if(el) return el;
 function mssUsable(){ const b=document.body.classList; return b.contains('mss-on')&&!b.contains('mmodal-open')&&!b.contains('dffilter-open'); }
 /* data sheet: di Dashboard ikut filter dashboard; dibuka dari halaman lain → semua mesin (seperti pop-up lama) */
 function mssCompute(scoped){ const m=scoped?dashScopeMon(monitoring()):monitoring(); const c={OVERDUE:0,URGENT:0,WARNING:0,OK:0}; m.forEach(x=>{ c[x.status]=(c[x.status]||0)+1; });
-  const en=scoped?dashScopeEn(enriched()):enriched(), MACHS=scoped?dashScopeMachines():(CFG.machines||[]).slice();
+  const en=scoped?dashScopeEn(enrichedPM()):enrichedPM(), MACHS=scoped?dashScopeMachines():(CFG.machines||[]).slice();
   const agg={}; MACHS.forEach(mm=>agg[mm]={o:0,u:0,w:0,ok:0,data:0});
   m.forEach(x=>{ const a=agg[x.machine]; if(!a) return; if(x.status==='OVERDUE')a.o++; else if(x.status==='URGENT')a.u++; else if(x.status==='WARNING')a.w++; else if(x.status==='OK')a.ok++; a.data++; });
   const secW={}; m.forEach(x=>{ const k=x.machine+'|'+x.section, r={OVERDUE:3,URGENT:2,WARNING:1,OK:0}[x.status]||0; if(secW[k]==null||r>secW[k]) secW[k]=r; });
@@ -5853,7 +5858,7 @@ function sumCol(W,S,maxH){ const padL=32, cw=(W-padL)/6, bw=Math.min(30,cw*.55),
 function vDash(){
   const m=dashScopeMon(monitoring());
   const c={OVERDUE:0,URGENT:0,WARNING:0,OK:0}; m.forEach(x=>c[x.status]++);
-  const en=dashScopeEn(enriched());
+  const en=dashScopeEn(enrichedPM());
   const MACHS=dashScopeMachines(), PARTS=dashScopeParts();
   const cat=rgCount(en);
   // ===== Planned Maintenance achievement: scheduled (planned) vs trouble/emergency (unplanned) =====
@@ -6024,6 +6029,18 @@ function kfPlanOf(p){ const o={}; KF_FIELDS.forEach(k=>{ o[k]=(p&&p.plan0&&Objec
 function kfSpecTxt(v){ return String(v==null?'':v).trim(); }
 function kfRoTxt(rows){ return (rows||[]).filter(r=>r&&r.part).map(r=>r.part+((r.sections||[]).length?' '+jcfSecRange(r.sections):'')).join(' · '); }
 function kfMpTxt(mp){ return jcfMpGroups().map(g=>mpSplit((mp||{})[g.key]).join(', ')).filter(Boolean).join(' · '); }
+/* baris variabel hasil verifikasi (semua versi data) → {part, pv=plan, bv=JC sebelumnya, av=aktual, exp, st, ket, dev}
+   exp / st : 'sama' = sama dengan JC sebelumnya di mesin ini · 'ganti' = diganti.  dev = beda dari plan (perlu alasan).
+   Data verifikasi lama (Sama/Ganti = sesuai / beda dari plan) dibaca dengan arti lamanya. */
+function kfExp(pv,bv,hb){ return (hb&&jcfKey(pv)!==jcfKey(bv))?'ganti':'sama'; }
+function kfVarRows(p){ const P=kfPlanOf(p), PS=P.specs||{}, AS=p.specs||{}, base=jcBaseOf(p), hb=!!base, BS=(base&&base.specs)||{};
+  const cf=(p.conf&&p.conf.st&&p.conf.st!=='tunda')?p.conf:null, C=(cf&&cf.chk&&cf.chk.specs)||null, v2=!!(cf&&cf.v===2);
+  return kfParts(Object.keys(Object.assign({},PS,AS))).map(k=>{ const pv=kfSpecTxt(PS[k]), bv=hb?kfSpecTxt(BS[k]):pv, av=kfSpecTxt(AS[k]), exp=kfExp(pv,bv,hb), c=C&&C[k];
+    let st=''; const ket=(c&&c.ket)?String(c.ket):'';
+    if(c&&(c.st==='sama'||c.st==='ganti')) st=v2?c.st:(c.st==='ganti'?'ganti':exp);
+    else if(cf&&!C&&(av||bv)) st=(hb&&jcfKey(av)===jcfKey(bv))?'sama':'ganti';      /* versi lama sekali: isian angka */
+    const dev=!!st&&(v2?(st!==exp||(st==='ganti'&&jcfKey(av)!==jcfKey(pv))):(!!(c&&c.st==='ganti')||jcfKey(av)!==jcfKey(pv)));
+    return {part:k,pv,bv,av,exp,st,ket,dev}; }); }
 /* daftar perbedaan plan → aktual
    p.conf.chk = pilihan rekap {specs:{part:{st:'sama'|'ganti',ket}}, ro:[{part,st,ket,sections}], add:[{part,sections,ns,ket}]}
    (konfirmasi lama tanpa chk: perbedaan dihitung dari isian aktual vs plan) */
@@ -6031,9 +6048,10 @@ function kfDiff(p){ if(!p||!p.plan0) return []; const P=p.plan0, out=[], C=(p.co
   const add=(k,l,a,b)=>{ if(String(a==null?'':a)!==String(b==null?'':b)) out.push({k,l,plan:a,act:b}); };
   add('date','Tanggal',P.jcDate?fmtD(parseD(P.jcDate)):'',p.jcDate?fmtD(parseD(p.jcDate)):'');
   add('shift','Shift',P.shift||'',p.shift||'');
-  const parts=[]; Object.keys(CFG.jcAreas||{}).forEach(a=>(CFG.jcAreas[a]||[]).forEach(x=>{ if(parts.indexOf(x)<0) parts.push(x); }));
-  Object.keys(P.specs||{}).concat(Object.keys(p.specs||{})).forEach(x=>{ if(parts.indexOf(x)<0) parts.push(x); });
-  parts.forEach(x=>{ const a=kfSpecTxt((P.specs||{})[x]), b=kfSpecTxt((p.specs||{})[x]), c=C&&C.specs&&C.specs[x], beda=jcfKey(a)!==jcfKey(b);
+  const v2=!!(p.conf&&p.conf.v===2);
+  kfVarRows(p).forEach(r=>{ const x=r.part, a=r.pv, b=r.av;
+    if(v2){ if(r.dev) out.push({k:'spec',l:x,plan:(r.exp==='ganti'?'Ganti':'Sama')+(a?' · '+a:''),act:(r.st==='ganti'?'Ganti':'Sama')+(b?' · '+b:'')+(r.ket?' · '+r.ket:'')}); return; }
+    const c=C&&C.specs&&C.specs[x], beda=jcfKey(a)!==jcfKey(b);
     if(c&&c.st==='ganti') out.push({k:'spec',l:x,plan:a||'—',act:'Ganti'+(c.ket?' · '+c.ket:'')+(beda?' ('+(b||'—')+')':'')});
     else if(beda) out.push({k:'spec',l:x,plan:a||'—',act:b||'—'}); });
   if(C&&Array.isArray(C.ro)){
@@ -6095,21 +6113,17 @@ function kfMkEdit(p){ const P=kfPlanOf(p), act=!!(p.conf&&p.conf.st!=='tunda'), 
     chk:{}, ro:[], add:[], rows:[], groups:[], adPart:'', adSecs:[], adKet:'', adOpen:false,
     speed:(act&&p.conf.speed)||'', shear:(act&&p.conf.shear)||'', temu:kfClone((act&&p.conf.temu)||{})||{}, ckOpen:kfCkPref(),
     by:String((p.conf&&p.conf.by)||curUser()||'')};
-  /* part variabel: semua part Planning JC per area (yang kosong di plan tetap tampil, boleh tidak dipilih) */
-  const base=jcBaseOf(p), dp={}; transitionDiff(base,{specs:PS}).forEach(d=>{ dp[d.part]=d; });
+  /* part variabel: semua part Planning JC per area (yang kosong di plan tetap tampil, boleh tidak dipilih)
+     Sama = sama dengan JC sebelumnya di mesin ini · Ganti = diganti (nilai = plan, atau pilih yang terpasang) */
+  const base=jcBaseOf(p), hb=!!base, BS=(base&&base.specs)||{}, VR={}; if(act) kfVarRows(p).forEach(r=>{ VR[r.part]=r; });
   const all=kfParts(Object.keys(Object.assign({},PS,e.specs))), seen=new Set();
   const areas=Object.keys(CFG.jcAreas||{}).map(a=>({area:a,parts:(CFG.jcAreas[a]||[]).filter(x=>x&&!seen.has(x)&&(seen.add(x),true))}));
   const rest=all.filter(x=>!seen.has(x)); if(rest.length) areas.push({area:'LAINNYA',parts:rest});
   areas.forEach(g=>{ if(!g.parts.length) return; const idx=[];
-    g.parts.forEach(pt=>{ const pv=kfSpecTxt(PS[pt]), d=dp[pt], st=d&&d.status;
-      const tag=st==='change'?{c:'chg',t:'ganti dari '+d.oldV}:st==='add'?{c:'add',t:'pasang baru'}:st==='remove'?{c:'rem',t:'dilepas · sebelumnya '+d.oldV}:null;
-      idx.push(e.rows.length); e.rows.push({t:'s',part:pt,pv,tag,req:!!(pv||tag)});
-      const c=C&&C.specs&&C.specs[pt];
-      if(c&&(c.st==='sama'||c.st==='ganti')){ e.chk[pt]={st:c.st,ket:c.ket||''}; return; }
-      if(!act||C) return;
-      const av=kfSpecTxt(e.specs[pt]);   /* konfirmasi versi lama (isian angka) → dipetakan ke Sama / Ganti */
-      if(jcfKey(pv)!==jcfKey(av)) e.chk[pt]={st:'ganti',ket:av?'terpasang: '+av:'tidak terpasang'};
-      else if(pv) e.chk[pt]={st:'sama',ket:''}; });
+    g.parts.forEach(pt=>{ const pv=kfSpecTxt(PS[pt]), bv=hb?kfSpecTxt(BS[pt]):pv, exp=kfExp(pv,bv,hb);
+      const tag=exp!=='ganti'?null:!bv?{c:'add',t:'pasang baru'}:!pv?{c:'rem',t:'dilepas · sebelumnya '+bv}:{c:'chg',t:'ganti dari '+bv};
+      idx.push(e.rows.length); e.rows.push({t:'s',part:pt,pv,bv,exp,tag,req:!!(pv||bv)});
+      const r=VR[pt]; if(r&&r.st){ e.chk[pt]={st:r.st,ket:r.ket||''}; if(r.st==='ganti') e.chk[pt].v=r.av; } });
     e.groups.push({area:g.area,idx}); });
   /* roaster plan */
   const aro=(act?(p.roasterPlan||[]):[]).filter(r=>r&&r.part), used=new Set(), ridx=[];
@@ -6147,12 +6161,31 @@ function kfIsTodo(i){ const e=window._kfEdit, r=e&&e.rows[i]; return !!(r&&r.req
 function kfTodo(){ const e=window._kfEdit, out=[]; if(!e) return out; e.rows.forEach((r,i)=>{ if(kfIsTodo(i)) out.push(i); }); return out; }
 function kfReqN(){ const e=window._kfEdit; return e?e.rows.filter(r=>r.req).length:0; }
 function kfSetSt(i,st){ const e=window._kfEdit, r=e&&e.rows[i]; if(!r) return;
-  if(r.t==='s'){ if(!st){ delete e.chk[r.part]; return; } const c=e.chk[r.part]; e.chk[r.part]={st,ket:(c&&c.ket)||''}; return; }
+  if(r.t==='s'){ if(!st){ delete e.chk[r.part]; return; } const c=e.chk[r.part]; e.chk[r.part]={st,ket:(c&&c.ket)||''};
+    if(st==='ganti') e.chk[r.part].v=(c&&c.st==='ganti'&&c.v!=null)?c.v:r.pv; return; }
   const o=e.ro[r.i]; if(!o) return; o.st=st||''; if(st==='sama') o.sections=o.ps.slice(); }
 function kfPick(i,st){ const was=kfRowSt(i); kfSetSt(i,was===st?'':st); kfRowPaint(i); kfPaintSum();
+  const rw=window._kfEdit&&window._kfEdit.rows[i];
+  if(rw&&rw.t==='s'&&kfRowSt(i)){ if(kfRowDev(i)) kfKetFocus(i); else kfNext(i); return; }   /* beda dari plan → langsung isi alasan */
   if(kfRowSt(i)==='sama') kfNext(i);
   else if(kfRowSt(i)==='ganti'){ try{ const el=document.querySelector('.kf-rw[data-i="'+i+'"]'), r=el&&el.getBoundingClientRect(); if(r&&r.bottom>window.innerHeight-90) el.scrollIntoView({block:'center',behavior:'smooth'}); }catch(_){} } }
-function kfKet(i,v){ const e=window._kfEdit, r=e&&e.rows[i]; if(!r) return; if(r.t==='s'){ if(e.chk[r.part]) e.chk[r.part].ket=v; } else if(e.ro[r.i]) e.ro[r.i].ket=v; }
+function kfKet(i,v,el){ const e=window._kfEdit, r=e&&e.rows[i]; if(!r) return; if(r.t==='s'){ if(e.chk[r.part]) e.chk[r.part].ket=v; } else if(e.ro[r.i]) e.ro[r.i].ket=v;
+  if(el&&el.classList.contains('req')) el.classList.toggle('need',!String(v||'').trim()); }
+/* baris variabel beda dari plan? (plan sama → Ganti, plan ganti → Sama, atau yang terpasang ≠ plan) */
+function kfRowDev(i){ const e=window._kfEdit, r=e&&e.rows[i]; if(!r||r.t!=='s') return false; const c=e.chk[r.part]; if(!c||!c.st) return false;
+  return c.st!==r.exp||(c.st==='ganti'&&jcfKey(c.v!=null?c.v:r.pv)!==jcfKey(r.pv)); }
+function kfNeedKet(i){ const e=window._kfEdit, r=e&&e.rows[i], c=r&&r.t==='s'&&e.chk[r.part]; return kfRowDev(i)&&!String((c&&c.ket)||'').trim(); }
+function kfKetFocus(i){ setTimeout(()=>{ try{ const k=document.querySelector('.kf-rw[data-i="'+i+'"] .kf-ket'); if(!k) return; k.focus({preventScroll:true});
+  const b=k.getBoundingClientRect(); if(b.bottom>window.innerHeight-90||b.top<64) k.scrollIntoView({block:'center',behavior:'smooth'}); }catch(_){} },40); }
+/* Ganti: nilai yang terpasang (default = plan) — dari Master Isian Variabel JC / isian yang pernah dipakai */
+function kfValOpts(r,cur){ const L=[], add=x=>{ x=kfSpecTxt(x); if(x&&!L.some(y=>jcfKey(y)===jcfKey(x))) L.push(x); };
+  add(r.pv); add(cur); let M=[];
+  if(typeof jcValOpts==='function') M=jcValOpts(r.part);
+  else { M=((CFG.jcVals&&CFG.jcVals[r.part])||[]).slice(); (JCPLANS||[]).forEach(q=>{ [q&&q.specs,q&&q.plan0&&q.plan0.specs].forEach(sp=>{ if(sp&&sp[r.part]) M.push(sp[r.part]); }); }); }
+  M.slice().sort((a,b)=>String(a).localeCompare(String(b),'id',{numeric:true})).forEach(add); add(r.bv); return L; }
+function kfVal(i,v){ const e=window._kfEdit, r=e&&e.rows[i], c=r&&r.t==='s'&&e.chk[r.part]; if(!c||c.st!=='ganti') return;
+  if(v==='__new'){ const t=(prompt('Nilai '+r.part+' yang terpasang:',c.v||r.pv||'')||'').trim(); if(!t){ kfRowPaint(i); return; } v=t; }
+  c.v=v; kfRowPaint(i); kfPaintSum(); if(kfNeedKet(i)) kfKetFocus(i); }
 function kfRoSec(i,s){ const e=window._kfEdit, r=e&&e.rows[i], o=r&&r.t==='r'&&e.ro[r.i]; if(!o) return; const a=o.sections||(o.sections=[]), j=a.indexOf(s);
   if(j<0) a.push(s); else a.splice(j,1); a.sort(kfSecCmp); kfRowPaint(i); kfPaintSum(); }
 /* "kalau Sama → lanjut ke bawahnya": sorot & gulir ke item berikutnya yang belum dipilih */
@@ -6164,12 +6197,15 @@ function kfGoRow(j,soft){ const el=document.querySelector('.kf-rw[data-i="'+j+'"
   document.querySelectorAll('.kf-rw.hl').forEach(x=>x.classList.remove('hl')); el.classList.add('hl');
   try{ const r=el.getBoundingClientRect(); if(!soft||r.bottom>window.innerHeight-96||r.top<64) el.scrollIntoView({block:'center',behavior:'smooth'}); }catch(_){}
   clearTimeout(window._kfHlT); window._kfHlT=setTimeout(()=>{ try{ el.classList.remove('hl'); }catch(_){} },1800); }
-function kfAllSama(){ kfTodo().forEach(i=>kfSetSt(i,'sama')); render(); }
+function kfAllSama(){ const e=window._kfEdit; kfTodo().forEach(i=>{ const r=e.rows[i]; kfSetSt(i,r.t==='s'?r.exp:'sama'); }); render(); }   /* sisanya = sesuai plan */
 function kfRowHTML(i){ const e=window._kfEdit, r=e&&e.rows[i]; if(!r) return ''; const st=kfRowSt(i);
   const seg=`<div class="kf-sg" role="group" aria-label="Sama atau ganti"><button type="button" class="kf-sgb s${st==='sama'?' on':''}" aria-pressed="${st==='sama'}" onclick="kfPick(${i},'sama')">Sama</button><button type="button" class="kf-sgb g${st==='ganti'?' on':''}" aria-pressed="${st==='ganti'}" onclick="kfPick(${i},'ganti')">Ganti</button></div>`;
-  if(r.t==='s'){ const c=e.chk[r.part]||{}, tg=r.tag?`<span class="kf-tg ${r.tag.c}">${esc(r.tag.t)}</span>`:'';
-    return `<div class="kf-rw${st?' '+st:''}${r.req?'':' opt'}" data-i="${i}"><div class="kf-rn"><b title="${esc(r.part)}">${esc(r.part)}</b><small>${r.pv?`<span class="kf-pv">${esc(r.pv)}</span>`:'<span class="kf-pv0">tidak diisi di plan</span>'}${tg}</small></div>${seg}`
-      +(st?`<input class="kf-ket" value="${esc(c.ket||'')}" oninput="kfKet(${i},this.value)" placeholder="${st==='ganti'?'Keterangan (boleh kosong) — mis. pakai yang lain':'Keterangan (boleh kosong) — mis. kondisi baik, sudah dicek'}" aria-label="Keterangan ${esc(r.part)}" autocomplete="off">`:'')+`</div>`; }
+  if(r.t==='s'){ const c=e.chk[r.part]||{}, tg=r.tag?`<span class="kf-tg ${r.tag.c}">${esc(r.tag.t)}</span>`:'', dev=kfRowDev(i);
+    const cur=st==='ganti'?kfSpecTxt(c.v!=null?c.v:r.pv):'', ov=st==='ganti'?kfValOpts(r,cur):[];
+    const sel=st==='ganti'?`<label class="kf-gx kf-gxv"><span class="kf-gl">Terpasang</span><select class="kf-val" onchange="kfVal(${i},this.value)" aria-label="${esc(r.part)} yang terpasang">${ov.map(x=>`<option value="${esc(x)}"${jcfKey(x)===jcfKey(cur)?' selected':''}>${esc(x)}${r.pv&&jcfKey(x)===jcfKey(r.pv)?' (plan)':''}</option>`).join('')}<option value=""${cur?'':' selected'}>— dilepas / kosong —</option><option value="__new">✏️ Lainnya (ketik)…</option></select></label>`:'';
+    const why=!dev?'':st!==r.exp?(st==='sama'?'Alasan tidak diganti — plan: ganti':'Alasan diganti — plan: sama'):'Alasan terpasang beda dari plan'+(r.pv?' ('+r.pv+')':'');
+    return `<div class="kf-rw${st?' '+st:''}${dev?' dev':''}${r.req?'':' opt'}" data-i="${i}"><div class="kf-rn"><b title="${esc(r.part)}">${esc(r.part)}</b><small>${r.pv?`<span class="kf-pv">${esc(r.pv)}</span>`:'<span class="kf-pv0">tidak diisi di plan</span>'}${tg}</small></div>${seg}${sel}`
+      +(dev?`<input class="kf-ket req${String(c.ket||'').trim()?'':' need'}" value="${esc(c.ket||'')}" oninput="kfKet(${i},this.value,this)" placeholder="${esc(why)} (wajib)" aria-label="Alasan ${esc(r.part)}" autocomplete="off" enterkeyhint="done">`:'')+`</div>`; }
   const o=e.ro[r.i], mc=(kfPlan(e.id)||{}), secsAll=sectionsOf(mc.machine||mc.line);
   const gx=(st!=='ganti'||o.ns?'':`<div class="kf-gx"><span class="kf-gl">Section yang dikerjakan</span><span class="kf-secs">${secsAll.map(s=>`<button type="button" class="kf-sc${(o.sections||[]).indexOf(s)>=0?' on':''}" onclick="kfRoSec(${i},'${esc(s)}')">${esc(s)}</button>`).join('')}</span></div>`)
     +(st?`<input class="kf-ket" value="${esc(o.ket||'')}" oninput="kfKet(${i},this.value)" placeholder="Keterangan (boleh kosong)" aria-label="Keterangan roaster ${esc(o.part)}" autocomplete="off">`:'');
@@ -6185,20 +6221,20 @@ function kfAdAdd(){ const e=window._kfEdit; if(!e) return; const part=e.adPart; 
 function kfAdDel(j){ const e=window._kfEdit; if(!e||!e.add[j]) return; e.add.splice(j,1); render(); }
 /* ringkasan isian sekarang vs plan */
 function kfDiffNow(){ const e=window._kfEdit; if(!e) return []; const t=[];
-  const n=Object.keys(e.chk).filter(k=>e.chk[k]&&e.chk[k].st==='ganti').length; if(n) t.push(n+' part');
+  const n=e.rows.filter((r,i)=>kfRowDev(i)).length; if(n) t.push(n+' variabel');
   const r=e.ro.filter(x=>x.st==='ganti').length; if(r) t.push(r+' roaster');
   if(e.add.length) t.push(e.add.length+' tambahan');
   return t; }
 function kfRcChip(){ const t=kfDiffNow(), todo=kfTodo().length, req=kfReqN();
-  if(t.length) return `<span class="kf-st" id="kfRcSt" style="--c:var(--blue)">✏️ ganti: ${esc(t.join(', '))}</span>`;
+  if(t.length) return `<span class="kf-st" id="kfRcSt" style="--c:var(--blue)">✏️ beda plan: ${esc(t.join(', '))}</span>`;
   if(todo) return `<span class="kf-st" id="kfRcSt" style="--c:var(--orange)">● ${req-todo}/${req} dicek</span>`;
   return '<span class="kf-st" id="kfRcSt" style="--c:var(--green)">✅ sesuai plan</span>'; }
 function kfPaintSum(){ const el=document.getElementById('kfSum'); if(el) el.innerHTML=kfSumTxt();
   const ch=document.getElementById('kfRcSt'); if(ch) ch.outerHTML=kfRcChip();
-  const b=document.getElementById('kfAllBtn'); if(b){ const n=kfTodo().length; b.hidden=!n; b.textContent='✓ Sisanya sama ('+n+')'; } }
+  const b=document.getElementById('kfAllBtn'); if(b){ const n=kfTodo().length; b.hidden=!n; b.textContent='✓ Sisanya sesuai plan ('+n+')'; } }
 function kfSumTxt(){ const e=window._kfEdit; if(!e) return ''; if(e.tunda) return e.newDate?'⏸ Dipindah ke <b>'+fmtD(parseD(e.newDate))+'</b>':'⏸ Ditandai <b>ditunda</b>';
   const t=kfDiffNow(), todo=kfTodo().length, req=kfReqN(), c=window._jccEdit, n=c?jccCounts(c):{filled:0,bad:0};
-  return (t.length?'✏️ Ganti: <b>'+esc(t.join(', '))+'</b>':todo?'● <b>'+(req-todo)+'/'+req+'</b> dicek':'✅ Sesuai plan')+' · 🧪 '+n.filled+' titik'+(n.bad?' · ⚠ '+n.bad:''); }
+  return (t.length?'✏️ Beda plan: <b>'+esc(t.join(', '))+'</b>':todo?'● <b>'+(req-todo)+'/'+req+'</b> dicek':'✅ Sesuai plan')+' · 🧪 '+n.filled+' titik'+(n.bad?' · ⚠ '+n.bad:''); }
 /* tabel tekanan ringkas: tekan sel lalu geser kiri/kanan (tanpa pop-up) */
 function kfCkHTML(p){ const c=window._jccEdit; if(!c) return ''; jccEnsureCss();
   const e=window._kfEdit||{}, open=!!e.ckOpen, secs=sectionsOf(c.machine), n=jccCounts(c);
@@ -6248,7 +6284,7 @@ function kfFormHTML(){ const e=window._kfEdit, p=kfPlan(e.id);
       <div class="kf-hint">Ada jadwal baru → JC pindah ke tanggal itu. Kosong → ditandai <b>Ditunda</b>.</div>
       <button type="button" class="kf-lnk2" onclick="kfTunda(false)">← JC jadi dikerjakan</button></div>`;
   } else {
-    /* 1 · Rekap plan: tiap item dipilih Sama (sesuai plan) / Ganti (beda → keterangan opsional) */
+    /* 1 · Rekap plan: tiap item dipilih Sama (= JC sebelumnya) / Ganti (diganti) — beda dari plan wajib alasan */
     const grp=e.groups.map(g=>`<div class="kf-grp"><div class="kf-gh">${g.ro?'🔁':areaIcon(g.area)} ${esc(g.area)}</div>${g.idx.map(kfRowHTML).join('')}</div>`).join('');
     const todo=kfTodo().length;
     const mpS=kfMpTxt(e.mp), hrN=Object.values(e.hr||{}).reduce((a,b)=>a+(+b||0),0);
@@ -6256,7 +6292,7 @@ function kfFormHTML(){ const e=window._kfEdit, p=kfPlan(e.id);
       ${e.mpOpen?`<div class="kf-mp">${jcfMpGroups().map(gr=>`<div class="kf-mpr"><span>${esc(gr.label)}</span><input value="${esc(e.mp[gr.key]||'')}" data-k="${esc(gr.key)}" oninput="kfMp(this.dataset.k,this.value)" placeholder="nama (pisah koma)" list="kfPeople" aria-label="${esc(gr.label)}"><input class="kf-hrin" type="text" inputmode="decimal" value="${e.hr[gr.key]?String(e.hr[gr.key]).replace('.',','):''}" data-k="${esc(gr.key)}" oninput="kfHr(this.dataset.k,this.value)" placeholder="jam" aria-label="Jam kerja ${esc(gr.label)}"></div>`).join('')}</div>
       <datalist id="kfPeople">${mpPeople().filter(o=>!o.hidden).map(o=>`<option value="${esc(o.name)}">`).join('')}</datalist>`:''}</details>`;
     body=`<div class="kf-box"><div class="kf-h3"><span class="kf-n">1</span>Rekap plan${kfRcChip()}</div>
-      <div class="kf-rtop"><div class="kf-hint"><b>Sama</b> = terpasang sesuai plan · <b>Ganti</b> = beda dari plan (keterangan boleh kosong).</div><button type="button" class="kf-all" id="kfAllBtn" onclick="kfAllSama()"${todo?'':' hidden'}>✓ Sisanya sama (${todo})</button></div>
+      <div class="kf-rtop"><div class="kf-hint"><b>Sama</b> = sama dengan JC sebelumnya · <b>Ganti</b> = diganti sesuai plan. Beda dari plan → isi alasannya.</div><button type="button" class="kf-all" id="kfAllBtn" onclick="kfAllSama()"${todo?'':' hidden'}>✓ Sisanya sesuai plan (${todo})</button></div>
       ${grp||'<div class="kf-hint">Belum ada part di Settings → Planning JC.</div>'}
       ${mp}
       <button type="button" class="kf-lnk2" onclick="kfTunda(true)">⏸ JC tidak jadi / ditunda?</button></div>
@@ -6267,6 +6303,19 @@ function kfFormHTML(){ const e=window._kfEdit, p=kfPlan(e.id);
 /* ---------- simpan / batalkan ---------- */
 function kfResync(p,oldM,oldD){ try{ if(p.varApplied) syncJCVarPlan(p); if(p.roasterApplied) syncRoasterPlan(p); }catch(e){ console.error('kfResync',e); }
   try{ jcSibResync(oldM,oldD,p.id); jcSibResync(p.machine||p.line,p.jcDate,p.id); }catch(e){} }
+/* isian verifikasi → spec aktual + pilihan Sama/Ganti + roaster aktual
+   part variabel: Sama → nilai JC sebelumnya · Ganti → nilai yang terpasang (default plan) · belum dipilih → plan
+   roaster: Sama → section plan · Ganti → section yang dicentang. Tambahan perbaikan (mech preventive) ikut tercatat */
+function kfBuild(p,e){ const P=kfPlanOf(p), PS=P.specs||{}, base=jcBaseOf(p), hb=!!base, BS=(base&&base.specs)||{}, sp={}, cs={};
+  kfParts(Object.keys(Object.assign({},PS,e.specs||{}))).forEach(k=>{ const c=e.chk&&e.chk[k];
+    const v=kfSpecTxt(c&&c.st==='sama'?(hb?BS[k]:PS[k]):(c&&c.st==='ganti'&&c.v!=null)?c.v:PS[k]); if(v) sp[k]=v;
+    if(c&&c.st){ const kt=String(c.ket||'').trim(), o={st:c.st}; if(kt) o.ket=kt; cs[k]=o; } });
+  const ro=[], put=(part,secs,ns)=>{ const ex=ro.find(x=>x.part===part);
+    if(ex){ if(!ns){ ex.sections=[...new Set((ex.sections||[]).concat(secs))].sort(kfSecCmp); if(ex.sections.length) delete ex.ns; } return; }
+    ro.push(ns?{part,sections:[],ns:true}:{part,sections:secs.slice().sort(kfSecCmp)}); };
+  (e.ro||[]).forEach(r=>{ if(r.ns){ put(r.part,[],true); return; } const s=r.st==='ganti'?(r.sections||[]):(r.ps||[]); if(s.length) put(r.part,s,false); });
+  (e.add||[]).forEach(a=>{ if(a.ns) put(a.part,[],true); else if((a.sections||[]).length) put(a.part,a.sections,false); });
+  return {sp,cs,ro}; }
 /* konfirmasi plan → data aktual (tanpa render). Kembali: status akhir / null bila gagal */
 function kfCommit(p,e){ const before=auditSnap('jcplan',p), oldM=p.machine||p.line, oldD=p.jcDate, ref=(oldM||'-')+' · '+(oldD||'-'), who=String((e&&e.by)||'').trim()||curUser()||'';
   if(e.tunda){
@@ -6277,29 +6326,21 @@ function kfCommit(p,e){ const before=auditSnap('jcplan',p), oldM=p.machine||p.li
       p.resched=(Array.isArray(p.resched)?p.resched:[]).concat([{from,to:e.newDate,why,at:Date.now(),by:who}]);
       p.notes=[String(p.notes||'').trim(),'Dipindah dari '+fmtD(parseD(from))+(why?' ('+why+')':'')].filter(Boolean).join(' · '); }
     else { p.postponed=true; p.conf={st:'tunda',at:Date.now(),by:who,note:why}; }
+    jcRecClear(p);   /* JC tidak jadi → tidak ada pergantian part */
     kfResync(p,oldM,oldD);
     auditLog('edit','jcplan',ref,before,auditSnap('jcplan',p),'Verifikasi JC: ditunda'+(e.newDate?' → '+e.newDate:'')+(why?' · '+why:''));
     return 'tunda'; }
   if(!p.plan0) p.plan0=kfClone({jcDate:p.jcDate,shift:p.shift,specs:p.specs||{},roasterPlan:p.roasterPlan||[],manpower:p.manpower||{},mpHours:p.mpHours||{}});
   const P=p.plan0, PS=P.specs||{};
   p.jcDate=P.jcDate||p.jcDate; p.shift=e.shift||P.shift||''; p.postponed=false;   /* konfirmasi = hari yang sama dengan planning */
-  /* part variabel: Sama → isian plan · Ganti → isian tidak diubah di sini, pilihan + keterangan tercatat di p.conf.chk */
-  const sp={}, cs={};
-  kfParts(Object.keys(Object.assign({},PS,e.specs||{}))).forEach(k=>{ const c=e.chk&&e.chk[k], g=!!(c&&c.st==='ganti'), v=kfSpecTxt(g?(e.specs||{})[k]:PS[k]); if(v) sp[k]=v;
-    if(c&&c.st){ const kt=String(c.ket||'').trim(); cs[k]=kt?{st:c.st,ket:kt}:{st:c.st}; } });   /* keterangan tersimpan untuk Sama maupun Ganti */
-  p.specs=sp;
-  /* roaster: Sama → section plan · Ganti → section yang dicentang. Tambahan perbaikan (mech preventive) ikut tercatat */
-  const ro=[], put=(part,secs,ns)=>{ const ex=ro.find(x=>x.part===part);
-    if(ex){ if(!ns){ ex.sections=[...new Set((ex.sections||[]).concat(secs))].sort(kfSecCmp); if(ex.sections.length) delete ex.ns; } return; }
-    ro.push(ns?{part,sections:[],ns:true}:{part,sections:secs.slice().sort(kfSecCmp)}); };
-  (e.ro||[]).forEach(r=>{ if(r.ns){ put(r.part,[],true); return; } const s=r.st==='ganti'?(r.sections||[]):(r.ps||[]); if(s.length) put(r.part,s,false); });
-  (e.add||[]).forEach(a=>{ if(a.ns) put(a.part,[],true); else if((a.sections||[]).length) put(a.part,a.sections,false); });
-  p.roasterPlan=ro;
+  const B=kfBuild(p,e), cs=B.cs;
+  p.specs=B.sp;
+  p.roasterPlan=B.ro;
   p.manpower=kfClone(e.mp||{}); p.mpHours=kfClone(e.hr||{});
   const chk={specs:cs,
     ro:(e.ro||[]).map(r=>{ const g=r.st==='ganti', o={part:r.part,st:g?'ganti':'sama',sections:(g?(r.sections||[]):(r.ps||[])).slice()}; const kt=String(r.ket||'').trim(); if(kt) o.ket=kt; return o; }),
     add:(e.add||[]).map(a=>({part:a.part,sections:(a.sections||[]).slice(),ns:!!a.ns,ket:String(a.ket||'').trim()}))};
-  p.conf={st:'sesuai',at:Date.now(),by:who,note:String(e.note||'').trim(),rec:true,chk};
+  p.conf={st:'sesuai',at:Date.now(),by:who,note:String(e.note||'').trim(),rec:true,chk,v:2};   /* v2: Sama/Ganti = terhadap JC sebelumnya */
   { const sv=String(e.speed||'').trim(), sc=String(e.shear||'').trim(), tm={}; KF_TEMU.forEach(([k])=>{ const v=String((e.temu||{})[k]||'').trim(); if(v) tm[k]=v; });
     if(sv) p.conf.speed=sv; if(sc) p.conf.shear=sc; if(Object.keys(tm).length) p.conf.temu=tm; }   /* data mesin & temuan pengingat (kosong = tidak disimpan) */
   const nd=kfDiff(p).filter(d=>d.k!=='mp').length, st=nd?'berubah':'sesuai';   /* status otomatis: ada Ganti / tambahan → "Ada perubahan" */
@@ -6320,8 +6361,10 @@ function kfCkCommit(p,note){ const c=window._jccEdit; if(!c) return false; const
 function kfSaveAll(){ const e=window._kfEdit; if(!e) return; const p=kfPlan(e.id); if(!p){ toast('Plan JC tidak ditemukan',1); return; }
   if(!String(e.by||'').trim()){ toast('Isi dulu nama yang memverifikasi (paling atas)',1); try{ const i=document.getElementById('kfByIn'); if(i){ i.scrollIntoView({block:'center'}); i.focus({preventScroll:true}); } }catch(_){} return; }
   if(!e.tunda){ const todo=kfTodo();
-    if(todo.length){ if(!confirm(todo.length+' item rekap plan belum dipilih Sama / Ganti.\n\nOK = anggap Sama (sesuai plan)\nBatal = cek dulu')){ kfGoRow(todo[0]); return; }
-      todo.forEach(i=>kfSetSt(i,'sama')); }
+    if(todo.length){ if(!confirm(todo.length+' item rekap plan belum dipilih Sama / Ganti.\n\nOK = anggap sesuai plan\nBatal = cek dulu')){ kfGoRow(todo[0]); return; }
+      todo.forEach(i=>{ const r=e.rows[i]; kfSetSt(i,r.t==='s'?r.exp:'sama'); }); }
+    const nk=e.rows.map((r,i)=>i).filter(kfNeedKet);   /* beda dari plan wajib ada alasan */
+    if(nk.length){ render(); toast('Isi alasan untuk '+nk.length+' variabel yang beda dari plan',1); setTimeout(()=>{ kfGoRow(nk[0]); kfKetFocus(nk[0]); },60); return; }
     if(kfAdPend(e)==='bad'&&!confirm('Tambahan perbaikan yang sedang diisi belum lengkap (pilih section dulu).\n\nOK = simpan tanpa itu\nBatal = kembali')){ try{ const i=document.getElementById('kfAdKet'); if(i) i.scrollIntoView({block:'center'}); }catch(_){} return; } }
   const st=kfCommit(p,e); if(!st) return;
   const ck=st!=='tunda'&&kfCkCommit(p,e.note);
@@ -6337,13 +6380,21 @@ function kfWaShift(s){ s=kfWaCl(s); return !s?'':/shift/i.test(s)?s:'Shift '+s; 
 function kfWaKet(k){ k=kfWaCl(k); return k?' — _'+k+'_':''; }
 function kfWaTitle(s){ return String(s||'').toLowerCase().replace(/(^|[\s+\/(-])\S/g,m=>m.toUpperCase()); }
 /* part variabel sesuai yang diisi (per area). Yang diganti: ~plan~ → *aktual* — _keterangan_ */
+/* baris WhatsApp variabel (verifikasi v2): ganti → nilai baru · tidak diganti → coret plan · beda plan → alasan */
+function kfWaV2(rows,r){ const nm=kfWaCl(r.part), pv=kfWaCl(r.pv), av=kfWaCl(r.av), bv=kfWaCl(r.bv), ket=kfWaKet(r.ket);
+  if(r.st==='ganti'){ if(jcfKey(pv)!==jcfKey(av)) rows.push('- '+nm+': '+(pv?'~'+pv+'~ → ':'')+'*'+(av||'dilepas')+'* _(ganti)_'+ket);
+    else rows.push('- '+nm+': '+(bv&&jcfKey(bv)!==jcfKey(av)?bv+' → ':'')+'*'+(av||'dilepas')+'* _(ganti'+(r.exp==='sama'?' di luar plan':'')+')_'+ket); }
+  else if(r.st==='sama'&&r.exp==='ganti') rows.push('- '+nm+': '+(pv?'~'+pv+'~ → ':'')+(av||'-')+' _(tidak diganti)_'+ket);
+  else if(av||ket) rows.push('- '+nm+': '+(av||'-')+ket); }
 function kfWaParts(p){ const P=kfPlanOf(p), C=(p.conf&&p.conf.chk)||null, PS=P.specs||{}, AS=p.specs||{}, L=[];
+  const V2=!!(p.conf&&p.conf.v===2), VR={}; if(V2) kfVarRows(p).forEach(r=>{ VR[r.part]=r; });
   const chg={}; if(!C) kfDiff(p).forEach(d=>{ if(d.k!=='mp'&&d.k!=='date'&&d.k!=='shift'&&d.k!=='ro') chg[d.l]=1; });
   const all=kfParts(Object.keys(Object.assign({},PS,AS))), seen=new Set();
   const areas=Object.keys(CFG.jcAreas||{}).map(a=>({area:a,parts:(CFG.jcAreas[a]||[]).filter(x=>x&&!seen.has(x)&&(seen.add(x),true))}));
   const rest=all.filter(x=>!seen.has(x)); if(rest.length) areas.push({area:'Lainnya',parts:rest});
   areas.forEach(g=>{ const rows=[];
-    g.parts.forEach(pt=>{ const pv=kfWaCl(PS[pt]), av=kfWaCl(AS[pt]), c=C&&C.specs&&C.specs[pt];
+    g.parts.forEach(pt=>{ if(V2){ const r=VR[pt]; if(r) kfWaV2(rows,r); return; }
+      const pv=kfWaCl(PS[pt]), av=kfWaCl(AS[pt]), c=C&&C.specs&&C.specs[pt];
       const ganti=c?c.st==='ganti':(!!chg[pt]||jcfKey(pv)!==jcfKey(av)), ket=c?kfWaKet(c.ket):'';
       if(ganti&&jcfKey(pv)!==jcfKey(av)) rows.push('- '+kfWaCl(pt)+': '+(pv?'~'+pv+'~ → ':'')+'*'+(av||'dilepas')+'*'+ket);
       else if(ganti) rows.push('- '+kfWaCl(pt)+': *'+(av||pv||'diganti')+'* _(diganti)_'+ket);
@@ -6423,10 +6474,11 @@ function kfWaCopy(){ const txt=kfWaCur(); if(!txt) return; const ok=()=>toast('�
   if(navigator.clipboard&&window.isSecureContext) navigator.clipboard.writeText(txt).then(ok,fb); else fb(); }
 function kfWaSend(){ const txt=kfWaCur(); if(!txt) return; window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank','noopener'); }
 function kfUndoId(id){ const p=kfPlan(id); if(!p||!p.conf) return;
-  if(!confirm('Batalkan verifikasi JC '+(p.machine||'')+' ?\nIsian kembali ke plan asli'+((p.varApplied||p.roasterApplied)?' dan record yang tercatat disesuaikan':'')+'. Ceklist tekanan tetap tersimpan.')) return;
+  if(!confirm('Batalkan verifikasi JC '+(p.machine||'')+' ?\nIsian kembali ke plan asli'+((p.varApplied||p.roasterApplied)?' dan record JC ini dihapus dari Input Data':'')+'. Ceklist tekanan tetap tersimpan.')) return;
   const before=auditSnap('jcplan',p), oldM=p.machine||p.line, oldD=p.jcDate;
   if(p.plan0){ KF_FIELDS.forEach(k=>{ if(Object.prototype.hasOwnProperty.call(p.plan0,k)) p[k]=kfClone(p.plan0[k]); }); delete p.plan0; }
   if(p.conf.st==='tunda') p.postponed=false; delete p.conf;
+  jcRecClear(p);   /* record JC hanya ada bila JC terverifikasi */
   kfResync(p,oldM,oldD);
   auditLog('edit','jcplan',(oldM||'-')+' · '+(oldD||'-'),before,auditSnap('jcplan',p),'Verifikasi JC dibatalkan');
   saveAll(); window._kfEdit=null; window._jccEdit=null; toast('Verifikasi dibatalkan — kembali ke plan'); render(); }
@@ -6566,11 +6618,11 @@ function kfRepData(p){ const c=p.conf||{}, tunda=!!(p.postponed||c.st==='tunda')
     ['Machine speed',tunda?'':cl(c.speed)],['Shear cut',tunda?'':cl(c.shear)]].filter(f=>f[1]);
   if(tunda) return kfRepFoot(D,p);
   /* rekap plan: hanya baris yang dipilih Sama / Ganti */
-  const E=kfMkEdit(p), AS=p.specs||{};
+  const E=kfMkEdit(p), AS=p.specs||{}, V2=!!(c&&c.v===2);
   E.groups.forEach(gp=>{ const it=[];
     gp.idx.forEach(i=>{ const r=E.rows[i];
-      if(r.t==='s'){ const x=E.chk[r.part]; if(!x||!x.st) return; const pv=kfSpecTxt(r.pv), av=kfSpecTxt(AS[r.part]), df=x.st==='ganti'&&jcfKey(pv)!==jcfKey(av);
-        it.push({n:r.part,pl:pv,strike:df&&!!pv,st:x.st,act:df?(av||'dilepas'):'',ket:cl(x.ket)}); }
+      if(r.t==='s'){ const x=E.chk[r.part]; if(!x||!x.st) return; const pv=kfSpecTxt(r.pv), av=kfSpecTxt(AS[r.part]), df=jcfKey(pv)!==jcfKey(av)&&(V2||x.st==='ganti');
+        it.push({n:r.part,pl:pv,strike:df&&!!pv,st:x.st,act:df?(av||(x.st==='ganti'?'dilepas':'-')):'',ket:cl(x.ket)}); }
       else { const o=E.ro[r.i]; if(!o||!o.st) return; const a=o.ns?'non-section':(kfSecTxt(o.ps)||'—'), b=kfSecTxt(o.sections), df=o.st==='ganti'&&!o.ns&&a!==(b||'—');
         it.push({n:o.part,pl:a,strike:df,st:o.st,act:df?(b||'tidak dikerjakan'):'',ket:cl(o.ket)}); } });
     if(it.length) D.groups.push({a:gp.ro?'ROASTER PLAN':String(gp.area||'').toUpperCase(),it}); });
@@ -6858,7 +6910,7 @@ function vInput(){
     </select>
     <select id="fiMach" onchange="filterRows()"><option value="">All Machines</option>${opts(CFG.machines)}</select>
     <select id="fiSec" onchange="filterRows()"><option value="">All Sections</option><option value="-">🚫 No Section</option>${opts(CFG.sections)}</select>
-    <select id="fiPart" onchange="filterRows()"><option value="">All Parts</option>${opts(CFG.parts)}</select>
+    <select id="fiPart" onchange="filterRows()"><option value="">All Parts</option>${opts(CFG.parts.concat([...new Set(en.map(r=>r.part))].filter(p=>p&&CFG.parts.indexOf(p)<0).sort()))}</select>
     <select id="fiCat" onchange="filterRows()" title="Filter berdasarkan grup / kategori reason"><option value="">All Groups</option>${opts(rgList().map(g=>g.name))}</select>
     <select id="fiShift" onchange="filterRows()"><option value="">All Shifts</option>${opts(CFG.shifts||[])}</select>
     <input id="srch" placeholder="Search machine / section / part / reason…" type="search" enterkeyhint="search" autocomplete="off" oninput="filterRows()" class="sp">
@@ -7196,11 +7248,10 @@ function jpFitScroll(){ const mob=jpMob(); const z=parseFloat(document.documentE
   if(window._jpMobLast!==jpMob()) render(); else jpFitScroll(); },150); }); })();
 
 /* ---- 🧰 Persiapan Spec Jobchange ---- */
-/* kolom Action: status (Log Roaster / logged / Catat) satu kelompok, tombol Form · Edit · Salin · Hapus satu kelompok
+/* kolom Action: status record (♻️ / 🔧 tercatat — dari Verifikasi JC) satu kelompok, tombol Form · Edit · Salin · Hapus satu kelompok
    dengan jarak seragam — tidak lagi berdempetan / turun baris satu-satu. Di kolom sempit tombol jadi ikon (label di tooltip). */
 function jpActHTML(p){
-  const ro=jcRoHasSect(p)?(p.roasterApplied?'<span class="pill pRoaster" title="Roaster sudah tercatat">♻️ logged</span>'
-    :'<button class="btn sm" style="background:var(--teal);color:#03201f" onclick="applyRoasterPlan('+p.id+')" title="Catat roaster plan ini sebagai record nyata pada tgl JC">📌 Log Roaster</button>'):'';
+  const ro=(jcRoHasSect(p)&&p.roasterApplied)?'<span class="pill pRoaster" title="Roaster tercatat di Input Data dari Verifikasi JC">♻️ tercatat</span>':'';
   const st=(ro+String(jcVarBadge(p)||'')).trim();
   return '<div class="jp-act">'+(st?'<span class="jp-st">'+st+'</span>':'')
     +'<span class="jp-ic"><button class="btn sec sm jp-ib" onclick="jcfOpen(['+p.id+'])" title="Cetak / export Form Prepare JC" aria-label="Form">🖨️<span class="jp-bl">Form</span></button>'
@@ -7358,12 +7409,12 @@ function jaTodos(R){ const c=jaCfg(), ph=jaPhase(); const out=[];
   const add=(lv,p,t,sub,bt,d)=>out.push({lv:lv,p:p,t:t,sub:sub,bt:bt||'',d:(d==null?99:d)});
   const B={print:id=>'<button class="btn sm" onclick="closeBellPop();jcfOpen(['+id+'])">🖨️ Cetak</button>',
            ready:id=>'<button class="btn sec sm" onclick="jaToggle('+id+',\'ready\')">✅ Siap</button>',
-           log:id=>'<button class="btn sm" style="background:var(--teal);color:#03201f" onclick="closeBellPop();applyRoasterPlan('+id+')">📌 Log Roaster</button>',
+           verif:id=>'<button class="btn sm" style="background:var(--teal);color:#03201f" onclick="jcGoVerif('+id+')">✅ Verifikasi</button>',
            edit:id=>'<button class="btn sec sm" onclick="closeBellPop();openJCPlan('+id+')">✏️ Isi spec</button>'};
   const all=(JCPLANS||[]).filter(p=>p&&p.jcDate).map(p=>({p:p,d:daysBetween(TODAY,parseD(p.jcDate))}));
-  /* roaster belum dicatat setelah JC */
-  all.filter(x=>x.d<=0&&x.d>=-14&&!x.p.trial&&!x.p.roasterApplied&&jcRoHasSect(x.p)).forEach(x=>
-    add(x.d<0?'now':'today',x.p,'Log Roaster',x.d<0?('JC sudah lewat '+(-x.d)+' hari, roaster plan belum dicatat sebagai record'):'Setelah JC selesai, catat roaster plan sebagai record',B.log(x.p.id),x.d));
+  /* JC hari ini / sudah lewat tapi belum diverifikasi — record roaster & variabel hanya masuk lewat verifikasi (satu pintu) */
+  all.filter(x=>x.d<=0&&x.d>=-14&&!x.p.trial&&!x.p.conf&&!x.p.postponed).forEach(x=>
+    add(x.d<0?'now':'today',x.p,'Verifikasi JC',x.d<0?('JC sudah lewat '+(-x.d)+' hari, belum diverifikasi — pergantian part belum masuk Input Data & countdown'):'Setelah JC selesai, verifikasi hasilnya — record roaster & variabel tercatat otomatis',B.verif(x.p.id),x.d));
   const up=all.filter(x=>x.d>=0&&x.d<=c.horizon&&!x.p.postponed).sort((a,b)=>a.d-b.d||String(a.p.machine).localeCompare(String(b.p.machine),undefined,{numeric:true}));
   up.forEach(x=>{ const p=x.p, d=x.d, id=p.id, rd=jaReady(p), pr=jaPrinted(p);
     if(d<=c.prepDays+1&&jaSpecN(p)===0) add(d<=1?'now':'today',p,'Spec JC belum diisi','Isi variabel / spec dulu supaya persiapan & form lengkap',B.edit(id),d);
@@ -8056,7 +8107,7 @@ function renderJCForm(){
       const sameBtn = pv ? `<button class="jc-same ${String(cur).trim().toLowerCase()===pv.toLowerCase()?'match':''}" data-k="${esc(part)}" onclick="jcUseSame(this.getAttribute('data-k'))" title="Pakai sama seperti JC sebelumnya (${esc(pv)})">= ${esc(pv)}</button>` : '';
       // centang “catat sebagai record” — hanya berguna bila ada JC sebelumnya untuk dibandingkan.
       // Otomatis tersembunyi (lewat CSS) kalau nilainya sama dgn JC lalu atau kolomnya masih kosong.
-      const recChk = prevP ? `<label class="jc-rec" title="Catat pergantian ${esc(part)} sebagai record"><input type="checkbox" class="jcrecchk" data-k="${esc(part)}" ${jcVarSkipped(c,part)?'':'checked'} onchange="jcVarToggle(this.getAttribute('data-k'))"></label>` : '';
+      const recChk = '';   /* dicatat / tidaknya ditentukan di Verifikasi JC (Sama / Ganti) — centang per variabel tidak dipakai lagi */
       return `<div class="jcrow"><label title="${esc(part)}">${part}</label>${jcValSelHTML(part,cur,'jcSpec')}${sameBtn}${recChk}</div>`;
     }).join('');
     return `<div class="card" style="padding:14px;margin-bottom:12px"><h3>${areaIcon(area)} ${area} <span class="tag">${CFG.jcAreas[area].length} item</span></h3><div class="jcgrid">${rows}</div></div>`;
@@ -8107,7 +8158,7 @@ function renderJCForm(){
 }
 /* Roaster plan: part PER SECTION (area Machine) vs NON-SECTION (Feeder / Ware Handling / Hot End Coating).
    Entri non-section = {part, sections:[], ns:true} → hanya untuk persiapan & form (CHANGE = "Roaster"),
-   TIDAK dicatat sebagai record (Log Roaster hanya mencatat entri yang punya section). */
+   TIDAK dicatat sebagai record (Verifikasi JC hanya mencatat entri yang punya section). */
 function jcRoNorm(s){ return String(s||'').toLowerCase().replace(/t\s*\/\s*o/g,'takeout').replace(/[^a-z0-9]/g,''); }
 function jcRoSectParts(){ const sp=(typeof sectionParts==='function')?sectionParts():[]; return sp.length?sp:(CFG.parts||[]).slice(); }
 function jcRoNsParts(){ const sp=jcRoSectParts(); const out=[]; const seen=new Set(sp.map(jcRoNorm));
@@ -8126,7 +8177,7 @@ function renderJCRoaster(){
   const applied=c.roasterApplied;
   const list=(c.roasterPlan||[]).map((r,i)=>`<div class="roln" ${editing&&window._jcRoEdit===i?'style="box-shadow:inset 0 0 0 2px var(--accent)"':''}><span class="rp">${r.part}</span><span class="rs">${(r.sections||[]).length?(r.sections||[]).join(', '):'<i style="color:var(--txt3)">non-section</i>'}</span><button class="ico-btn" style="color:var(--accent2);border-color:var(--line2)" onclick="jcRoEditRow(${i})" title="Edit baris (revisi)">✎</button> <button class="ico-btn" onclick="jcRoDelRow(${i})" title="Delete row">✕</button></div>`).join('');
   el.innerHTML=`
-    ${applied?`<div class="roaster-note">✅ Already logged to Input Data on <b>${c.jcDate?fmtD(parseD(c.jcDate)):'-'}</b>. You can still <b>add / remove / edit</b> — changes will be <b style="color:var(--teal)">synced</b> to the data when you press 💾 Save Plan.</div>`:''}
+    ${applied?`<div class="roaster-note">✅ Sudah tercatat di Input Data pada <b>${c.jcDate?fmtD(parseD(c.jcDate)):'-'}</b> (dari Verifikasi JC). Masih bisa <b>tambah / hapus / edit</b> — perubahan ikut <b style="color:var(--teal)">disinkron</b> ke data saat 💾 Save Plan.</div>`:''}
     ${editing?`<div class="roaster-note" style="border-left-color:var(--accent);background:rgba(245,166,35,.10)">✎ <b style="color:var(--accent2)">Mode revisi</b> — ubah part/section lalu simpan baris. <a onclick="jcRoCancelEdit()" style="cursor:pointer;color:var(--txt2);text-decoration:underline">batal</a></div>`:''}
     <div class="form jcro-form" style="grid-template-columns:1fr 2fr auto;gap:10px;align-items:end;margin-bottom:8px">
       <div class="fg"><label>Roaster part</label><select onchange="window._jcRoPart=this.value;renderJCRoaster()">
@@ -8139,8 +8190,8 @@ function renderJCRoaster(){
       <div class="fg"><label>&nbsp;</label><button class="btn sm" onclick="jcRoAddRow()">${editing?'💾 Save':'➕ Add'}</button></div>
     </div>
     ${(c.roasterPlan||[]).length?`<div class="specarea-h" style="margin-top:6px">Scheduled roaster list</div>${list}`:'<div style="color:var(--txt3);font-size:12px;margin-top:4px">No scheduled roaster parts yet.</div>'}
-    ${(c.roasterPlan||[]).some(r=>!(r.sections||[]).length)?`<div class="roaster-note">ℹ️ Part <b>non-section</b> hanya untuk persiapan & Form Prepare JC (CHANGE = "Roaster") — tidak dicatat sebagai record saat Log Roaster.</div>`:''}
-    ${jcRoHasSect(c)&&!applied?`<div class="roaster-note">💡 Saved as a <b>plan</b> (can be ✎ edited if there is a revision at the JC). On the JC date, press <b>"📌 Log Roaster"</b> (in the plan table) to turn it into a real record (reason: Roaster, shift: <b>${esc(c.shift||'-')}</b>). Before that, in the machine status popup this section is marked <b style="color:var(--teal)">♻️ teal</b> as a reminder.</div>`:''}`;
+    ${(c.roasterPlan||[]).some(r=>!(r.sections||[]).length)?`<div class="roaster-note">ℹ️ Part <b>non-section</b> hanya untuk persiapan & Form Prepare JC (CHANGE = "Roaster") — tidak dicatat sebagai record saat Verifikasi JC.</div>`:''}
+    ${jcRoHasSect(c)&&!applied?`<div class="roaster-note">💡 Tersimpan sebagai <b>plan</b> (masih bisa ✎ diedit). Record roaster (reason: Roaster, shift: <b>${esc(c.shift||'-')}</b>) tercatat otomatis saat <b>Verifikasi JC</b> disimpan — section yang tidak jadi di-roaster cukup diubah di sana. Sebelum itu, di popup status mesin section ini ditandai <b style="color:var(--teal)">♻️ teal</b> sebagai pengingat.</div>`:''}`;
 }
 function jcRoToggleSec(x){const a=window._jcRoSecs=window._jcRoSecs||[];const i=a.indexOf(x);i<0?a.push(x):a.splice(i,1);renderJCRoaster();}
 function jcRoAllSec(v){window._jcRoSecs=v?sectionsOf(window._jcEdit.machine).slice():[];renderJCRoaster();}
@@ -8324,7 +8375,7 @@ function jcSavePlanNow(){const c=window._jcEdit; if(!c.machine||!c.jcDate){toast
   /* trial / JC lain di mesin & tanggal yang sama: record bersama jangan ikut hilang */
   if(_old) jcSibResync(_old.m,_old.d,c.id); jcSibResync(c.machine||c.line,c.jcDate,c.id);
   saveAll(); closeJC(); toast(msg); render();}
-function dupJCPlan(id){const p=JCPLANS.find(x=>x.id===id);if(!p)return;const c=JSON.parse(JSON.stringify(p));c.id=null;c.jcDate=ymd(TODAY);c.postponed=false;c.roasterApplied=false;c.varApplied=false;(c.roasterPlan||[]).forEach(r=>delete r._jc);window._jcEdit=c;window._jcRoSecs=[];window._jcRoEdit=null;renderJCForm();document.getElementById('jcmodal').classList.add('show');toast('Copied — save as a new plan');}
+function dupJCPlan(id){const p=JCPLANS.find(x=>x.id===id);if(!p)return;const c=JSON.parse(JSON.stringify(p));c.id=null;c.jcDate=ymd(TODAY);c.postponed=false;c.roasterApplied=false;c.varApplied=false;delete c.conf;delete c.plan0;delete c.resched;(c.roasterPlan||[]).forEach(r=>delete r._jc);window._jcEdit=c;window._jcRoSecs=[];window._jcRoEdit=null;renderJCForm();document.getElementById('jcmodal').classList.add('show');toast('Copied — save as a new plan');}
 function closeJC(){const el=document.getElementById('jcmodal'); if(el)el.classList.remove('show');}
 function delJCPlan(id){const p=JCPLANS.find(x=>x.id===id);if(!confirm('Delete plan JC ini?'+((p&&p.roasterApplied)?'\nRoaster records already logged from this plan will also be deleted.':'')))return;
   if(p&&p.roasterApplied){ for(let i=DB.length-1;i>=0;i--){ if(DB[i]._jc===id) DB.splice(i,1); } }
@@ -8965,8 +9016,10 @@ function syncRoasterPlan(plan){
   // add desired records that don't exist yet
   desired.forEach(k=>{ const idx=k.indexOf('\u0001'); const section=k.slice(0,idx), part=k.slice(idx+1);
     const ex=DB.find(x=>x.machine===machine&&x.section===section&&x.part===part&&x.date===date);
-    if(ex){ if(ex.reason==='Roaster'&&ex._jc==null) ex._jc=plan.id; }   // adopt matching, leave manual records untouched
+    if(ex){ if(ex.reason==='Roaster'&&ex._jc==null) ex._jc=plan.id;   // adopt matching, leave manual records untouched
+      else if(ex._jcv===plan.id){ delete ex._jcv; ex._jc=plan.id; ex.reason='Roaster'; } }   // variabel JC di section yang sama → cukup 1 record Roaster
     else { DB.push({id:newRecId(),date,machine,section,part,reason:'Roaster',pic:shift,_jc:plan.id}); added++; } });
+  if(removed&&plan.varApplied) syncJCVarPlan(plan);   // roaster batal di suatu section → perubahan variabel di section itu tetap tercatat
   return {added,removed};
 }
 /* ============ PERUBAHAN VARIABEL JC -> RECORD ============
@@ -9000,7 +9053,28 @@ function jcVarCountTxt(plan){ const c=jcVarCount(plan); const t=[];
   if(c.mach) t.push(c.mach+' variabel machine \u00d7 '+c.secs+' section');
   if(c.single) t.push(c.single+' variabel feeder/ware handling \u00d7 1');
   return t.join(' + '); }
-function jcVarPicked(plan){ return jcVarChanges(plan).list.filter(d=>!jcVarSkipped(plan,d.part)); }
+function jcVarPicked(plan){
+  /* sudah diverifikasi → yang dicatat = variabel yang dipilih GANTI (memang diganti saat JC), apa pun isi plan-nya */
+  const cf=plan&&plan.conf;
+  if(cf&&cf.st&&cf.st!=='tunda'&&cf.chk&&cf.chk.specs)
+    return kfVarRows(plan).filter(r=>r.st==='ganti'&&r.av).map(r=>({area:jcVarAreaOf(r.part),part:r.part,oldV:r.bv,newV:r.av,status:r.bv?'change':'add'}));
+  return jcVarChanges(plan).list.filter(d=>!jcVarSkipped(plan,d.part)); }
+function jcVarAreaOf(v){ const A=CFG.jcAreas||{}; return Object.keys(A).find(a=>(A[a]||[]).indexOf(v)>=0)||'LAINNYA'; }
+/* ===== Variabel JC → part dashboard (tanpa setting tambahan) =====
+   Nama variabel Planning JC dicocokkan dengan nama part dashboard (Settings → area & part). Pencocokan
+   mengabaikan huruf besar/kecil, spasi & tanda baca, dan "T/O" = "Take Out" (mis. "Neck Ring Arm" = "Neckring Arm").
+   Cocok  → record memakai nama part dashboard → countdown part itu reset di tanggal JC.
+   Tidak cocok → record tetap tersimpan sebagai riwayat JC, tapi TIDAK ikut countdown dashboard. */
+function jcVarLinkMap(){ const m={}; (CFG.parts||[]).forEach(p=>{ const k=jcRoNorm(p); if(k&&!(k in m)) m[k]=p; }); return m; }
+function jcVarLinkOf(v,M){ return (M||jcVarLinkMap())[jcRoNorm(v)]||null; }
+/* record yang diinginkan untuk plan: Map 'section␁part' → nama variabel (reason) */
+function jcVarDesired(plan){
+  const secs=jcVarSecs(plan), picks=jcVarPicked(plan), M=jcVarLinkMap(), out=new Map();
+  /* section+part yang di-roaster plan ini: record Roaster sudah mereset countdown → tidak dibuat dobel */
+  const ro=new Set(); if(plan.roasterApplied) (plan.roasterPlan||[]).forEach(r=>(r.sections||[]).forEach(s=>ro.add(s+'\u0001'+r.part)));
+  picks.forEach(d=>{ const lk=M[jcRoNorm(d.part)]||null, part=lk||d.part, per=jcVarPerSec(d)||(lk&&!jcRoIsNs(lk));
+    (per?secs:[JCVAR_NOSEC]).forEach(sc=>{ const k=sc+'\u0001'+part; if(!ro.has(k)&&!out.has(k)) out.set(k,d.part); }); });
+  return out; }
 /* reason = nama variabel yang berubah, otomatis terdaftar di bab Job Change */
 function rgRegisterJC(part){
   CFG.reasonGroupOf=CFG.reasonGroupOf||{};
@@ -9010,47 +9084,33 @@ function rgRegisterJC(part){
 function syncJCVarPlan(plan){
   if(!plan||!plan.varApplied) return {added:0,removed:0};
   const machine=plan.machine||plan.line, date=plan.jcDate, shift=(plan.shift||'');
-  const secs=jcVarSecs(plan), picks=jcVarPicked(plan);
-  const desired=new Set();
-  picks.forEach(d=>{
-    if(jcVarPerSec(d)) secs.forEach(sc=>desired.add(sc+'\u0001'+d.part));
-    else desired.add(JCVAR_NOSEC+'\u0001'+d.part);          // feeder / ware handling: satu record saja
-  });
+  const desired=jcVarDesired(plan);   // section␁part(dashboard) → nama variabel
   let added=0,removed=0;
   for(let i=DB.length-1;i>=0;i--){ const r=DB[i];
     if(r._jcv===plan.id && !(r.machine===machine && r.date===date && desired.has(r.section+'\u0001'+r.part))){ DB.splice(i,1); removed++; } }
-  desired.forEach(k=>{ const ix=k.indexOf('\u0001'); const section=k.slice(0,ix), part=k.slice(ix+1);
+  desired.forEach((v,k)=>{ const ix=k.indexOf('\u0001'); const section=k.slice(0,ix), part=k.slice(ix+1);
     const ex=DB.find(x=>x.machine===machine&&x.section===section&&x.part===part&&x.date===date);
-    if(ex){ if(ex._jcv==null&&ex._jc==null) ex._jcv=plan.id; }   // pakai yang sudah ada, jangan dobel
-    else { DB.push({id:newRecId(),date,machine,section,part,reason:part,pic:shift,_jcv:plan.id}); added++; }
-    rgRegisterJC(part); });
+    if(ex){ if(ex._jcv===plan.id){ if(ex.reason!==v) ex.reason=v; }
+      else if(ex._jcv==null&&ex._jc==null&&rgKey(ex.reason)===rgKey(v)) ex._jcv=plan.id; }   // record manual (trouble dll.) di hari itu tidak diambil alih
+    else { DB.push({id:newRecId(),date,machine,section,part,reason:v,pic:shift,_jcv:plan.id}); added++; }
+    rgRegisterJC(v); });
   return {added,removed};
 }
-/* Tanda di tabel Plan JC — sejajar dengan tanda ♻️ roaster.
-   Belum dicatat -> tombol biru "Catat N". Sudah dicatat -> pil "N tercatat". */
+/* Tanda di tabel Plan JC — sejajar dengan tanda ♻️ roaster. Pencatatan record SATU PINTU lewat Verifikasi JC:
+   sudah tercatat -> pil "N tercatat" · belum -> pil abu "N variabel" (tercatat otomatis saat verifikasi disimpan). */
 function jcVarBadge(p){
   try{
+    if(p.varApplied){ const n=DB.filter(r=>r&&r._jcv===p.id).length; return n?' <span class="pill pJobChange" title="'+n+' record perubahan variabel di Input Data pada '+fmtD(parseD(p.jcDate))+'">🔧 '+n+' tercatat</span>':''; }
     const ch=jcVarChanges(p); if(!ch.prev||!ch.list.length) return '';
-    const n=jcVarCount(p).total;
-    if(p.varApplied) return ' <span class="pill pJobChange" title="'+n+' record perubahan variabel sudah masuk ke Input Data pada '+fmtD(parseD(p.jcDate))+'">🔧 '+n+' tercatat</span>';
-    if(!n) return '';
-    return ' <button class="btn sm" style="background:#4f9dff;color:#08182c" onclick="applyJCVarById('+p.id+')" title="'+ch.list.length+' variabel berubah dibanding JC '+fmtD(parseD(ch.prev.jcDate))+' — catat sebagai record">🔧 Catat '+n+'</button>';
+    const k=jcVarPicked(p).length; if(!k) return '';
+    return ' <span class="pill jvb-pend" title="'+k+' variabel berubah dibanding JC '+fmtD(parseD(ch.prev.jcDate))+' — tercatat otomatis saat Verifikasi JC disimpan">🔧 '+k+' variabel</span>';
   }catch(e){ return ''; }
 }
-function applyJCVarById(id){
-  const p=JCPLANS.find(x=>x.id===id); if(!p){ toast('Plan tidak ditemukan',1); return false; }
-  if(p.varApplied){ toast('Perubahan variabel plan ini sudah tercatat',1); return false; }
-  const picks=jcVarPicked(p), secs=jcVarSecs(p), cnt=jcVarCount(p);
-  if(!picks.length){ toast('Tidak ada variabel yang dicentang',1); return false; }
-  if(cnt.mach && !secs.length){ toast('Pilih minimal satu section untuk variabel area machine',1); return false; }
-  if(!confirm('Catat '+cnt.total+' record ('+jcVarCountTxt(p)+') pada '+fmtD(parseD(p.jcDate))+'?\n\nReason = nama variabel, bab Job Change.\nRecord ini menggeser tanggal "terakhir diganti" di Monitoring.')) return false;
-  p.varApplied=true; const res=syncJCVarPlan(p);
-  auditLog('add','record',(p.machine||p.line||'-')+' · '+(p.jcDate||'-'),null,
-    {machine:(p.machine||p.line),date:p.jcDate,reason:'Job Change (variabel)',part:picks.map(d=>d.part).join(', ')},
-    res.added+' record dari perubahan variabel Plan JC ('+jcVarCountTxt(p)+')');
-  saveAll(); buildNav(); toast('✓ '+res.added+' record job change dicatat'); render();
-  return true;
-}
+/* buka form Verifikasi JC untuk plan ini (halaman konfirmasi-jc.html) */
+function jcGoVerif(id){ const p=(JCPLANS||[]).find(x=>x&&x.id===id); if(!p){ toast('Plan tidak ditemukan',1); return; }
+  try{ closeBellPop(); }catch(e){} try{ closeJC(); }catch(e){}
+  appGo(KONF_FILE,'plan='+encodeURIComponent(p.id)); }
+function applyJCVarById(id){ jcGoVerif(id); return false; }   /* pencatatan pindah ke Verifikasi JC */
 function jcVarToggle(part){
   const c=window._jcEdit; if(!c)return;
   c.varSkip=c.varSkip||[]; const i=c.varSkip.indexOf(part);
@@ -9066,30 +9126,35 @@ function jcVarToggleSec(x){
 }
 function jcVarAllSec(v){ const c=window._jcEdit; if(!c)return;
   c.varSecs=v?sectionsOf(c.machine||c.line).slice():[]; renderJCVarRec(); }
-function applyJCVar(){
-  const c=window._jcEdit; if(!c)return;
-  if(c.id==null){ toast('Simpan plan dulu sebelum mencatat record',1); return; }
-  const live=JCPLANS.find(x=>x.id===c.id);
-  if(!live){ toast('Simpan plan dulu sebelum mencatat record',1); return; }
-  live.varSkip=(c.varSkip||[]).slice(); live.varSecs=(c.varSecs||[]).slice();
-  if(applyJCVarById(c.id)){ c.varApplied=true; renderJCVarRec(); }
-}
-function unapplyJCVar(){
-  const c=window._jcEdit; if(!c||c.id==null)return;
-  if(!confirm('Batalkan pencatatan? Semua record yang dibuat dari perubahan variabel plan ini akan dihapus.'))return;
-  let removed=0;
-  for(let i=DB.length-1;i>=0;i--){ if(DB[i]._jcv===c.id){ DB.splice(i,1); removed++; } }
-  c.varApplied=false; const live=JCPLANS.find(x=>x.id===c.id); if(live)live.varApplied=false;
-  jcSibResync(c.machine||c.line,c.jcDate,c.id);   /* record yang juga dipakai trial / JC lain di hari itu dibuat ulang */
-  if(removed) auditLog('del','record',(c.machine||c.line||'-')+' · '+(c.jcDate||'-'),
-    {machine:(c.machine||c.line),date:c.jcDate,reason:'Job Change (variabel)'},null,
-    removed+' record perubahan variabel dibatalkan');
-  saveAll(); buildNav(); toast(removed+' record dihapus'); render(); renderJCVarRec();
-}
+function applyJCVar(){ const c=window._jcEdit; if(!c) return; if(c.id==null){ toast('Simpan plan dulu, lalu verifikasi setelah JC dikerjakan',1); return; } jcGoVerif(c.id); }
+function unapplyJCVar(){ applyJCVar(); }   /* batalkan record = "Batalkan verifikasi" di halaman Verifikasi JC */
 function jcVarSecUI(){ const e=document.getElementById('jcVarSecChips'); if(e) e.style.display = (e.style.display==='none'?'':'none'); }
 /* Migrasi satu kali: record variabel feeder/ware handling yang terlanjur dibuat
    per-section dirapikan menjadi satu record ber-section '-'. Idempoten (berbasis
    desired-set milik syncJCVarPlan), hanya menyentuh record ber-tanda _jcv. */
+/* Record variabel JC lama (dulu dari tombol Catat) disesuaikan dengan nama part dashboard.
+   Hanya mengubah di tempat / menghapus duplikat (deterministik di semua perangkat) — tidak menambah record baru. */
+function jcvRealign(){
+  try{
+    const M=jcVarLinkMap(), V=new Set(); Object.values(CFG.jcAreas||{}).forEach(a=>(a||[]).forEach(v=>V.add(rgKey(v))));
+    let ren=0, rel=0, del=0;
+    DB.forEach(r=>{ if(!r||r._jcv==null) return; const v=String(r.reason||''), lk=M[jcRoNorm(v)]||null;
+      if(!V.has(rgKey(v))&&r.part!==v&&lk!==r.part){ delete r._jcv; rel++; return; }   // record manual yang dulu terambil alih JC → dilepas
+      const want=lk||v; if(r.part!==want){ r.part=want; ren++; } });
+    const G={}; DB.forEach((r,i)=>{ if(!r) return; const k=r.machine+'|'+r.section+'|'+r.part+'|'+r.date; (G[k]=G[k]||[]).push(i); });
+    const drop=new Set();
+    Object.values(G).forEach(ix=>{ if(ix.length<2) return; const jv=ix.filter(i=>DB[i]._jcv!=null); if(!jv.length) return;
+      if(jv.length<ix.length) jv.forEach(i=>drop.add(i));   // sudah ada record Roaster / manual di hari & section yang sama
+      else jv.sort((a,b)=>String(DB[a].id).localeCompare(String(DB[b].id))).slice(1).forEach(i=>drop.add(i)); });
+    if(drop.size){ DB=DB.filter((r,i)=>!drop.has(i)); del=drop.size; }
+    if(ren||rel||del){
+      try{ auditLog('edit','record','Variabel JC → part dashboard',{keterangan:'nama variabel JC'},{keterangan:'nama part dashboard'},ren+' record memakai nama part dashboard'+(del?' · '+del+' record ganda dihapus':'')+(rel?' · '+rel+' record manual dilepas dari JC':'')); }catch(e){}
+      saveAll(); }
+  }catch(e){ console.error('jcvRealign:',e); } }
+/* hapus semua record JC milik plan (JC ditunda / verifikasi dibatalkan → belum ada pergantian yang sah) */
+function jcRecClear(p){ let n=0; if(!p) return 0;
+  for(let i=DB.length-1;i>=0;i--){ const r=DB[i]; if(r&&(r._jcv===p.id||r._jc===p.id)){ DB.splice(i,1); n++; } }
+  p.varApplied=false; p.roasterApplied=false; return n; }
 function jcVarAreaMigrate(){
   try{
     if(CFG._jcvAreaFix) return;
@@ -9108,6 +9173,12 @@ function jcVarAreaMigrate(){
     saveAll();
   }catch(e){ console.error('jcVarAreaMigrate:',e); }
 }
+/* status verifikasi plan — record roaster & variabel hanya masuk lewat Verifikasi JC (satu pintu) */
+function jcVerChip(c){ const cf=c&&c.conf, go=(c&&c.id!=null)?` onclick="jcGoVerif(${c.id})" role="button" tabindex="0"`:'';
+  if(cf&&cf.st&&cf.st!=='tunda') return `<span class="jvb-v ok"${go} title="Record tercatat dari Verifikasi JC — buka untuk lihat / ubah">✅ Terverifikasi${cf.by?' · '+esc(cf.by):''} ↗</span>`;
+  if((c&&c.postponed)||(cf&&cf.st==='tunda')) return `<span class="jvb-v wait" title="JC ditunda — tidak ada record">⏸ Ditunda</span>`;
+  if(c&&c.id!=null&&c.jcDate&&c.jcDate<=ymd(TODAY)) return `<span class="jvb-v need"${go} title="Buka Verifikasi JC — record tercatat otomatis saat disimpan">⚠ Verifikasi JC ↗</span>`;
+  return `<span class="jvb-v wait" title="Tercatat otomatis saat JC diverifikasi di halaman Verifikasi JC">⏳ Tercatat saat Verifikasi JC</span>`; }
 function renderJCVarRec(){
   const c=window._jcEdit; const el=document.getElementById('jcVarRec'); if(!el)return;
   const ch=jcVarChanges(c);
@@ -9118,30 +9189,22 @@ function renderJCVarRec(){
   const rincian = cnt.mach&&cnt.single
     ? `${cnt.mach} machine \u00d7 ${cnt.secs} sec + ${cnt.single} feeder/WH`
     : (cnt.mach ? `${cnt.mach} variabel \u00d7 ${cnt.secs} section` : `${cnt.single} variabel \u00d7 1 (tanpa section)`);
+  const M=jcVarLinkMap(), cdP=[], his=[]; picks.forEach(d=>{ const lk=M[jcRoNorm(d.part)]; if(lk){ if(cdP.indexOf(lk)<0) cdP.push(lk); } else his.push(d.part); });
+  const nRec=(c.varApplied&&c.id!=null)?DB.filter(r=>r&&r._jcv===c.id).length:null;
   el.innerHTML=`
     <div class="jcvarbar ${c.varApplied?'done':''}">
-      <span class="jvb-t">${c.varApplied?'\u2705 <b>Tercatat</b>':'📌'} <b>${picks.length}</b>/${ch.list.length} variabel = <b style="color:var(--accent2)">${n}</b> record
+      <span class="jvb-t">${c.varApplied?'\u2705 <b>'+nRec+' record tercatat</b> \u00b7':'📌'} <b>${picks.length}</b>/${ch.list.length} variabel${c.varApplied?'':` = <b style="color:var(--accent2)">${n}</b> record`}
         <span style="color:var(--txt3)">\u00b7 ${rincian} \u00b7 vs JC ${fmtD(parseD(ch.prev.jcDate))}</span></span>
       ${cnt.mach?`<a class="jvb-sec" onclick="jcVarSecUI()">${esc(secLbl)} \u25be</a>`:''}
-      ${c.varApplied
-        ? `<button class="btn sec sm" onclick="unapplyJCVar()">Batalkan</button>`
-        : `<button class="btn sm" onclick="applyJCVar()" ${c.id==null?'disabled title="Simpan plan dulu"':''}>Catat</button>`}
+      ${jcVerChip(c)}
     </div>
+    ${picks.length?`<div class="jvb-k">${cdP.length?`⏱ <b>Reset countdown:</b> ${cdP.map(esc).join(', ')}`:''}${cdP.length&&his.length?' \u00b7 ':''}${his.length?`📁 <b>Riwayat saja</b> (tidak ada part dashboard bernama sama): ${his.map(esc).join(', ')}`:''}</div>`:''}
     <div class="addchips" id="jcVarSecChips" style="display:none;margin:6px 0 0">
       ${allSec.map(x=>`<span class="fchip ${secs.includes(x)?'on':''}" onclick="jcVarToggleSec('${x}')">${x}</span>`).join('')}
       <span class="fchip" onclick="jcVarAllSec(true)">semua</span><span class="fchip" onclick="jcVarAllSec(false)">kosongkan</span>
     </div>`;
 }
-function applyRoasterPlan(id){
-  const p=JCPLANS.find(x=>x.id===id); if(!p){toast('Plan not found',1);return;}
-  if(p.roasterApplied){toast('This roaster plan is already logged',1);return;}
-  const rows=(p.roasterPlan||[]).filter(r=>(r.sections||[]).length); if(!rows.length){toast('Tidak ada roaster per-section di plan ini',1);return;}
-  const date=p.jcDate, shift=(p.shift||'');
-  if(!confirm('Catat seluruh roaster plan ini sebagai record nyata pada '+fmtD(parseD(date))+'?\nReason "Roaster"'+(shift?', shift '+shift:'')+'.'))return;
-  p.roasterApplied=true; const res=syncRoasterPlan(p);
-  saveAll(); buildNav();
-  toast('✓ '+res.added+' record roaster dicatat'); render();
-}
+function applyRoasterPlan(id){ jcGoVerif(id); }   /* Log Roaster pindah ke Verifikasi JC (satu pintu) */
 function pendingRoasterPlans(machine){ return JCPLANS.filter(p=>(p.machine||p.line)===machine && !p.trial && !p.roasterApplied && Array.isArray(p.roasterPlan) && p.roasterPlan.length); }
 // nearest JobChange plan for a machine within `days` ahead (incl. today)
 function upcomingJC(machine,days){ days=days||7; let best=null,bestRem=1e9;
@@ -9539,13 +9602,16 @@ function jcParts(){ const o=[]; Object.keys(CFG.jcAreas).forEach(a=>CFG.jcAreas[
 function jchMachines(){ const ms=dashScopeMachines(); return ms.length?ms:CFG.machines.slice(); }
 /* satu event = satu job change (transisi dari JC sebelumnya ke JC ini) */
 function jcChangeEvents(machine,from,to){
-  const tl=jcTimeline(machine), out=[];
+  const tl=jcTimeline(machine).filter(p=>!p.postponed), out=[];   /* JC ditunda tidak dikerjakan → bukan event */
   for(let i=1;i<tl.length;i++){
     const p=tl[i]; if(!p.jcDate) continue;
     const dt=parseD(p.jcDate);
     if(from&&dt<from) continue; if(to&&dt>to) continue;
-    const all=transitionDiff(tl[i-1],p);
-    out.push({plan:p,prev:tl[i-1],date:p.jcDate,all,chg:all.filter(d=>d.status==='change'||d.status==='add')});
+    let all=transitionDiff(tl[i-1],p), chg=all.filter(d=>d.status==='change'||d.status==='add');
+    if(kfIsConf(p)&&p.conf.chk&&p.conf.chk.specs){   /* sudah diverifikasi: yang dihitung = yang dipilih Ganti */
+      chg=jcVarPicked(p).map(d=>Object.assign({consumable:isConsumable(d.part)},d));
+      const cs=new Set(chg.map(d=>d.part)); all=all.map(d=>(d.status==='same'&&cs.has(d.part))?Object.assign({},d,{status:'change'}):d); }
+    out.push({plan:p,prev:tl[i-1],date:p.jcDate,all,chg});
   }
   return out.sort((a,b)=>b.date.localeCompare(a.date));
 }
@@ -9972,7 +10038,7 @@ function anaCmp(a,b){ return String(a).localeCompare(String(b),undefined,{numeri
 
 function anaData(opt){
   const F=anaF(), from=anaFrom();
-  const en=(opt&&opt.en)?opt.en.filter(r=>r.d && !isNaN(r.d)):enriched().filter(r=>r.d && !isNaN(r.d) && (!from||r.d>=from) && (F.mc==='all'||r.machine===F.mc));
+  const en=(opt&&opt.en)?opt.en.filter(r=>r.d && !isNaN(r.d)):enrichedPM().filter(r=>r.d && !isNaN(r.d) && (!from||r.d>=from) && (F.mc==='all'||r.machine===F.mc));
   const machs=(opt&&opt.machs)?opt.machs.slice():(F.mc==='all'?CFG.machines.slice():[F.mc]);
   const avg=a=>a.length?(a.reduce((x,y)=>x+y,0)/a.length):null;
   // 1) lifetime per part
@@ -10323,10 +10389,10 @@ function reportPeriod(){
   return {from,to,label};
 }
 function reportCompute(from,to){
-  const recs=enriched().filter(r=>r.d>=from && r.d<=to);
+  const recs=enrichedPM().filter(r=>r.d>=from && r.d<=to);
   const _rc=rgCount(recs);
   const trouble=_rc.byId.trouble||0, emergency=0, scheduled=_rc.planned;   // scheduled = Job Change + Roaster
-  const jc=JCPLANS.filter(p=>{const d=p.jcDate?parseD(p.jcDate):null; return d&&d>=from&&d<=to;}).length;
+  const jc=JCPLANS.filter(p=>{const d=p.jcDate?parseD(p.jcDate):null; return d&&d>=from&&d<=to&&!p.trial&&!p.postponed&&!(p.conf&&p.conf.st==='tunda');}).length;   /* JC yang dikerjakan */
   const machines=new Set(recs.map(r=>r.machine)).size, partsUnique=new Set(recs.map(r=>r.part)).size;
   const pc={}; recs.forEach(r=>pc[r.part]=(pc[r.part]||0)+1);
   let pp=Object.entries(pc).sort((a,b)=>b[1]-a[1]); let paretoParts=pp.slice(0,12); const prest=pp.slice(12).reduce((a,b)=>a+b[1],0); if(prest>0)paretoParts.push(['Lainnya',prest]);
@@ -10478,8 +10544,8 @@ async function exportExcelFull(byPeriod){
     wsA.views=[{state:'frozen',ySplit:0}];
     // ---------- Plan Jobchange ----------
     sheetFrom('Plan Jobchange',
-      [{header:'JC Date',key:'d',width:13,style:{numFmt:'dd/mm/yyyy'}},{header:'Machine',key:'m',width:9},{header:'Shift',key:'sh',width:12},{header:'Process',key:'pr',width:10},{header:'CD',key:'cd',width:8},{header:'Type Job',key:'tj',width:10},{header:'Description',key:'ds',width:20},{header:'Weight',key:'w',width:9},{header:'Roaster',key:'ro',width:34},{header:'Tercatat',key:'ap',width:10}],
-      JCPLANS.slice().sort((a,b)=>String(a.jcDate).localeCompare(String(b.jcDate))).map(p=>({d:p.jcDate?parseD(p.jcDate):'',m:p.machine||p.line||'',sh:p.shift||'',pr:p.process||'',cd:p.cd||'',tj:p.typeJob||'',ds:p.description||'',w:p.weight||'',ro:(p.roasterPlan||[]).map(r=>r.part+((r.sections||[]).length?'['+r.sections.join(',')+']':' [non-section]')).join(' · '),ap:p.roasterApplied?'Ya':'Tidak'})));
+      [{header:'JC Date',key:'d',width:13,style:{numFmt:'dd/mm/yyyy'}},{header:'Machine',key:'m',width:9},{header:'Shift',key:'sh',width:12},{header:'Process',key:'pr',width:10},{header:'CD',key:'cd',width:8},{header:'Type Job',key:'tj',width:10},{header:'Description',key:'ds',width:20},{header:'Weight',key:'w',width:9},{header:'Roaster',key:'ro',width:34},{header:'Verifikasi',key:'vf',width:14},{header:'Record',key:'ap',width:9}],
+      JCPLANS.slice().sort((a,b)=>String(a.jcDate).localeCompare(String(b.jcDate))).map(p=>({d:p.jcDate?parseD(p.jcDate):'',m:p.machine||p.line||'',sh:p.shift||'',pr:p.process||'',cd:p.cd||'',tj:p.typeJob||'',ds:p.description||'',w:p.weight||'',ro:(p.roasterPlan||[]).map(r=>r.part+((r.sections||[]).length?'['+r.sections.join(',')+']':' [non-section]')).join(' · '),vf:(p.postponed||(p.conf&&p.conf.st==='tunda'))?'Ditunda':kfIsConf(p)?(p.conf.st==='berubah'?'Ada perubahan':'Sesuai plan'):'Belum',ap:DB.filter(r=>r&&(r._jcv===p.id||r._jc===p.id)).length})));
     // ---------- Stock ----------
     sheetFrom('Stock',
       [{header:'Area',key:'ar',width:14},{header:'Part',key:'p',width:18},{header:'Size',key:'sz',width:10},{header:'Qty',key:'q',width:8},{header:'Unit',key:'u',width:8},{header:'Lokasi',key:'lo',width:14},{header:'Catatan',key:'n',width:20}],
@@ -10516,8 +10582,8 @@ async function exportExcelFull(byPeriod){
 
     // ---------- Replacement Data — sesuai scope (periode / semua) ----------
     sheetFrom(byPeriod?'Replacement Data':'Replacement Data (ALL)',
-      [{header:'No',key:'no',width:6},{header:'Date',key:'d',width:13,style:{numFmt:'dd/mm/yyyy'}},{header:'Machine',key:'m',width:9},{header:'Section',key:'s',width:9},{header:'Part',key:'p',width:16},{header:'Kategori',key:'cat',width:12},{header:'Reason / Trouble',key:'r',width:28},{header:'Umur Aktual (hari)',key:'lt',width:16},{header:'Shift / PIC',key:'sh',width:12}],
-      enUse.map((r,i)=>({no:i+1,d:r.d,m:r.machine,s:r.section,p:r.part,cat:r.cat,r:r.reason||'',lt:(r.actual==null?'':r.actual),sh:r.pic||''})));
+      [{header:'No',key:'no',width:6},{header:'Date',key:'d',width:13,style:{numFmt:'dd/mm/yyyy'}},{header:'Machine',key:'m',width:9},{header:'Section',key:'s',width:9},{header:'Part',key:'p',width:16},{header:'Kategori',key:'cat',width:12},{header:'Reason / Trouble',key:'r',width:28},{header:'Umur Aktual (hari)',key:'lt',width:16},{header:'Shift / PIC',key:'sh',width:12},{header:'Sumber',key:'src',width:16}],
+      enUse.map((r,i)=>({no:i+1,d:r.d,m:r.machine,s:r.section,p:r.part,cat:r.cat,r:r.reason||'',lt:(r.actual==null?'':r.actual),sh:r.pic||'',src:r._jcv!=null?'Verifikasi JC':r._jc!=null?'Roaster JC':'Input manual'})));
 
     // ---------- Action Required (OVERDUE & URGENT) ----------
     const actRows=monAll.filter(x=>x.status==='OVERDUE'||x.status==='URGENT');
@@ -11028,14 +11094,13 @@ function jccPres(setter,val){ let o='<option value="">–</option>'; for(let i=0
 function jccTypeName(t){ const m={pu:'Plunger Up',cb:'Counter Blow',vb:'Vertiblow'}; return m[t]||t; }
 function jccChipId(kind,a,b,c){ return 'jccchip_'+kind+'_'+a+'_'+(b||'')+'_'+(c||''); }
 /* desktop = perangkat ber-mouse → isi tekanan dengan mengetik angka; HP / tablet (layar sentuh) → tekan & geser */
-function jccHint(){ return jccDesk()
-  ?'<b>Ketik tekanan (bar, 0–5)</b> — Enter = lanjut ke kotak berikutnya · 24 = 2,4 · ↑ ↓ = ±0,1. <b>Klik 2×</b> = ⚠ gauge trouble.'
-  :'<b>Tekan angka lalu geser ◀ ▶</b> — pelan = halus · cepat = loncat · mentok di tepi layar? <b>tahan</b> = terus naik / turun · lepas jari = pilih. <b>Ketuk 2×</b> = ⚠ gauge trouble.'; }
+function jccHint(){ return '<b>Ketik angka tekanan (bar, 0–5)</b> — '+(jccDesk()?'Enter':'Enter / Next')+' = kotak berikutnya · 24 = 2,4. <b>'+(jccDesk()?'Klik':'Ketuk')+' 2×</b> = ⚠ gauge trouble.'; }
 function jccDesk(){ try{ return window.matchMedia('(hover: hover) and (pointer: fine)').matches; }catch(e){ return false; } }
 function jccPresChip(kind,a,b,c,label,val){ const id=jccChipId(kind,a,b,c); const filled=(val!==''&&val!=null); const shown=filled?jccDisp(val):'–';
   let bad=false; try{ bad=kind==='p'?!!jccGetCell(a,b)[c+'Bad']:!!jccGetG(a).bad; }catch(e){}
   const lab=esc(String(label||''));
-  if(jccDesk()) return '<span class="jcc-iw'+(bad?' bad':'')+'" title="'+lab+(bad?' · ⚠ gauge trouble':'')+'"><input type="text" inputmode="decimal" autocomplete="off" spellcheck="false" maxlength="6" id="'+id+'" class="jcc-in'+(filled?' on':'')+'" value="'+(filled?esc(jccDisp(val)):'')+'" placeholder="–" data-kind="'+kind+'" data-a="'+esc(a)+'" data-b="'+esc(b||'')+'" data-c="'+esc(c||'')+'" data-lab="'+lab+'" aria-label="'+lab+' ('+jccSc({kind:kind,a:a}).unit+')"></span>';
+  /* semua perangkat: kotak isian angka (HP → keyboard angka) */
+  if(true) return '<span class="jcc-iw'+(bad?' bad':'')+'" title="'+lab+(bad?' · ⚠ gauge trouble':'')+'"><input type="text" inputmode="'+(jccSc({kind:kind,a:a}).min<0?'text':'decimal')+'" enterkeyhint="next" autocomplete="off" spellcheck="false" maxlength="6" id="'+id+'" class="jcc-in'+(filled?' on':'')+'" value="'+(filled?esc(jccDisp(val)):'')+'" placeholder="–" data-kind="'+kind+'" data-a="'+esc(a)+'" data-b="'+esc(b||'')+'" data-c="'+esc(c||'')+'" data-lab="'+lab+'" aria-label="'+lab+' ('+jccSc({kind:kind,a:a}).unit+')"></span>';
   return '<button type="button" id="'+id+'" class="jcc-chip'+(filled?' on':'')+(bad?' bad':'')+'" data-kind="'+kind+'" data-a="'+esc(a)+'" data-b="'+esc(b||'')+'" data-c="'+esc(c||'')+'" data-lab="'+lab+'" aria-label="'+lab+' ('+jccSc({kind:kind,a:a}).unit+')">'+shown+'</button>'; }
 function jccCell(type,sec,col){ const c=jccGetCell(type,sec); return jccPresChip('p',type,sec,col,jccTypeName(type)+' · '+sec+' · '+jccColLabel(col),c[col]||''); }
 function jccTable(type,label){ const e=window._jccEdit; const secs=sectionsOf(e.machine); const cols=jccCols(e.cd);
@@ -11527,7 +11592,10 @@ function jccSeed(t){ const e=window._jccEdit, sc=jccSc(t); if(!e) return jccValI
     const d={ArrowUp:1,ArrowDown:-1}[ev.key];
     if(d){ ev.preventDefault(); const t=jccChipRef(el), sc=jccSc(t), p=jccParseIn(el.value,sc), cur=jccValIdx(p===null?jccGetVal(t):p,sc);
       const i=cur==null?jccSeed(t):Math.max(0,Math.min(jccScN(sc),cur+d*(ev.shiftKey?5:1))); el.value=jccFmt(i,sc); jccInCommit(el); try{ el.select(); }catch(_){} } });
-  document.addEventListener('dblclick',function(ev){ const el=ev.target; if(!isIn(el)||!window._jccEdit) return; jccToggleBad(jccChipRef(el),el); try{ el.select(); }catch(_){} });
+  document.addEventListener('dblclick',function(ev){ const el=ev.target; if(!isIn(el)||!window._jccEdit) return; if(Date.now()-(window._jccTap2||0)<700) return; jccToggleBad(jccChipRef(el),el); try{ el.select(); }catch(_){} });
+  /* HP: ketuk 2× kotak tekanan = tandai / batal ⚠ gauge trouble */
+  let tap=null; document.addEventListener('pointerup',function(ev){ if(ev.pointerType==='mouse') return; const el=ev.target; if(!isIn(el)||!window._jccEdit) return;
+    const now=Date.now(); if(tap&&tap.el===el&&now-tap.t<350){ tap=null; window._jccTap2=now; jccToggleBad(jccChipRef(el),el); return; } tap={el,t:now}; },true);
 })();
 /* ketik bebas: "2.4" / "2,4" / "24" (= 2,4) / "3" (= 3,0) · batas 0–5 bar · kosong = hapus */
 function jccParseIn(s,sc){ sc=sc||JCC_BAR; s=String(s==null?'':s).trim().replace(',','.'); if(!s) return '';
@@ -11636,6 +11704,7 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
   window.addEventListener('unhandledrejection',function(ev){ try{ console.warn('Promise ditolak (diabaikan, data aman):', ev&&ev.reason); }catch(_){ } });
   try{ await loadAll(); }catch(e){ console.error('loadAll failed:',e); }
   try{ syncInstallGuards(); }catch(e){ console.error(e); }   /* fungsi Admin (Master, impor, reset, denah) → minta PIN Admin bagi Operator */
+  try{ jcvRealign(); }catch(e){ console.error(e); }
   try{ jcVarAreaMigrate(); }catch(e){ console.error(e); }
   try{ Cloud.dirty = (localStorage.getItem('pm_dirty')==='1'); }catch(e){}   // pulihkan status "belum tersinkron" setelah reload → lindungi input lokal
   try{ var _lr0=parseInt(localStorage.getItem('pm_lastrev'),10); Cloud.lastRev=isNaN(_lr0)?null:_lr0; }catch(e){}   // pulihkan revisi cloud terakhir yang sudah diserap
@@ -12146,6 +12215,14 @@ td.jcp-c{ width:34px; }
 .jcvarbar.done{ border-left-color:var(--teal); }
 .jcvarbar .jvb-t{ flex:1 1 200px; min-width:0; color:var(--txt2); }
 .jcvarbar .jvb-sec{ flex:0 0 auto; cursor:pointer; color:var(--blue); font-size:11.5px; white-space:nowrap; }
+.jvb-v{ flex:0 0 auto; font-size:11.5px; font-weight:800; border-radius:999px; padding:4px 10px; white-space:nowrap; }
+.jvb-v[role="button"]{ cursor:pointer; }
+.jvb-v.ok{ color:var(--green); background:color-mix(in srgb,var(--green) 14%,transparent); }
+.jvb-v.need{ color:var(--orange); background:color-mix(in srgb,var(--orange) 15%,transparent); }
+.jvb-v.wait{ color:var(--txt3); background:var(--panel); border:1px solid var(--line2); }
+.jvb-k{ font-size:11.5px; line-height:1.45; color:var(--txt2); margin:4px 2px 0; }
+.jvb-k b{ color:var(--txt); }
+.pill.jvb-pend{ background:var(--panel2); color:var(--txt3); border:1px dashed var(--line2); }
 @media (max-width:680px){
   .jcvarbar{ font-size:11.5px; gap:8px; }
   .jcvarbar .jvb-t{ flex:1 1 100%; }
@@ -12172,7 +12249,7 @@ td.jcp-c{ width:34px; }
 #jpPlanBox td.jp-actc{ white-space:normal; line-height:normal; }
 #jpPlanBox .jp-act{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; }
 #jpPlanBox .jp-act .jp-st, #jpPlanBox .jp-act .jp-ic{ display:inline-flex; flex-wrap:nowrap; align-items:center; gap:8px; }
-#jpPlanBox .jp-act .jp-st{ flex-wrap:wrap; }   /* Log Roaster + Catat boleh bertumpuk rapi bila kolom sempit */
+#jpPlanBox .jp-act .jp-st{ flex-wrap:wrap; }   /* tanda ♻️ / 🔧 boleh bertumpuk rapi bila kolom sempit */
 #jpPlanBox .jp-act .btn, #jpPlanBox .jp-act .pill{ flex:0 0 auto; margin:0; white-space:nowrap; }
 #jpPlanBox .jp-act .jp-ib{ display:inline-flex; align-items:center; justify-content:center; gap:5px; height:32px; min-width:32px; padding:0 11px; flex:0 0 auto; }
 #jpPlanBox .jp-act .ico-btn.jp-ib{ width:32px; padding:0; border-radius:999px !important; }
@@ -12475,6 +12552,11 @@ body.soft .kf-box{border:0}
 .kf-tg.add{color:var(--blue);background:color-mix(in srgb,var(--blue) 14%,transparent)}
 .kf-tg.rem{color:var(--red);background:color-mix(in srgb,var(--red) 13%,transparent)}
 .kf-tg.ro{color:var(--accent2);background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.kf-rw.dev{box-shadow:inset 3px 0 0 var(--orange)}
+.kf-gx.kf-gxv{flex-direction:row;align-items:center;gap:8px}
+.kf-gx.kf-gxv .kf-gl{flex:0 0 auto}
+.kf-gx.kf-gxv select.kf-val{flex:1 1 auto;min-width:0;max-width:260px;min-height:34px;padding:4px 10px;border-radius:10px;font-weight:700}
+.kf-rw .kf-ket.need{border:1px solid var(--orange)!important}
 .kf-sg{display:inline-flex;gap:3px;padding:3px;border-radius:999px;background:var(--panel);box-shadow:var(--neu-in-sm,none)}
 .kf-sgb{min-width:60px;height:32px;padding:0 12px;border:0;border-radius:999px;background:transparent;color:var(--txt2);font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;transition:background-color .15s,color .15s}
 .kf-sgb.s.on{background:var(--green);color:#062312}
@@ -12611,7 +12693,8 @@ html[data-app="jcc"] #bellBtn,html[data-app="jcc"] #bellPop,html[data-app="jcc"]
   .kf-gp{grid-template-columns:minmax(0,1fr)}
   .kf-pt .jcc-chip{max-width:none;min-height:44px;font-size:16px}   /* sel lebar & tinggi: mudah ditekan lalu digeser */
   .kf-gpv .jcc-chip{min-width:112px;min-height:42px;font-size:16px}
-  .kf-pt{padding-right:max(10px,14%)}   /* ruang kosong di kanan → jari leluasa geser ke kanan (naik), tidak bentrok gesture tepi layar */
+  .kf-form .kf-pt input.jcc-in,.kf-form .kf-gpv input.jcc-in{min-height:42px;font-size:16px!important}   /* HP: kotak isian mudah diketuk, tanpa zoom */
+  .kf-gpv .jcc-iw{width:112px}
   .kf-gp>div{padding-right:4px}
 }
 @media(max-width:380px){ .kf-pt .jcc-chip{min-width:40px;padding:6px 4px} }
