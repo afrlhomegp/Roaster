@@ -3826,14 +3826,14 @@ function enriched(){
   const groups={};
   [...list].sort((a,b)=>a.d-b.d).forEach(r=>{
     const k=r.machine+'|'+r.section+'|'+r.part;
-    r.actual = groups[k]!==undefined ? daysBetween(groups[k],r.d) : null;
+    r.actual = (groups[k]!==undefined && !jcvAuto(r)) ? daysBetween(groups[k],r.d) : null;   // dilepas karena JC (variabel) bukan umur aktual
     groups[k]=r.d;
   });
   return list;
 }
 // monitoring: latest per machine|section|part combo (only combos that exist in data)
 function monitoring(){
-  const list=enriched(); const combo={};
+  const list=enriched().filter(jcvCounts); const combo={};   // variabel JC tanpa kaitan & lifetime tidak masuk countdown
   list.forEach(r=>{
     const k=r.machine+'|'+r.section+'|'+r.part;
     if(!combo[k]||r.d>combo[k].last){ combo[k]=combo[k]||{machine:r.machine,section:r.section,part:r.part,count:0,trouble:0}; }
@@ -7199,8 +7199,8 @@ function jpFitScroll(){ const mob=jpMob(); const z=parseFloat(document.documentE
 /* kolom Action: status (Log Roaster / logged / Catat) satu kelompok, tombol Form · Edit · Salin · Hapus satu kelompok
    dengan jarak seragam — tidak lagi berdempetan / turun baris satu-satu. Di kolom sempit tombol jadi ikon (label di tooltip). */
 function jpActHTML(p){
-  const ro=jcRoHasSect(p)?(p.roasterApplied?'<span class="pill pRoaster" title="Roaster sudah tercatat">♻️ logged</span>'
-    :'<button class="btn sm" style="background:var(--teal);color:#03201f" onclick="applyRoasterPlan('+p.id+')" title="Catat roaster plan ini sebagai record nyata pada tgl JC">📌 Log Roaster</button>'):'';
+  /* satu pintu: record roaster tercatat lewat Verifikasi JC — di sini hanya penanda */
+  const ro=(jcRoHasSect(p)&&p.roasterApplied)?'<span class="pill pRoaster" title="Roaster sudah tercatat">♻️ logged</span>':'';
   const st=(ro+String(jcVarBadge(p)||'')).trim();
   return '<div class="jp-act">'+(st?'<span class="jp-st">'+st+'</span>':'')
     +'<span class="jp-ic"><button class="btn sec sm jp-ib" onclick="jcfOpen(['+p.id+'])" title="Cetak / export Form Prepare JC" aria-label="Form">🖨️<span class="jp-bl">Form</span></button>'
@@ -7358,12 +7358,12 @@ function jaTodos(R){ const c=jaCfg(), ph=jaPhase(); const out=[];
   const add=(lv,p,t,sub,bt,d)=>out.push({lv:lv,p:p,t:t,sub:sub,bt:bt||'',d:(d==null?99:d)});
   const B={print:id=>'<button class="btn sm" onclick="closeBellPop();jcfOpen(['+id+'])">🖨️ Cetak</button>',
            ready:id=>'<button class="btn sec sm" onclick="jaToggle('+id+',\'ready\')">✅ Siap</button>',
-           log:id=>'<button class="btn sm" style="background:var(--teal);color:#03201f" onclick="closeBellPop();applyRoasterPlan('+id+')">📌 Log Roaster</button>',
+           verif:id=>'<button class="btn sm" style="background:var(--teal);color:#03201f" onclick="closeBellPop();appGo(KONF_FILE,\'plan='+id+'\')">✅ Verifikasi</button>',
            edit:id=>'<button class="btn sec sm" onclick="closeBellPop();openJCPlan('+id+')">✏️ Isi spec</button>'};
   const all=(JCPLANS||[]).filter(p=>p&&p.jcDate).map(p=>({p:p,d:daysBetween(TODAY,parseD(p.jcDate))}));
-  /* roaster belum dicatat setelah JC */
-  all.filter(x=>x.d<=0&&x.d>=-14&&!x.p.trial&&!x.p.roasterApplied&&jcRoHasSect(x.p)).forEach(x=>
-    add(x.d<0?'now':'today',x.p,'Log Roaster',x.d<0?('JC sudah lewat '+(-x.d)+' hari, roaster plan belum dicatat sebagai record'):'Setelah JC selesai, catat roaster plan sebagai record',B.log(x.p.id),x.d));
+  /* JC hari ini / sudah lewat tapi belum diverifikasi — record roaster & variabel hanya masuk lewat verifikasi (satu pintu) */
+  all.filter(x=>x.d<=0&&x.d>=-14&&!x.p.trial&&!x.p.conf&&!x.p.postponed).forEach(x=>
+    add(x.d<0?'now':'today',x.p,'Verifikasi JC',x.d<0?('JC sudah lewat '+(-x.d)+' hari, belum diverifikasi — record roaster & variabel baru tercatat setelah verifikasi'):'Setelah JC selesai, verifikasi hasilnya — record roaster & variabel tercatat otomatis',B.verif(x.p.id),x.d));
   const up=all.filter(x=>x.d>=0&&x.d<=c.horizon&&!x.p.postponed).sort((a,b)=>a.d-b.d||String(a.p.machine).localeCompare(String(b.p.machine),undefined,{numeric:true}));
   up.forEach(x=>{ const p=x.p, d=x.d, id=p.id, rd=jaReady(p), pr=jaPrinted(p);
     if(d<=c.prepDays+1&&jaSpecN(p)===0) add(d<=1?'now':'today',p,'Spec JC belum diisi','Isi variabel / spec dulu supaya persiapan & form lengkap',B.edit(id),d);
@@ -8139,8 +8139,8 @@ function renderJCRoaster(){
       <div class="fg"><label>&nbsp;</label><button class="btn sm" onclick="jcRoAddRow()">${editing?'💾 Save':'➕ Add'}</button></div>
     </div>
     ${(c.roasterPlan||[]).length?`<div class="specarea-h" style="margin-top:6px">Scheduled roaster list</div>${list}`:'<div style="color:var(--txt3);font-size:12px;margin-top:4px">No scheduled roaster parts yet.</div>'}
-    ${(c.roasterPlan||[]).some(r=>!(r.sections||[]).length)?`<div class="roaster-note">ℹ️ Part <b>non-section</b> hanya untuk persiapan & Form Prepare JC (CHANGE = "Roaster") — tidak dicatat sebagai record saat Log Roaster.</div>`:''}
-    ${jcRoHasSect(c)&&!applied?`<div class="roaster-note">💡 Saved as a <b>plan</b> (can be ✎ edited if there is a revision at the JC). On the JC date, press <b>"📌 Log Roaster"</b> (in the plan table) to turn it into a real record (reason: Roaster, shift: <b>${esc(c.shift||'-')}</b>). Before that, in the machine status popup this section is marked <b style="color:var(--teal)">♻️ teal</b> as a reminder.</div>`:''}`;
+    ${(c.roasterPlan||[]).some(r=>!(r.sections||[]).length)?`<div class="roaster-note">ℹ️ Part <b>non-section</b> hanya untuk persiapan & Form Prepare JC (CHANGE = "Roaster") — tidak dicatat sebagai record saat Verifikasi JC.</div>`:''}
+    ${jcRoHasSect(c)&&!applied?`<div class="roaster-note">💡 Tersimpan sebagai <b>plan</b> (masih bisa ✎ diedit). Record roaster (reason: Roaster, shift: <b>${esc(c.shift||'-')}</b>) tercatat otomatis saat <b>Verifikasi JC</b> disimpan — tidak perlu Log Roaster. Sebelum itu, di popup status mesin section ini ditandai <b style="color:var(--teal)">♻️ teal</b> sebagai pengingat.</div>`:''}`;
 }
 function jcRoToggleSec(x){const a=window._jcRoSecs=window._jcRoSecs||[];const i=a.indexOf(x);i<0?a.push(x):a.splice(i,1);renderJCRoaster();}
 function jcRoAllSec(v){window._jcRoSecs=v?sectionsOf(window._jcEdit.machine).slice():[];renderJCRoaster();}
@@ -8965,8 +8965,11 @@ function syncRoasterPlan(plan){
   // add desired records that don't exist yet
   desired.forEach(k=>{ const idx=k.indexOf('\u0001'); const section=k.slice(0,idx), part=k.slice(idx+1);
     const ex=DB.find(x=>x.machine===machine&&x.section===section&&x.part===part&&x.date===date);
-    if(ex){ if(ex.reason==='Roaster'&&ex._jc==null) ex._jc=plan.id; }   // adopt matching, leave manual records untouched
+    if(ex){ if(ex.reason==='Roaster'&&ex._jc==null) ex._jc=plan.id;   // adopt matching, leave manual records untouched
+      else if(ex._jcv===plan.id&&ex._jc==null){ delete ex._jcv; ex.reason='Roaster'; ex.pic=shift; ex._jc=plan.id; added++; } }   // record variabel plan ini sendiri -> jadi record Roaster
     else { DB.push({id:newRecId(),date,machine,section,part,reason:'Roaster',pic:shift,_jc:plan.id}); added++; } });
+  /* roaster dihapus dari plan: section itu kembali diisi record variabel (bila variabelnya dikaitkan & dicatat) */
+  if(removed&&plan.varApplied){ try{ syncJCVarPlan(plan); }catch(e){ console.error('syncJCVarPlan',e); } }
   return {added,removed};
 }
 /* ============ PERUBAHAN VARIABEL JC -> RECORD ============
@@ -9006,24 +9009,65 @@ function rgRegisterJC(part){
   CFG.reasonGroupOf=CFG.reasonGroupOf||{};
   const k=rgKey(part); if(!CFG.reasonGroupOf[k]) CFG.reasonGroupOf[k]='jc';
 }
+/* ===== Kaitan variabel JC <-> part roaster & countdown =====
+   CFG.jcLink[variabel] = part roaster ('' = sengaja tidak dikaitkan; tidak ada = tebak otomatis dari nama).
+   Hanya variabel area MACHINE (per-section) yang bisa dikaitkan. Record variabel yang dikaitkan disimpan
+   dengan part = part roaster (reason tetap nama variabel), jadi countdown part itu ikut reset.
+   Variabel tanpa kaitan & tanpa lifetime = riwayat JC saja (tidak masuk countdown / dashboard). */
+function jcVarArea(v){ v=String(v==null?'':v).trim(); if(!v) return ''; const A=CFG.jcAreas||{};
+  for(const a of Object.keys(A)){ if((A[a]||[]).indexOf(v)>=0) return a; } return ''; }
+function jcvIsVarName(v){ return !!jcVarArea(v); }
+function jcLinkable(v){ return String(jcVarArea(v)).trim().toUpperCase()==='MACHINE'; }
+function jcLinkNorm(s){ return String(s==null?'':s).toLowerCase().replace(/take\s*-?\s*out|\bt\s*\/\s*o\b/g,'to').replace(/[^a-z0-9]/g,''); }
+function jcLinkGuess(v){ const P=CFG.parts||[], n=jcLinkNorm(v); if(!n) return '';
+  let hit=P.filter(p=>jcLinkNorm(p)===n); if(hit.length===1) return hit[0];
+  const cut=x=>x.replace(/arm$/,''), nc=cut(n); if(nc===n||nc.length<4) return '';
+  hit=P.filter(p=>cut(jcLinkNorm(p))===nc); return hit.length===1?hit[0]:''; }
+function jcLinkAuto(v){ return !Object.prototype.hasOwnProperty.call(CFG.jcLink||{},v); }
+function jcLinkOf(v){ if(!jcLinkable(v)) return '';
+  if(!jcLinkAuto(v)){ const t=String(CFG.jcLink[v]||''); return (t&&(CFG.parts||[]).indexOf(t)>=0)?t:''; }
+  return jcLinkGuess(v); }
+function jcVarRecPart(v){ return jcLinkOf(v)||v; }
+function jcvHasLT(p){ if(+((CFG.lifetimes||{})[p])>0) return true; const M=CFG.lifetimesM||{};
+  return Object.keys(M).some(m=>M[m]&&+M[m][p]>0); }
+/* record otomatis dari perubahan variabel (bukan record manual yang kebetulan diambil alih) */
+function jcvAuto(r){ return !!r&&r._jcv!=null&&jcvIsVarName(r.reason); }
+/* ikut countdown? record variabel tanpa kaitan & tanpa lifetime = riwayat saja */
+function jcvCounts(r){ if(!jcvAuto(r)) return true; return (CFG.parts||[]).indexOf(r.part)>=0||jcvHasLT(r.part); }
+function jcvKind(v){ const l=jcLinkOf(v); if(l) return {k:'link',part:l};
+  return ((CFG.parts||[]).indexOf(v)>=0||jcvHasLT(v))?{k:'lt',part:v}:{k:'hist',part:v}; }
+/* samakan part record variabel lama dengan kaitan sekarang (id tetap -> aman untuk sinkron) */
+function jcLinkNormalize(){ let ren=0, del=0;
+  for(let i=DB.length-1;i>=0;i--){ const r=DB[i]; if(!jcvAuto(r)) continue;
+    const v=String(r.reason).trim(), want=jcVarRecPart(v); if(r.part===want) continue;
+    if(want!==v&&r.section===JCVAR_NOSEC) continue;
+    const dup=DB.some(x=>x!==r&&x.machine===r.machine&&x.section===r.section&&x.part===want&&x.date===r.date);
+    if(dup){ DB.splice(i,1); del++; } else { r.part=want; ren++; } }
+  return {ren,del}; }
+function jcLinkBoot(){ try{ const r=jcLinkNormalize(); if(!r.ren&&!r.del) return;
+    try{ auditLog('edit','record','Kaitan variabel JC',{keterangan:'part = nama variabel'},{keterangan:'part = part roaster terkait'},
+      r.ren+' record variabel JC disesuaikan'+(r.del?(' · '+r.del+' record ganda dihapus'):'')); }catch(e){}
+    saveAll(); }catch(e){ console.error('jcLinkBoot:',e); } }
 /* Samakan record di DB dengan pilihan pada plan (tambah / hapus saat dicentang-ulang) */
 function syncJCVarPlan(plan){
   if(!plan||!plan.varApplied) return {added:0,removed:0};
   const machine=plan.machine||plan.line, date=plan.jcDate, shift=(plan.shift||'');
   const secs=jcVarSecs(plan), picks=jcVarPicked(plan);
-  const desired=new Set();
-  picks.forEach(d=>{
-    if(jcVarPerSec(d)) secs.forEach(sc=>desired.add(sc+'\u0001'+d.part));
-    else desired.add(JCVAR_NOSEC+'\u0001'+d.part);          // feeder / ware handling: satu record saja
+  /* section+part yang di-roaster oleh plan ini sendiri: record Roaster sudah mereset countdown, tidak dibuat dobel */
+  const ro=new Set(); if(plan.roasterApplied) (plan.roasterPlan||[]).forEach(r=>(r.sections||[]).forEach(s=>ro.add(s+'\u0001'+r.part)));
+  const desired=new Map();                                  // section␁part -> nama variabel (reason)
+  picks.forEach(d=>{ const part=jcVarRecPart(d.part);       // variabel yang dikaitkan -> part roaster
+    const keys=jcVarPerSec(d) ? secs.map(sc=>sc+'\u0001'+part) : [JCVAR_NOSEC+'\u0001'+part];   // feeder / ware handling: satu record saja
+    keys.forEach(k=>{ if(!ro.has(k)&&!desired.has(k)) desired.set(k,d.part); });
   });
   let added=0,removed=0;
   for(let i=DB.length-1;i>=0;i--){ const r=DB[i];
     if(r._jcv===plan.id && !(r.machine===machine && r.date===date && desired.has(r.section+'\u0001'+r.part))){ DB.splice(i,1); removed++; } }
-  desired.forEach(k=>{ const ix=k.indexOf('\u0001'); const section=k.slice(0,ix), part=k.slice(ix+1);
+  desired.forEach((v,k)=>{ const ix=k.indexOf('\u0001'); const section=k.slice(0,ix), part=k.slice(ix+1);
     const ex=DB.find(x=>x.machine===machine&&x.section===section&&x.part===part&&x.date===date);
-    if(ex){ if(ex._jcv==null&&ex._jc==null) ex._jcv=plan.id; }   // pakai yang sudah ada, jangan dobel
-    else { DB.push({id:newRecId(),date,machine,section,part,reason:part,pic:shift,_jcv:plan.id}); added++; }
-    rgRegisterJC(part); });
+    if(ex){ if(ex._jcv==null&&ex._jc==null&&jcvIsVarName(ex.reason)) ex._jcv=plan.id; }   // pakai record variabel yang sudah ada; record manual (trouble dll.) tidak diambil alih
+    else { DB.push({id:newRecId(),date,machine,section,part,reason:v,pic:shift,_jcv:plan.id}); added++; }
+    rgRegisterJC(v); });
   return {added,removed};
 }
 /* Tanda di tabel Plan JC — sejajar dengan tanda ♻️ roaster.
@@ -9033,8 +9077,7 @@ function jcVarBadge(p){
     const ch=jcVarChanges(p); if(!ch.prev||!ch.list.length) return '';
     const n=jcVarCount(p).total;
     if(p.varApplied) return ' <span class="pill pJobChange" title="'+n+' record perubahan variabel sudah masuk ke Input Data pada '+fmtD(parseD(p.jcDate))+'">🔧 '+n+' tercatat</span>';
-    if(!n) return '';
-    return ' <button class="btn sm" style="background:#4f9dff;color:#08182c" onclick="applyJCVarById('+p.id+')" title="'+ch.list.length+' variabel berubah dibanding JC '+fmtD(parseD(ch.prev.jcDate))+' — catat sebagai record">🔧 Catat '+n+'</button>';
+    return '';   /* belum tercatat: record masuk otomatis saat Verifikasi JC (satu pintu) */
   }catch(e){ return ''; }
 }
 function applyJCVarById(id){
@@ -9043,7 +9086,7 @@ function applyJCVarById(id){
   const picks=jcVarPicked(p), secs=jcVarSecs(p), cnt=jcVarCount(p);
   if(!picks.length){ toast('Tidak ada variabel yang dicentang',1); return false; }
   if(cnt.mach && !secs.length){ toast('Pilih minimal satu section untuk variabel area machine',1); return false; }
-  if(!confirm('Catat '+cnt.total+' record ('+jcVarCountTxt(p)+') pada '+fmtD(parseD(p.jcDate))+'?\n\nReason = nama variabel, bab Job Change.\nRecord ini menggeser tanggal "terakhir diganti" di Monitoring.')) return false;
+  if(!confirm('Catat '+cnt.total+' record ('+jcVarCountTxt(p)+') pada '+fmtD(parseD(p.jcDate))+'?\n\nReason = nama variabel, bab Job Change.\nVariabel yang dikaitkan ke part roaster ikut mereset countdown part itu.\nVariabel tanpa kaitan & tanpa lifetime hanya jadi riwayat (tidak masuk countdown).\nAtur di Settings → Variabel JC → Countdown.')) return false;
   p.varApplied=true; const res=syncJCVarPlan(p);
   auditLog('add','record',(p.machine||p.line||'-')+' · '+(p.jcDate||'-'),null,
     {machine:(p.machine||p.line),date:p.jcDate,reason:'Job Change (variabel)',part:picks.map(d=>d.part).join(', ')},
@@ -9108,6 +9151,18 @@ function jcVarAreaMigrate(){
     saveAll();
   }catch(e){ console.error('jcVarAreaMigrate:',e); }
 }
+function jcVarKindsTxt(picks){ const L=[], T=[], H=[];
+  (picks||[]).forEach(d=>{ const k=jcvKind(d.part); if(k.k==='link') L.push(k.part); else (k.k==='lt'?T:H).push(d.part); });
+  const u=a=>[...new Set(a)], out=[];
+  if(L.length) out.push('↻ reset countdown: <b>'+u(L).map(esc).join(', ')+'</b>');
+  if(T.length) out.push('<span title="'+esc(T.join(', '))+'">⏱ '+T.length+' countdown sendiri</span>');
+  if(H.length) out.push('<span title="'+esc(H.join(', '))+'">📁 '+H.length+' riwayat saja</span>');
+  return out.join(' · '); }
+/* status verifikasi plan (satu pintu pencatatan record) */
+function jcVerChip(c){ const cf=c&&c.conf;
+  if(cf&&cf.st!=='tunda') return `<span class="jvb-v ok" title="Record roaster & variabel tercatat dari Verifikasi JC">✅ Terverifikasi${cf.by?' · '+esc(cf.by):''}</span>`;
+  if((c&&c.postponed)||(cf&&cf.st==='tunda')) return `<span class="jvb-v wait" title="JC ditunda — belum ada record">⏸ Ditunda</span>`;
+  return `<span class="jvb-v wait" title="Record tercatat otomatis setelah JC diverifikasi di halaman Verifikasi JC">⏳ Belum diverifikasi</span>`; }
 function renderJCVarRec(){
   const c=window._jcEdit; const el=document.getElementById('jcVarRec'); if(!el)return;
   const ch=jcVarChanges(c);
@@ -9123,9 +9178,8 @@ function renderJCVarRec(){
       <span class="jvb-t">${c.varApplied?'\u2705 <b>Tercatat</b>':'📌'} <b>${picks.length}</b>/${ch.list.length} variabel = <b style="color:var(--accent2)">${n}</b> record
         <span style="color:var(--txt3)">\u00b7 ${rincian} \u00b7 vs JC ${fmtD(parseD(ch.prev.jcDate))}</span></span>
       ${cnt.mach?`<a class="jvb-sec" onclick="jcVarSecUI()">${esc(secLbl)} \u25be</a>`:''}
-      ${c.varApplied
-        ? `<button class="btn sec sm" onclick="unapplyJCVar()">Batalkan</button>`
-        : `<button class="btn sm" onclick="applyJCVar()" ${c.id==null?'disabled title="Simpan plan dulu"':''}>Catat</button>`}
+      ${jcVerChip(c)}
+      ${picks.length?`<span class="jvb-k">${c.varApplied?'':'Masuk record otomatis saat <b>Verifikasi JC</b> disimpan · '}${jcVarKindsTxt(picks)}</span>`:''}
     </div>
     <div class="addchips" id="jcVarSecChips" style="display:none;margin:6px 0 0">
       ${allSec.map(x=>`<span class="fchip ${secs.includes(x)?'on':''}" onclick="jcVarToggleSec('${x}')">${x}</span>`).join('')}
@@ -10668,6 +10722,7 @@ function vSet(){
       <div class="note" style="margin-top:14px">OVERDUE &lt; 0 · URGENT ≤ lifetime÷${CFG.urgentDiv||4} · WARNING ≤ lifetime÷${CFG.warnDiv||2} · OK di atasnya<br>Replacement Category & target Avg-Lifetime: <b>${CFG.pmTarget||70}%</b></div>
     </div>
   </div>
+  ${jlkCardHTML()}
   </div>`:syncLockCardHTML()}
   <div class="setgroup">
   <div class="card" style="margin-top:14px"><h3>🧭 Configure Bottom Menu Bar<span class="tag">${Math.min(BN_MAX,(CFG.bottomNav||[]).length)} / ${BN_MAX} aktif</span></h3>
@@ -10826,6 +10881,46 @@ function ltBodyHTML(){ const cur=ltSelCur(), parts=CFG.parts||[], D=cur==='__def
       <label class="lt-iv">${D?inp(lifetimeDef(p),`data-p="${esc(p)}" onchange="setLT(this.dataset.p,this.value)"`,'Default '+p):inp(lifetimeOf(p,cur),`data-m="${esc(cur)}" data-p="${esc(p)}" onchange="setLTM(this)"`,cur+' '+p)}<small>hari</small></label>
       <span class="lt-st">${D?ltDefInfo(p):ltMInfo(cur,p)}</span>${D?'<span class="lt-rp-x"></span>':`<button type="button" class="lt-rp" onclick="ltRevert(this)" title="Kembalikan ke default" aria-label="${esc(p)} di ${esc(cur)} ikut default">↺</button>`}</div>`; }).join('');
   return head+`<div class="lt-list">${rows||'<div class="lt-row"><span class="lt-pn">Belum ada part</span></div>'}</div>`; }
+/* ===== Settings: Variabel JC -> Countdown (kaitan part roaster / lifetime sendiri / riwayat saja) =====
+   Kartu ini dibungkus accordion Settings (isi dipindah ke .setbody / panel kanan di desktop),
+   jadi yang diperbarui hanya #jlkBody & .jlk-tag — bukan seluruh kartu. */
+function jlkTagTxt(){ let L=0, T=0, H=0;
+  Object.values(CFG.jcAreas||{}).forEach(vs=>(vs||[]).forEach(v=>{ const k=jcvKind(v).k; if(k==='link') L++; else if(k==='lt') T++; else H++; }));
+  return L+' terkait'+(T?' · '+T+' lifetime':'')+(H?' · '+H+' riwayat':''); }
+function jlkCardHTML(){ return `<div class="card jlk-card"><h3>🔗 Variabel JC → Countdown<span class="tag jlk-tag">${jlkTagTxt()}</span></h3>
+    <div class="note" style="margin:0 0 10px">Berlaku saat perubahan variabel di Plan JC <b>dicatat</b>.<br>
+    <b>↻ Dikaitkan</b> ke part roaster → countdown part itu di section yang dipilih ikut reset (khusus area MACHINE).<br>
+    <b>⏱ Lifetime diisi</b> → punya countdown sendiri.<br>
+    <b>📁 Kosong</b> → hanya riwayat JC, tidak masuk countdown &amp; peringatan dashboard.</div>
+    <div id="jlkBody">${jlkGroupsHTML()}</div></div>`; }
+function jlkGroupsHTML(){
+  const A=CFG.jcAreas||{}, P=CFG.parts||[], O=window._jlkOpen||{};
+  return Object.keys(A).map(a=>{ const vs=A[a]||[]; let gL=0, gT=0, gH=0;
+    const rows=vs.map(v=>{ const k=jcvKind(v), auto=jcLinkAuto(v), inP=P.indexOf(v)>=0;
+      if(k.k==='link') gL++; else if(k.k==='lt') gT++; else gH++;
+      const sel=jcLinkable(v)?`<select class="jlk-sel" onchange="jlkLink(this)" aria-label="Part roaster untuk ${esc(v)}"><option value="">Tanpa kaitan</option>${P.map(p=>`<option value="${esc(p)}"${k.k==='link'&&k.part===p?' selected':''}>${esc(p)}</option>`).join('')}</select>`:'';
+      const lv=+((CFG.lifetimes||{})[v])>0?+CFG.lifetimes[v]:'';
+      const lt=k.k==='link'?'':(inP?`<span class="jlk-fix">${lifetimeDef(v)} hari <small>lifetime part</small></span>`
+        :`<label class="jlk-lt"><input type="number" min="1" step="1" inputmode="numeric" value="${lv}" placeholder="—" onchange="jlkLT(this)" onfocus="this.select()" aria-label="Lifetime ${esc(v)}"><small>hari</small></label>`);
+      const st=k.k==='link'?`<span class="jlk-st l">↻ reset countdown <b>${esc(k.part)}</b>${auto?' <i>otomatis</i>':''}</span>`
+        :(k.k==='lt'?`<span class="jlk-st t">⏱ countdown sendiri</span>`:`<span class="jlk-st h">📁 riwayat saja</span>`);
+      return `<div class="jlk-row" data-v="${esc(v)}"><span class="jlk-n">${esc(v)}</span><span class="jlk-c">${sel}${lt}</span>${st}</div>`; }).join('');
+    const open=(a in O)?O[a]:String(a).trim().toUpperCase()==='MACHINE';
+    return `<details class="jlk-g" data-a="${esc(a)}"${open?' open':''} ontoggle="jlkTog(this)"><summary><b>${esc(a)}</b><span>${vs.length} variabel${gL?' · '+gL+' terkait':''}${gT?' · '+gT+' lifetime':''}${gH?' · '+gH+' riwayat':''}</span></summary>
+      <div class="jlk-list">${rows||'<div class="jlk-row"><span class="jlk-n">Belum ada variabel</span></div>'}</div></details>`; }).join(''); }
+function jlkTog(el){ window._jlkOpen=window._jlkOpen||{}; window._jlkOpen[el.dataset.a]=el.open; }
+function jlkPaint(){ const b=document.getElementById('jlkBody'); if(b) b.innerHTML=jlkGroupsHTML();
+  const t=jlkTagTxt(); document.querySelectorAll('.jlk-tag').forEach(e=>{ e.textContent=t; }); try{ buildNav(); }catch(e){} }
+function jlkLink(el){ const v=el.closest('.jlk-row').dataset.v, t=el.value;
+  CFG.jcLink=CFG.jcLink||{}; CFG.jcLink[v]=t;                        // '' = sengaja tidak dikaitkan
+  const r=jcLinkNormalize(), n=r.ren+r.del;
+  if(n) try{ auditLog('edit','record','Kaitan variabel JC',{keterangan:v},{keterangan:t?('→ '+t):'tidak dikaitkan'},n+' record disesuaikan'); }catch(e){}
+  saveAll(); jlkPaint(); toast((t?(v+' → '+t):(v+' tidak dikaitkan'))+(n?(' · '+n+' record disesuaikan'):'')); }
+function jlkLT(el){ const v=el.closest('.jlk-row').dataset.v, raw=String(el.value).trim(), n=Math.round(+raw);
+  CFG.lifetimes=CFG.lifetimes||{};
+  if(raw===''||!(n>0)){ delete CFG.lifetimes[v]; toast(raw===''?(v+' → riwayat saja (tidak masuk countdown)'):'Lifetime harus lebih dari 0 hari',raw===''?0:1); }
+  else { CFG.lifetimes[v]=n; toast('Lifetime '+v+' = '+n+' hari · masuk countdown'); }
+  saveAll(); jlkPaint(); }
 function ltSettingsHTML(){ return `<div class="card lt-card"><h3>⏱️ Lifetime Target (days)<span class="tag" id="ltOvTag">${ltTagTxt()}</span></h3>
     <div class="note" style="margin:0 0 10px">Pilih mesin untuk melihat &amp; mengubah lifetime-nya. <b>Default</b> berlaku untuk mesin yang tidak diisi khusus (mesin baru otomatis ikut). Angka di chip = jumlah part khusus. Dashboard, Monitoring &amp; Planning otomatis memakai lifetime mesinnya.</div>
     <div class="lt-chips" id="ltChips" role="group" aria-label="Pilih mesin">${ltChipsHTML()}</div>
@@ -11637,6 +11732,7 @@ function tickClock(){const t=$('#today'); if(t){const now=bangkokNow();const hh=
   try{ await loadAll(); }catch(e){ console.error('loadAll failed:',e); }
   try{ syncInstallGuards(); }catch(e){ console.error(e); }   /* fungsi Admin (Master, impor, reset, denah) → minta PIN Admin bagi Operator */
   try{ jcVarAreaMigrate(); }catch(e){ console.error(e); }
+  try{ jcLinkBoot(); }catch(e){ console.error(e); }
   try{ Cloud.dirty = (localStorage.getItem('pm_dirty')==='1'); }catch(e){}   // pulihkan status "belum tersinkron" setelah reload → lindungi input lokal
   try{ var _lr0=parseInt(localStorage.getItem('pm_lastrev'),10); Cloud.lastRev=isNaN(_lr0)?null:_lr0; }catch(e){}   // pulihkan revisi cloud terakhir yang sudah diserap
   try{ applyTheme(); }catch(e){ console.error(e); }
@@ -12144,6 +12240,39 @@ td.jcp-c{ width:34px; }
   border-radius:10px; padding:8px 11px; margin:10px 0 4px; font-size:12px;
 }
 .jcvarbar.done{ border-left-color:var(--teal); }
+/* Variabel JC -> Countdown (Settings) & ringkasan di bilah variabel Plan JC */
+.jlk-card{min-width:0;max-width:100%;margin-top:14px}
+.jlk-g{border:1px solid var(--line);border-radius:10px;margin:8px 0 0;overflow:hidden}
+.jlk-g>summary{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;list-style:none;background:var(--panel2)}
+.jlk-g>summary::-webkit-details-marker{display:none}
+.jlk-g>summary::before{content:'▸';color:var(--txt3);font-size:11px;transition:transform .15s}
+.jlk-g[open]>summary::before{transform:rotate(90deg)}
+.jlk-g>summary span{margin-left:auto;font-size:11.5px;color:var(--txt3);text-align:right}
+.jlk-row{display:grid;grid-template-columns:minmax(120px,220px) minmax(0,1fr) auto;grid-template-areas:"n c s";align-items:center;gap:4px 12px;padding:7px 12px;border-top:1px solid var(--line)}
+.jlk-n{grid-area:n;font-weight:600;min-width:0;overflow-wrap:anywhere}
+.jlk-c{grid-area:c;display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.jlk-sel{max-width:200px;min-width:0}
+.jlk-lt{display:inline-flex;align-items:center;gap:5px}
+.jlk-lt input{width:78px}
+.jlk-lt small,.jlk-fix small{color:var(--txt3);font-size:11px}
+.jlk-fix{font-size:12px;color:var(--txt2)}
+.jlk-st{grid-area:s;font-size:11.5px;white-space:nowrap;color:var(--txt3)}
+.jlk-st.l{color:var(--teal)}
+.jlk-st.t{color:var(--accent)}
+.jlk-st i{font-style:normal;font-size:10.5px;color:var(--txt3);border:1px solid var(--line2);border-radius:6px;padding:0 4px;margin-left:3px}
+@media (max-width:680px){
+  .jlk-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"n c" "s s";gap:3px 10px}
+  .jlk-c{justify-content:flex-end}
+  .jlk-st{white-space:normal}
+  .jlk-sel{max-width:160px}
+}
+.jcvarbar .jvb-k{flex:1 1 100%;font-size:11px;color:var(--txt3);line-height:1.45}
+.jcvarbar .jvb-k b{color:var(--teal)}
+.jcvarbar .jvb-v{font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap;border:1px solid currentColor;line-height:1.4}
+.jcvarbar .jvb-v.ok{color:var(--teal)}
+.jcvarbar .jvb-v.wait{color:var(--orange)}
+
+
 .jcvarbar .jvb-t{ flex:1 1 200px; min-width:0; color:var(--txt2); }
 .jcvarbar .jvb-sec{ flex:0 0 auto; cursor:pointer; color:var(--blue); font-size:11.5px; white-space:nowrap; }
 @media (max-width:680px){
