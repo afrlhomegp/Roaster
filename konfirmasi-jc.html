@@ -2771,8 +2771,13 @@ function rgGuess(k){
   k=rgKey(k);
   if(k==='jobchange'||k==='job change'||k==='jc') return 'jc';
   if(k==='roaster') return 'roaster';
+  if(rgJcvSet().has(k)) return 'jc';      // nama variabel JC (record dari Verifikasi JC) = Job Change
   return 'trouble';                       // termasuk bekas kategori "Emergency"
 }
+/* nama variabel JC (Master Isian JC), huruf kecil — dipakai sebagai reason record perubahan variabel */
+function rgJcvSet(){ const A=CFG.jcAreas||{}; let sig=''; try{ sig=JSON.stringify(A); }catch(e){}
+  if(!rgJcvSet._v||rgJcvSet._s!==sig){ const v=new Set(); Object.keys(A).forEach(a=>(A[a]||[]).forEach(x=>{ const k=rgKey(x); if(k) v.add(k); })); rgJcvSet._v=v; rgJcvSet._s=sig; }
+  return rgJcvSet._v; }
 function rgOf(reason){
   var k=rgKey(reason); if(!k) return rgById('trouble');
   var id=(CFG.reasonGroupOf||{})[k];
@@ -2791,7 +2796,11 @@ function rgAllReasons(){
 /* pastikan setiap reason punya induk bab (dipanggil saat load & saat data cloud masuk) */
 function migrateReasonGroups(){
   rgList(); CFG.reasonGroupOf=CFG.reasonGroupOf||{};
-  rgAllReasons().forEach(function(r){ var k=rgKey(r); if(!CFG.reasonGroupOf[k]) CFG.reasonGroupOf[k]=rgGuess(k); });
+  const fix=!CFG._rgJcvFix;   /* sekali: reason variabel JC yang dulu tertebak "Trouble" dikembalikan ke Job Change */
+  rgAllReasons().forEach(function(r){ var k=rgKey(r), cur=CFG.reasonGroupOf[k];
+    if(!cur) CFG.reasonGroupOf[k]=rgGuess(k);
+    else if(fix&&cur==='trouble'&&rgJcvSet().has(k)) CFG.reasonGroupOf[k]='jc'; });
+  if(fix) CFG._rgJcvFix=1;
 }
 /* daftar reason milik satu bab */
 
