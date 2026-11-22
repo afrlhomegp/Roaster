@@ -808,6 +808,7 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();win
   .jv-add{display:inline-flex;gap:6px;align-items:center;flex:1 1 220px;min-width:180px}
   .jv-add .jv-in{flex:1;min-width:0;padding:6px 10px;font-size:12.5px}
   .jv-fsel{padding:6px 8px;font-size:12px;border-radius:8px}
+  .jv-jsu{display:flex!important;gap:5px;align-items:center;cursor:pointer}
   .jv-dl{display:block;font-weight:600!important;font-size:10.5px!important;color:var(--txt3)} .jv-dl.ok{color:var(--teal)} .jv-dl a{cursor:pointer;color:var(--blue);font-weight:800}
   .jv-dopt{flex:1 1 100%;font-size:11.5px;font-weight:600;color:var(--txt3);display:flex;gap:6px;align-items:center;cursor:pointer}
   .jv-pact{display:inline-flex;gap:3px;margin-top:5px;font-weight:400}
@@ -3669,7 +3670,7 @@ function syncLogout(){
 }
 /* Fungsi Admin dibungkus: Operator diminta PIN Admin dulu. Dipasang saat boot. */
 function syncInstallGuards(){
-  const G={ saveJCMaster:'menyimpan Master JC', jcPartAdd:'menambah part JC', jcPartRename:'merevisi part JC', jcPartDel:'menghapus part JC', jcPartMove:'mengurutkan part JC', jcPartFromDash:'menambah part JC dari Dashboard', jcPartDashBtn:'mendaftarkan part ke Dashboard', delJCMaster:'menghapus Master JC', jcSaveToMaster:'menyimpan ke Master JC',
+  const G={ saveJCMaster:'menyimpan Master JC', jcPartAdd:'menambah part JC', jcPartRename:'merevisi part JC', jcPartDel:'menghapus part JC', jcPartMove:'mengurutkan part JC', jcPartJsu:'mengatur tampilan Form Job Set Up', jcPartFromDash:'menambah part JC dari Dashboard', jcPartDashBtn:'mendaftarkan part ke Dashboard', delJCMaster:'menghapus Master JC', jcSaveToMaster:'menyimpan ke Master JC',
     importJCMasterPick:['impor Master JC',1], importJCMasterXLSX:'impor Master JC',
     importJSON:'impor data', importXLSX:'impor Excel', linkExcel:['menautkan file Excel',1], resetData:'reset semua data',
     snapshotRestore:'memulihkan cadangan', toggleDenahEdit:'mengubah denah stock', denahPick:['mengganti gambar denah',1],
@@ -7695,7 +7696,7 @@ function jcPartDashFree(){ const used=new Set(); Object.keys(CFG.jcAreas||{}).fo
   return (CFG.parts||[]).filter(p=>p&&!used.has(jcRoNorm(p))); }
 function jcPartFromDash(part,sel){ const area=(sel&&sel.value)||''; if(!area||!CFG.jcAreas||!CFG.jcAreas[area]){ toast('Pilih area variabel JC dulu',1); return; }
   const at=jcPartFind(part); if(at){ toast('Sudah ada di '+at,1); return; }
-  CFG.jcAreas[area].push(part); jcPartGoneSet(part,false); if(CFG.jcVals&&typeof CFG.jcVals==='object'&&!CFG.jcVals[part]) CFG.jcVals[part]=[];
+  CFG.jcAreas[area].push(part); jcPartGoneSet(part,false); jsuExtraAdd(part); if(CFG.jcVals&&typeof CFG.jcVals==='object'&&!CFG.jcVals[part]) CFG.jcVals[part]=[];
   _jcValsCache=null; saveAll(); toast('✓ "'+part+'" (nama sama dengan Dashboard) ditambahkan ke variabel JC '+area); jcPartAfter(area); }
 function jcPartDashFreeHTML(){ const F=jcPartDashFree(), A=Object.keys(CFG.jcAreas||{});
   const def=p=>JC_AREA_OF_DASH[partAreaOf(p)]||A[0]||'';
@@ -7705,6 +7706,10 @@ function jcPartDashFreeHTML(){ const F=jcPartDashFree(), A=Object.keys(CFG.jcAre
     <div class="note" style="margin:0 0 8px">Daftar nama tetap dikelola di <b>Part per Area Equipment</b>. Tap <b>＋ JC</b> untuk memakai nama yang <b>persis sama</b> sebagai variabel JC — tidak membuat nama ganda.</div>
     ${F.map(p=>`<div class="jv-row"><div class="jv-p">${esc(p)}<small>${esc(partAreaOf(p)||'')}</small></div><div class="jv-vals"><select class="jv-fsel" aria-label="Area variabel JC">${A.map(a=>`<option value="${esc(a)}"${a===def(p)?' selected':''}>${esc(a)}</option>`).join('')}</select><button type="button" class="btn sec sm" onclick="jcPartFromDash(${jcValArg(p)},this.previousElementSibling)">＋ JC</button></div></div>`).join('')}
   </details>`; }
+function jcPartJsu(part,on){ const ex=Array.isArray(CFG.jsuExtra)?CFG.jsuExtra.slice():[]; const i=ex.indexOf(part);
+  if(on&&i<0) ex.push(part); if(!on&&i>=0) ex.splice(i,1); CFG.jsuExtra=ex; saveAll();
+  toast(on?'✓ "'+part+'" tampil di Form Job Set Up bila terisi di Planning':'"'+part+'" tidak ditampilkan di Form Job Set Up'); }
+function jsuExtraAdd(part){ if(!part||jsuIsStd(part)) return; const ex=Array.isArray(CFG.jsuExtra)?CFG.jsuExtra.slice():[]; if(ex.indexOf(part)<0) ex.push(part); CFG.jsuExtra=ex; }
 function jcPartAfter(area,focusSel){ (window._jvOpen=window._jvOpen||{})[area]=true; render();
   if(focusSel) setTimeout(()=>{ const el=document.querySelector(focusSel); if(el) el.focus(); },30); }
 function jcPartAdd(area,inp){ if(!inp) return; const raw=String(inp.value||'');
@@ -7714,7 +7719,7 @@ function jcPartAdd(area,inp){ if(!inp) return; const raw=String(inp.value||'');
   const dchk=document.querySelector('.jv-dchk[data-a="'+CSS.escape(area)+'"]'), toDash=!!(dchk&&dchk.checked); let nd=0;
   let adopt=0;
   names.forEach(nm=>{ const lk=jcVarLinkOf(nm); if(lk&&lk!==nm){ nm=lk; adopt++; }   /* cocok dgn part Dashboard → pakai penulisan Dashboard (tak ada nama ganda) */
-    const at=jcPartFind(nm); if(at){ dup.push(nm+' (sudah ada di '+at+')'); return; } L.push(nm); n++; jcPartGoneSet(nm,false);
+    const at=jcPartFind(nm); if(at){ dup.push(nm+' (sudah ada di '+at+')'); return; } L.push(nm); n++; jcPartGoneSet(nm,false); jsuExtraAdd(nm);
     if(CFG.jcVals&&typeof CFG.jcVals==='object'&&!CFG.jcVals[nm]) CFG.jcVals[nm]=[];
     if(toDash&&jcPartToDash(nm,area,true)) nd++; });
   if(dup.length) toast('Dilewati: '+dup.join(', '),1);
@@ -7730,12 +7735,13 @@ function jcPartRename(area,old){ const L=(CFG.jcAreas&&CFG.jcAreas[area])||[]; c
   const mv=o=>{ if(o&&o.specs&&Object.prototype.hasOwnProperty.call(o.specs,old)){ o.specs[t]=o.specs[old]; delete o.specs[old]; return 1; } return 0; };
   let m=0; (JCPLANS||[]).forEach(x=>{ m+=mv(x); if(x&&x.plan0) mv(x.plan0); }); (CFG.jcMaster||[]).forEach(x=>{ m+=mv(x); });
   L[i]=t; jcPartGoneSet(t,false); jcPartGoneSet(old,true);
+  if(Array.isArray(CFG.jsuExtra)){ const k=CFG.jsuExtra.indexOf(old); if(k>=0) CFG.jsuExtra[k]=t; }
   if(CFG.jcVals&&Object.prototype.hasOwnProperty.call(CFG.jcVals,old)){ CFG.jcVals[t]=CFG.jcVals[old]; delete CFG.jcVals[old]; }
   (STOCK||[]).forEach(x=>{ if(x&&String(x.part).toLowerCase()===String(old).toLowerCase()) x.part=t; });
   _jcValsCache=null; saveAll(); toast('✓ "'+old+'" → "'+t+'" ('+m+' isian dipindah)'); jcPartAfter(area); }
 function jcPartDel(area,part){ const L=(CFG.jcAreas&&CFG.jcAreas[area])||[]; const i=L.indexOf(part); if(i<0) return; const used=jcPartUse(part);
   if(!confirm('Hapus part "'+part+'" dari '+area+'?\n\n'+(used?'Terpakai di '+used+' plan / master. Isian lama TIDAK dihapus dari data, tapi kolom part ini tidak tampil lagi di form, Planning JC, Master JC & Excel.':'Belum ada isian yang memakai part ini.')+(jcVarLinkOf(part)?'\n\nPart Dashboard "'+jcVarLinkOf(part)+'" tetap ada (riwayat & hitung umur tidak terhapus) — hanya variabel JC-nya yang dilepas.':'')+'\n\nSalah hapus? Tambahkan lagi dengan nama yang sama — isian lama muncul kembali.')) return;
-  L.splice(i,1); jcPartGoneSet(part,true); _jcValsCache=null; saveAll(); toast('"'+part+'" dihapus dari '+area); jcPartAfter(area); }
+  L.splice(i,1); jcPartGoneSet(part,true); if(Array.isArray(CFG.jsuExtra)) CFG.jsuExtra=CFG.jsuExtra.filter(x=>x!==part); _jcValsCache=null; saveAll(); toast('"'+part+'" dihapus dari '+area); jcPartAfter(area); }
 function jcPartMove(area,part,d){ const L=(CFG.jcAreas&&CFG.jcAreas[area])||[]; const i=L.indexOf(part), j=i+d; if(i<0||j<0||j>=L.length) return;
   const t=L[i]; L[i]=L[j]; L[j]=t; saveAll(); jcPartAfter(area); }
 function jcValsPaneHTML(){ const M=jcValsMap(), open=window._jvOpen||(window._jvOpen={});
@@ -7744,6 +7750,7 @@ function jcValsPaneHTML(){ const M=jcValsMap(), open=window._jvOpen||(window._jv
       ${parts.map(p=>{ const L=(M[p]||[]).slice().sort(jcValSort), auto=jcValCdOpts(p);
         return `<div class="jv-row"><div class="jv-p">${esc(p)}${auto.length?`<small>+ otomatis CD: ${esc(auto.join(' · '))}</small>`:''}
           ${jcVarLinkOf(p)?`<small class="jv-dl ok" title="Dipakai untuk hitung umur part di Dashboard">🔗 Dashboard: ${esc(jcVarLinkOf(p))}</small>`:`<small class="jv-dl">tanpa hitung umur Dashboard · <a onclick="jcPartDashBtn(${jcValArg(p)},${jcValArg(a)})">＋ daftarkan</a></small>`}
+          ${jsuIsStd(p)?`<small class="jv-dl ok">📋 Form Job Set Up: otomatis (tampil bila terisi)</small>`:`<label class="jv-dl jv-jsu"><input type="checkbox" ${(CFG.jsuExtra||[]).indexOf(p)>=0?'checked':''} onchange="jcPartJsu(${jcValArg(p)},this.checked)"> 📋 tampil di Form Job Set Up (otomatis bila terisi)</label>`}
           <span class="jv-pact"><button type="button" title="Naik" onclick="jcPartMove(${jcValArg(a)},${jcValArg(p)},-1)">▲</button><button type="button" title="Turun" onclick="jcPartMove(${jcValArg(a)},${jcValArg(p)},1)">▼</button><button type="button" title="Revisi nama part" onclick="jcPartRename(${jcValArg(a)},${jcValArg(p)})">✎</button><button type="button" class="del" title="Hapus part" onclick="jcPartDel(${jcValArg(a)},${jcValArg(p)})">🗑</button></span></div>
           <div class="jv-vals">${L.map(v=>`<span class="jv-chip" title="dipakai di ${jcValUse(p,v)} plan / master">${esc(v)}<button type="button" onclick="jcValDel(${jcValArg(p)},${jcValArg(v)})" aria-label="Hapus ${esc(v)}">✕</button></span>`).join('')||'<span class="jv-none">belum ada nilai</span>'}
             <span class="jv-add"><input class="jv-in" data-k="${esc(p)}" placeholder="+ nilai baru (pisah ;)" onkeydown="if(event.key==='Enter'){event.preventDefault();jcValAddIn(this)}" autocomplete="off"><button type="button" class="btn sec sm" onclick="jcValAddIn(this.previousElementSibling)">Tambah</button></span></div></div>`; }).join('')}
@@ -8958,9 +8965,28 @@ const JSU_COLS=[
   {h:'PUSH BAR', g:'WARE HANDLING', re:/^push\s*bar/i, w:9}];
 const JSU_FILL={trial:'FFFFFF00',ganti:'FF92D050',roster:'FF00B0F0',postponed:'FFFF0000'};
 const JSU_BULAN=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-function jsuPartKey(col,p){ const all=[]; Object.keys(CFG.jcAreas||{}).forEach(a=>(CFG.jcAreas[a]||[]).forEach(x=>{ if(all.indexOf(x)<0) all.push(x); }));
+function jsuPartKey(col,p){ if(col.key) return col.key; const all=[]; Object.keys(CFG.jcAreas||{}).forEach(a=>(CFG.jcAreas[a]||[]).forEach(x=>{ if(all.indexOf(x)<0) all.push(x); }));
   Object.keys((p&&p.specs)||{}).forEach(x=>{ if(all.indexOf(x)<0) all.push(x); });
   return all.find(x=>col.re.test(String(x).trim()))||null; }
+/* Kolom Form Job Set Up = mengikuti isian Planning JC periode itu:
+   • 14 kolom standar tampil HANYA bila ada plan di periode yang mengisinya (kosong semua → kolom disembunyikan)
+   • part tambahan (Settings → Isian Variabel JC → centang "📋 Job Set Up") ikut tampil sebagai kolom bila terisi */
+function jsuIsStd(part){ const t=String(part||'').trim(); return JSU_COLS.some(c=>c.re.test(t)); }
+function jsuCols(plans){
+  const filled=(col,p)=>{ const key=col.key||jsuPartKey(col,p); return !!(key&&jsuVal(((p&&p.specs)||{})[key])!==''); };
+  const A=CFG.jcAreas||{}, ex=Array.isArray(CFG.jsuExtra)?CFG.jsuExtra:[], allP=[], areaOf={};
+  Object.keys(A).forEach(a=>(A[a]||[]).forEach(x=>{ if(allP.indexOf(x)<0){ allP.push(x); areaOf[x]=a; } }));
+  const mk=(pt,g)=>({h:String(pt).toUpperCase(),g:g,key:pt,w:Math.max(9,Math.min(14,Math.ceil(String(pt).length*0.8)))});
+  const out=[], used={}, defN={}; Object.keys(DEFAULT_CFG.jcAreas||{}).forEach(a=>(DEFAULT_CFG.jcAreas[a]||[]).forEach(x=>{ defN[jcmNorm(x)]=1; }));
+  JSU_COLS.forEach(col=>{
+    const main=jsuPartKey(col,null); if(main) used[main]=1;
+    /* judul kolom mengikuti nama di Master List; singkatan lama (N/R, B/H, …) dipakai selama nama part masih nama bawaan */
+    const cc=(main&&!defN[jcmNorm(main)])?Object.assign({},col,{h:String(main).toUpperCase(),key:main,w:Math.max(col.w,Math.min(14,Math.ceil(String(main).length*0.8)))}):col;
+    if(plans.some(p=>filled(cc,p))) out.push(cc);
+    /* part lain yang namanya juga cocok kolom standar (mis. "Finger Pusher (Type)") → kolom sendiri di sebelahnya */
+    allP.filter(x=>x!==main&&!used[x]&&col.re.test(String(x).trim())).forEach(pt=>{ used[pt]=1; const c2=mk(pt,col.g); if(plans.some(p=>filled(c2,p))) out.push(c2); }); });
+  allP.forEach(pt=>{ if(used[pt]||ex.indexOf(pt)<0) return; const c2=mk(pt,String(areaOf[pt]).toUpperCase()); if(plans.some(p=>filled(c2,p))) out.push(c2); });
+  return out; }
 function jsuVal(v){ const s=String(v==null?'':v).trim(); if(!s) return '';
   let m=s.match(/^(\d+(?:[.,]\d+)?)\s*(?:["”″]|inch|in)?\s*(?:straight|str)\b/i); if(m) return m[1]+'" STR';
   m=s.match(/^(\d+(?:[.,]\d+)?)\s*(?:["”″]|inch|in)?\s*(?:offset|off)\b/i); if(m) return m[1]+'" OFF';
@@ -8980,14 +9006,15 @@ function jsuPlans(start,days){ const t1=ymd(new Date(parseD(start).getTime()+(da
 function jsuModel(start,days){
   const endS=ymd(new Date(parseD(start).getTime()+(days-1)*86400000)), plans=jsuPlans(start,days);
   if(!plans.length) return {start:start,endS:endS,plans:plans};
-  const NC=3+JSU_COLS.length, cols=[21,11,24].concat(JSU_COLS.map(c=>c.w)), rowH={}, cells=[];
+  const COLS=jsuCols(plans);
+  const NC=3+COLS.length, cols=[21,11,24].concat(COLS.map(c=>c.w)), rowH={}, cells=[];
   const put=(r,c,v,o)=>{ cells.push(Object.assign({r:r,c:c,v:v==null?'':String(v)},o||{})); };
   /* kop */
-  rowH[1]=50; put(1,1,'',{logo:1}); put(1,2,'',{c2:3}); put(1,4,'JOB SET UP IS MAINTENANCE',{c2:NC,b:1,sz:16});
+  rowH[1]=50; put(1,1,'',{logo:1}); if(NC>=4){ put(1,2,'',{c2:3}); put(1,4,'JOB SET UP IS MAINTENANCE',{c2:NC,b:1,sz:16}); } else put(1,2,'JOB SET UP IS MAINTENANCE',{c2:3,b:1,sz:12});
   /* header 2 baris */
   rowH[2]=18; rowH[3]=26;
   [[1,'DATE'],[2,'M.C PROCESS'],[3,'JOB-SET']].forEach(a=>put(2,a[0],a[1],{r2:3,b:1}));
-  const grp=[]; JSU_COLS.forEach((col,i)=>{ const cc=4+i;
+  const grp=[]; COLS.forEach((col,i)=>{ const cc=4+i;
     if(!col.g){ put(2,cc,col.h,{r2:3,b:1}); return; }
     put(3,cc,col.h,{sz:9});
     const L=grp[grp.length-1]; if(L&&L.g===col.g&&L.c2===cc-1) L.c2=cc; else grp.push({g:col.g,c1:cc,c2:cc}); });
@@ -9002,7 +9029,7 @@ function jsuModel(start,days){
       const procChg=!!prev&&!!(p.process||p.cd)&&(jcfKey(prev.process)!==jcfKey(p.process)||jcfCdKey(prev.cd)!==jcfCdKey(p.cd));
       put(r,2,jsuMc(p),{b:1,fill:procChg?JSU_FILL.ganti:null});
       put(r,3,[p.typeJob,p.description||p.bottleSize].filter(Boolean).join(' - '),{fill:p.postponed?JSU_FILL.postponed:(jsuTrial(p)?JSU_FILL.trial:null)});
-      JSU_COLS.forEach((col,ci)=>{ const key=jsuPartKey(col,p), v=key?jsuVal((p.specs||{})[key]):'';
+      COLS.forEach((col,ci)=>{ const key=jsuPartKey(col,p), v=key?jsuVal((p.specs||{})[key]):'';
         const st=(key&&hasSpec)?jcfKet(p,prev,key):'', chg=(st==='Ganti'||st==='Pasang'||st==='Lepas'), rost=!!(key&&ro.map[key]);
         put(r,4+ci,v,{fill:chg?JSU_FILL.ganti:(rost?JSU_FILL.roster:null)}); });
       const seg=[]; if(p.postponed) seg.push('DITUNDA'); if(jsuTrial(p)) seg.push('TRIAL');
@@ -9022,7 +9049,7 @@ function jsuModel(start,days){
   let lr=kr+2;
   [['TRIAL',JSU_FILL.trial],['GANTI',JSU_FILL.ganti],['ROSTER',JSU_FILL.roster],['TIDAK GANTI',null],['POSTPONED',JSU_FILL.postponed]].forEach(a=>{
     rowH[lr]=15; put(lr,2,'',{fill:a[1]}); put(lr,3,': '+a[0],{al:'left',bd:0,ov:1}); lr++; });
-  rowH[lr]=15; put(lr,2,'M.C PROCESS hijau = process / CD berubah · pembanding = JC sebelumnya di mesin yang sama · periode '+fmtD(parseD(start))+' – '+fmtD(parseD(endS)),{al:'left',bd:0,ov:1,it:1,sz:9,col:'FF555555'});
+  rowH[lr]=15; put(lr,2,'Kolom hanya yang terisi di Planning JC · M.C PROCESS hijau = process / CD berubah · pembanding = JC sebelumnya di mesin yang sama · periode '+fmtD(parseD(start))+' – '+fmtD(parseD(endS)),{al:'left',bd:0,ov:1,it:1,sz:9,col:'FF555555'});
   return {start:start,endS:endS,plans:plans,NC:NC,cols:cols,rowH:rowH,cells:cells,last:lr}; }
 
 async function jsuExport(days,fmt){
