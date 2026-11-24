@@ -2598,6 +2598,21 @@ body .jcm-menu.mp-pmenu .btn.mp-del,body.soft .jcm-menu.mp-pmenu .btn.mp-del{col
 @media(min-width:681px){ .pwa-ask{left:50%!important;top:auto!important;bottom:110px;margin-left:-200px;width:400px} }
 
 </style>
+<style id="jcTemuCss">
+/* kartu "Setelah JC → job ke depan" di atas Machine Status: kartu status kiri, kartu temuan kanan (50 : 50) */
+.mm-top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:stretch;margin-bottom:12px}
+.mm-top .kpis-status{margin-bottom:0!important;justify-content:flex-start;align-content:flex-start;grid-template-columns:repeat(3,minmax(0,1fr))!important}
+.mss-kpw{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:stretch}
+.mss-kpw .mss-kp{grid-template-columns:repeat(3,minmax(0,1fr))!important;align-content:start}
+.jtm{min-width:0;padding:9px 11px;font-size:11.5px;line-height:1.35;text-align:left;max-height:176px;overflow:auto;overscroll-behavior:contain;cursor:pointer;font-family:inherit;color:inherit}
+.mss-k.jtm{display:block}
+.jtm .jt-h{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;letter-spacing:.2px;margin-bottom:2px}
+.jtm .jt-h i{font-style:normal;margin-left:auto;opacity:.55;font-size:11px}
+.jtm .jt-s{display:block;font-size:10px;opacity:.65;margin-bottom:4px}
+.jtm .jt-i{margin-top:5px;word-break:break-word}
+.jtm .jt-l{display:block;font-size:9.5px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;opacity:.7}
+.jtm .jt-e{opacity:.7}
+</style>
 </head>
 <body class="soft">
 <!-- ===== QW-P4 (rev): splash minimal — logo pulse, CSS murni tanpa rAF/counter.
@@ -4787,6 +4802,7 @@ function renderMachineModal(){
   const troubleTot=cat.unplanned;
   const secs=sectionsOf(sel).filter(s=>window._mSecs.includes(s)); const parts=CFG.parts.filter(p=>window._mParts.includes(p));
   const kpi=(c,v,l,ic)=>`<div class="kpi" style="--c:${c};padding:10px 11px"><span class="ic">${ic}</span><div class="v" style="font-size:22px">${v}</div><div class="l">${l}</div></div>`;
+  const _tmOn=!(typeof MSS_ST!=='undefined'&&MSS_ST.full&&isDesktop());   /* sheet lebar: kartu temuan ada di ringkasan mesin (mssDetailHTML), jangan dobel */
   // Ringkasan "Schedule Roaster Part per Section": section = kolom, part = baris; part bisa dipilih lewat filter
   const _allSecs=sectionsOf(sel);
   const _activeParts=sectionParts().filter(p=>partHasData(sel,schedMap,_allSecs,p));
@@ -4798,8 +4814,8 @@ function renderMachineModal(){
       <div style="font-weight:700;font-size:12.5px;color:var(--txt2);background:var(--panel2);border:1px solid var(--line2);padding:5px 13px;border-radius:20px;letter-spacing:.3px">${brandOf(sel)}</div>
       <button class="x" onclick="closeMmodal()" style="margin-left:auto">✕</button></div>
     <div class="mscroll">
-    <div class="kpis kpis-status" style="grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px">
-      ${kpi('var(--red)',sc.OVERDUE,'OVERDUE','🔴')}${kpi('var(--orange)',sc.URGENT,'URGENT','🟠')}${kpi('var(--yellow)',sc.WARNING,'WARNING','🟡')}${kpi('var(--green)',sc.OK,'OK','🟢')}${kpi('var(--red)',troubleTot,'TROUBLE','🔧')}</div>
+    <div class="${_tmOn?'mm-top':'mm-top1'}"><div class="kpis kpis-status" style="grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px">
+      ${kpi('var(--red)',sc.OVERDUE,'OVERDUE','🔴')}${kpi('var(--orange)',sc.URGENT,'URGENT','🟠')}${kpi('var(--yellow)',sc.WARNING,'WARNING','🟡')}${kpi('var(--green)',sc.OK,'OK','🟢')}${kpi('var(--red)',troubleTot,'TROUBLE','🔧')}</div>${_tmOn?jcTemuCard(sel,'mm'):''}</div>
     <div class="mpop-split">
       <div class="mpop-left">
         <div class="card" style="padding:14px"><h3>📊 Status Distribution — ${sel}</h3><div style="height:150px"><canvas id="mmStat"></canvas></div></div>
@@ -5687,8 +5703,8 @@ function mssDetailHTML(mc){ const S=window._MSS;
       <div><div class="k">Line</div><div class="v">${esc(lineOf(mc))}</div></div>
       <div><div class="k">JobChange berikutnya</div><div class="v">${jc?fmtD(parseD(jc.jcDate))+' <small>'+(jr===0?'hari ini':jr+' hari lagi')+(jc.trial?' · trial':'')+'</small>':'<small>tidak ada plan ≤ 30 hari</small>'}</div></div>
       <div class="mss-dr"><div class="k">Penggantian</div><div class="v">${S.enByMach[mc]||0} <small>· ${a.data} part</small></div></div></div>
-    <div class="mss-kp">${kp('OVERDUE',a.o,'Overdue','o')}${kp('URGENT',a.u,'Urgent','u')}${kp('WARNING',a.w,'Warning','w')}${kp('OK',a.ok,'OK','k')}
-      <button type="button" class="mss-k mss-kt" onclick="mssTrb()" title="Klik → riwayat trouble ${esc(mc)}"><b>${tr}</b><small>Trouble · ${esc(mssPerLbl())}</small><span class="go">↗</span></button></div>
+    <div class="mss-kpw"><div class="mss-kp">${kp('OVERDUE',a.o,'Overdue','o')}${kp('URGENT',a.u,'Urgent','u')}${kp('WARNING',a.w,'Warning','w')}${kp('OK',a.ok,'OK','k')}
+      <button type="button" class="mss-k mss-kt" onclick="mssTrb()" title="Klik → riwayat trouble ${esc(mc)}"><b>${tr}</b><small>Trouble · ${esc(mssPerLbl())}</small><span class="go">↗</span></button></div>${jcTemuCard(mc,'mss')}</div>
     ${mssUrgHTML(mc)}
     </div>`; }
 function mssUrgHTML(mc){ const S=window._MSS; const R={OVERDUE:0,URGENT:1,WARNING:2};
@@ -6275,7 +6291,7 @@ function kfCkHTML(p){ const c=window._jccEdit; if(!c) return ''; jccEnsureCss();
   const e=window._kfEdit||{}, open=!!e.ckOpen, secs=sectionsOf(c.machine), n=jccCounts(c);
   const cdSel=`<label class="kf-f kf-cd"><span>CD</span><select onchange="jccHdr('cd',this.value,true)"><option value="">— pilih CD —</option>${CFG.cds.map(x=>`<option${c.cd===x?' selected':''}>${esc(x)}</option>`).join('')}</select></label>`;
   /* urutan: tekanan global dulu → tabel per section paling bawah (bisa disembunyikan / ditampilkan) */
-  const glob=`<div class="kf-pt"><div class="kf-ptt">Tekanan global</div><div class="kf-gp">${JCC_GP.map(([k,nm])=>{ const g=jccGetG(k); return `<div><span>${esc(nm)}${JCC_GS[k]?` <small class="kf-gpu">${esc(JCC_GS[k].unit)}</small>`:''}</span><span class="kf-gpv">${jccPresChip('g',k,'','',nm,g.v||'')}</span></div>`; }).join('')}</div></div>`;
+  const glob=`<div class="kf-pt"><div class="kf-ptt">Tekanan global</div><div class="kf-gp">${JCC_GP.map(([k,nm])=>{ const g=jccGetG(k); return `<div><span>${esc(nm)}${JCC_GS[k]?` <small class="kf-gpu">${esc(jccUnitLbl(k))}</small>`:''}</span><span class="kf-gpv">${jccPresChip('g',k,'','',nm,g.v||'')}</span></div>`; }).join('')}</div></div>`;
   let per='';
   if(open){ if(!c.cd) per='<div class="kf-hint">Pilih CD dulu — kolom Luar/Dalam (dan Tengah untuk 4¼") mengikuti CD.</div>';
     else { const cols=jccCols(c.cd);
@@ -11221,9 +11237,11 @@ const JCC_GP=[['hp','High Pressure'],['lp','Low Pressure'],['sb','Settle Blow'],
 /* skala isian: tekanan bar 0–5 langkah 0,1 (default) · operation check punya satuan & rentang sendiri */
 const JCC_BAR={min:0,max:5,step:0.1,dec:1,unit:'bar',seed:2,short:1};
 const JCC_GS={blw:{min:0,max:300,step:1,dec:0,unit:'mBar',seed:80},vac:{min:-1,max:5,step:0.1,dec:1,unit:'bar',seed:0.5},
-  hecs:{min:0,max:100,step:1,dec:0,unit:'stroke',seed:30},hecc:{min:0,max:100,step:1,dec:0,unit:'CTU',seed:45},dfe:{min:0,max:150,step:1,dec:0,unit:'psi',seed:60}};
+  hecs:{min:0,max:100,step:1,dec:0,unit:'stroke',seed:30,slash:1,hint:'20/20'},hecc:{min:0,max:100,step:1,dec:0,unit:'CTU',seed:45},dfe:{min:0,max:150,step:1,dec:0,unit:'psi',seed:60}};
 function jccSc(t){ return (t&&t.kind==='g'&&JCC_GS[t.a])||JCC_BAR; }
 function jccScN(sc){ return Math.round((sc.max-sc.min)/sc.step); }
+function jccUnitLbl(k){ const g=JCC_GS[k]; return g?(g.unit+(g.hint?' · mis. '+g.hint:'')):''; }   /* label di form: HEC → "stroke · mis. 20/20" */
+function jccIsSlash(v){ return String(v==null?'':v).indexOf('/')>=0; }   /* nilai berformat a/b (HEC Stroke) → bukan angka tunggal, jangan ikut hitungan tren/anomali */
 function jccUnitX(k){ const g=JCC_GS[k]; return g&&g.unit!=='bar'?g.unit:''; }   /* satuan selain bar (untuk teks / laporan) */
 function jccHasTengah(cd){ return /(^|[^0-9])4\s*(¼|1\/4|[.,]25)/.test(String(cd||'')); }   /* CD 4¼" (triple gob) → 3 per section: Luar · Tengah · Dalam */
 function jccCols(cd){ return jccHasTengah(cd)?['l','m','d']:['l','d']; }
@@ -11244,7 +11262,7 @@ function jccPresChip(kind,a,b,c,label,val){ const id=jccChipId(kind,a,b,c); cons
   let bad=false; try{ bad=kind==='p'?!!jccGetCell(a,b)[c+'Bad']:!!jccGetG(a).bad; }catch(e){}
   const lab=esc(String(label||''));
   /* semua perangkat: kotak isian angka (HP → keyboard angka) */
-  if(true) return '<span class="jcc-iw'+(bad?' bad':'')+'" title="'+lab+(bad?' · ⚠ gauge trouble':'')+'"><input type="text" inputmode="'+(jccSc({kind:kind,a:a}).min<0?'text':'decimal')+'" enterkeyhint="next" autocomplete="off" spellcheck="false" maxlength="6" id="'+id+'" class="jcc-in'+(filled?' on':'')+'" value="'+(filled?esc(jccDisp(val)):'')+'" placeholder="–" data-kind="'+kind+'" data-a="'+esc(a)+'" data-b="'+esc(b||'')+'" data-c="'+esc(c||'')+'" data-lab="'+lab+'" aria-label="'+lab+' ('+jccSc({kind:kind,a:a}).unit+')"></span>';
+  if(true) return '<span class="jcc-iw'+(bad?' bad':'')+'" title="'+lab+(bad?' · ⚠ gauge trouble':'')+'"><input type="text" inputmode="'+(jccSc({kind:kind,a:a}).min<0?'text':'decimal')+'" enterkeyhint="next" autocomplete="off" spellcheck="false" maxlength="'+(jccSc({kind:kind,a:a}).slash?7:6)+'" id="'+id+'" class="jcc-in'+(filled?' on':'')+'" value="'+(filled?esc(jccDisp(val)):'')+'" placeholder="'+(jccSc({kind:kind,a:a}).slash?jccSc({kind:kind,a:a}).hint:'–')+'" data-kind="'+kind+'" data-a="'+esc(a)+'" data-b="'+esc(b||'')+'" data-c="'+esc(c||'')+'" data-lab="'+lab+'" aria-label="'+lab+' ('+jccSc({kind:kind,a:a}).unit+')"></span>';
   return '<button type="button" id="'+id+'" class="jcc-chip'+(filled?' on':'')+(bad?' bad':'')+'" data-kind="'+kind+'" data-a="'+esc(a)+'" data-b="'+esc(b||'')+'" data-c="'+esc(c||'')+'" data-lab="'+lab+'" aria-label="'+lab+' ('+jccSc({kind:kind,a:a}).unit+')">'+shown+'</button>'; }
 function jccCell(type,sec,col){ const c=jccGetCell(type,sec); return jccPresChip('p',type,sec,col,jccTypeName(type)+' · '+sec+' · '+jccColLabel(col),c[col]||''); }
 function jccTable(type,label){ const e=window._jccEdit; const secs=sectionsOf(e.machine); const cols=jccCols(e.cd);
@@ -11291,7 +11309,7 @@ function jccForm(){ const e=window._jccEdit; jccEnsureCss(); const isNew=e.id==n
   if(!e.cd){ body='<div class="card" style="padding:14px;border-color:var(--yellow)"><b>Pilih CD dulu</b><div class="note" style="margin-top:4px">Kolom Luar/Dalam (dan Tengah untuk 4¼") mengikuti CD yang dipilih.</div></div>'; }
   else { body='<div class="note" style="margin:0 0 10px">'+jccHint()+'</div>'+JCC_PT.map(([t,nm])=>jccTable(t,nm)).join('');
     body+='<div class="card" style="padding:14px;margin-bottom:12px"><h3 style="margin:0 0 6px;color:var(--accent2)">Tekanan Global <span class="tag">bar · + operation check</span></h3>'
-      +JCC_GP.map(([k,nm])=>{ const g=jccGetG(k); return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line2)"><span style="font-size:13px">'+nm+(JCC_GS[k]?' <small style="color:var(--txt3)">('+JCC_GS[k].unit+')</small>':'')+'</span><span style="display:flex;align-items:center">'+jccPresChip('g',k,'','',nm,g.v||'')+'</span></div>'; }).join('')
+      +JCC_GP.map(([k,nm])=>{ const g=jccGetG(k); return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line2)"><span style="font-size:13px">'+nm+(JCC_GS[k]?' <small style="color:var(--txt3)">('+jccUnitLbl(k)+')</small>':'')+'</span><span style="display:flex;align-items:center">'+jccPresChip('g',k,'','',nm,g.v||'')+'</span></div>'; }).join('')
       +'</div>';
   }
   const repair='<div class="card" style="padding:14px;margin-bottom:12px">'
@@ -11350,7 +11368,7 @@ function auditSnap(ent,o){ const out=auditPick(o,AUDIT_KEYS[ent]||[]);
   return out; }
 /* snapshot ceklist JC = header + seluruh titik tekanan (di-flat) */
 function auditJccSnap(r){ const out=auditSnap('jccheck',r);
-  try{ const f=jccFlatPoints(r); Object.keys(f).forEach(k=>{ out['⚙ '+f[k].label]=f[k].v; }); }catch(e){}
+  try{ const f=jccFlatPoints(r); Object.keys(f).forEach(k=>{ out['⚙ '+f[k].label]=f[k].slash?f[k].raw:f[k].v; }); }catch(e){}
   return out; }
 function auditDiff(b,a){ const out={}; const seen={};
   [b||{},a||{}].forEach(o=>Object.keys(o).forEach(k=>{seen[k]=1;}));
@@ -11462,7 +11480,7 @@ function jccBaseline(machine,target){
   if(target){ const i=list.findIndex(r=>r.id===target.id); if(i>=0) cut=i; }
   const acc={};
   list.slice(0,cut).forEach(r=>{ const f=jccFlatPoints(r);
-    Object.keys(f).forEach(k=>{ (acc[k]=acc[k]||{vals:[],label:f[k].label}).vals.push(f[k].v); }); });
+    Object.keys(f).forEach(k=>{ if(f[k].slash) return; (acc[k]=acc[k]||{vals:[],label:f[k].label}).vals.push(f[k].v); }); });
   const out={}; Object.keys(acc).forEach(k=>{ out[k]={med:jccMedian(acc[k].vals),n:acc[k].vals.length,label:acc[k].label}; });
   return out;
 }
@@ -11474,6 +11492,7 @@ function jccAnomalies(machine,rec){
   const lim=jccDevPct(), minN=jccMinN(), rows=[];
   let covered=0;
   Object.keys(f).forEach(k=>{
+    if(f[k].slash) return;
     const b=base[k]; if(!b||b.n<minN||!b.med) return;
     covered++;
     const d=f[k].v-b.med, pct=(d/b.med)*100;
@@ -11728,12 +11747,13 @@ function jccSeed(t){ const e=window._jccEdit, sc=jccSc(t); if(!e) return jccValI
   document.addEventListener('focusin',function(ev){ const el=ev.target; if(!isIn(el)) return; el._jsel=true; try{ el.select(); }catch(_){} });
   document.addEventListener('mouseup',function(ev){ const el=ev.target; if(isIn(el)&&el._jsel){ el._jsel=false; if(el.selectionStart===el.selectionEnd){ ev.preventDefault(); try{ el.select(); }catch(_){} } } },true);
   document.addEventListener('focusout',function(ev){ if(isIn(ev.target)) ev.target._jsel=false; });
-  document.addEventListener('input',function(ev){ const el=ev.target; if(!isIn(el)) return; const v=el.value.replace(/[^0-9.,-]/g,''); if(v!==el.value) el.value=v; el.classList.remove('err'); });
+  document.addEventListener('input',function(ev){ const el=ev.target; if(!isIn(el)) return; const v=el.value.replace(jccSc(jccChipRef(el)).slash?/[^0-9\/., -]/g:/[^0-9.,-]/g,''); if(v!==el.value) el.value=v; el.classList.remove('err'); });
   document.addEventListener('change',function(ev){ const el=ev.target; if(isIn(el)&&window._jccEdit) jccInCommit(el); });
   document.addEventListener('keydown',function(ev){ const el=ev.target; if(!isIn(el)||!window._jccEdit) return;
     if(ev.key==='Enter'){ ev.preventDefault(); if(jccInCommit(el)) inNext(el,ev.shiftKey?-1:1); return; }
     if(ev.key==='Escape'){ ev.preventDefault(); el.value=jccDisp(jccGetVal(jccChipRef(el))); el.classList.remove('err'); try{ el.select(); }catch(_){} return; }
     const d={ArrowUp:1,ArrowDown:-1}[ev.key];
+    if(d&&jccSc(jccChipRef(el)).slash) return;
     if(d){ ev.preventDefault(); const t=jccChipRef(el), sc=jccSc(t), p=jccParseIn(el.value,sc), cur=jccValIdx(p===null?jccGetVal(t):p,sc);
       const i=cur==null?jccSeed(t):Math.max(0,Math.min(jccScN(sc),cur+d*(ev.shiftKey?5:1))); el.value=jccFmt(i,sc); jccInCommit(el); try{ el.select(); }catch(_){} } });
   document.addEventListener('dblclick',function(ev){ const el=ev.target; if(!isIn(el)||!window._jccEdit) return; if(Date.now()-(window._jccTap2||0)<700) return; jccToggleBad(jccChipRef(el),el); try{ el.select(); }catch(_){} });
@@ -11742,24 +11762,29 @@ function jccSeed(t){ const e=window._jccEdit, sc=jccSc(t); if(!e) return jccValI
     const now=Date.now(); if(tap&&tap.el===el&&now-tap.t<350){ tap=null; window._jccTap2=now; jccToggleBad(jccChipRef(el),el); return; } tap={el,t:now}; },true);
 })();
 /* ketik bebas: "2.4" / "2,4" / "24" (= 2,4) / "3" (= 3,0) · batas 0–5 bar · kosong = hapus */
-function jccParseIn(s,sc){ sc=sc||JCC_BAR; s=String(s==null?'':s).trim().replace(',','.'); if(!s) return '';
+function jccParseIn(s,sc,prev){ sc=sc||JCC_BAR;
+  if(sc.slash){ s=String(s==null?'':s).trim(); if(!s) return '';
+    const m=s.match(/^(\d{1,3})\s*[\/,.\- ]\s*(\d{1,3})$/);
+    if(!m) return (prev!=null&&s===String(prev))?s:null;
+    const a=+m[1], b=+m[2]; if(a<sc.min||a>sc.max||b<sc.min||b>sc.max) return null; return a+'/'+b; }
+  s=String(s==null?'':s).trim().replace(',','.'); if(!s) return '';
   if(!/^-?\d*\.?\d*$/.test(s)||/^-?\.?$/.test(s)) return null;
   let n; if(!sc.short||s.indexOf('.')>=0) n=parseFloat(s); else if(s.length===1) n=+s; else n=+(s[0]+'.'+s.slice(1));
   if(!isFinite(n)||n<sc.min-1e-4||n>sc.max+1e-4) return null; const r=Math.round(n*10)/10; return sc.dec?r.toFixed(sc.dec):String(r); }
-function jccInCommit(el){ const t=jccChipRef(el), sc=jccSc(t), v=jccParseIn(el.value,sc), prev=jccGetVal(t);
-  if(v===null){ el.classList.remove('err'); void el.offsetWidth; el.classList.add('err'); try{ toast(sc===JCC_BAR?'Isi tekanan 0 – 5 bar (contoh 2,4 atau 24)':'Isi '+(t.lab||'nilai')+' '+jccDisp(String(sc.min))+' – '+jccDisp(String(sc.max))+' '+sc.unit,1); }catch(_){} el.value=jccDisp(prev); return false; }
+function jccInCommit(el){ const t=jccChipRef(el), sc=jccSc(t), prev=jccGetVal(t), v=jccParseIn(el.value,sc,prev);
+  if(v===null){ el.classList.remove('err'); void el.offsetWidth; el.classList.add('err'); try{ toast(sc.slash?('Isi '+(t.lab||'nilai')+' format '+sc.hint+' (contoh 20/30 · tiap angka '+sc.min+'–'+sc.max+')'):sc===JCC_BAR?'Isi tekanan 0 – 5 bar (contoh 2,4 atau 24)':'Isi '+(t.lab||'nilai')+' '+jccDisp(String(sc.min))+' – '+jccDisp(String(sc.max))+' '+sc.unit,1); }catch(_){} el.value=jccDisp(prev); return false; }
   el.value=jccDisp(v); el.classList.remove('err'); if(v!==prev){ if(t.kind==='p') jccSetP(t.a,t.b,t.c,v); else jccSetG(t.a,v); }
   el.classList.toggle('on',v!==''); jccPaintCount(); return true; }
 /* ============ CEKLIST JC ↔ MACHINE STATUS integration (kondisi naik/turun) ============ */
 function jccForMachine(machine){ return (JCCHECKS||[]).filter(r=>r.machine===machine).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')||((a.id||0)-(b.id||0))); }
 function jccFlatPoints(r){ const out={}; const sec=r.sec||{};
   Object.keys(sec).forEach(s=>{ ['pu','cb','vb'].forEach(t=>{ const cell=sec[s]&&sec[s][t]; if(!cell)return; ['l','m','d'].forEach(col=>{ const v=cell[col]; if(v!==''&&v!=null){ out['p|'+t+'|'+s+'|'+col]={v:parseFloat(v),bad:!!cell[col+'Bad'],label:jccTypeName(t)+' '+s+'·'+jccColLabel(col)}; } }); }); });
-  const g=r.glob||{}; Object.keys(g).forEach(k=>{ if(g[k]&&g[k].v!==''&&g[k].v!=null){ const gp=JCC_GP.find(x=>x[0]===k); out['g|'+k]={v:parseFloat(g[k].v),bad:!!g[k].bad,label:(gp?gp[1]:k)+(jccUnitX(k)?' ('+jccUnitX(k)+')':'')}; } });
+  const g=r.glob||{}; Object.keys(g).forEach(k=>{ if(g[k]&&g[k].v!==''&&g[k].v!=null){ const gp=JCC_GP.find(x=>x[0]===k); out['g|'+k]={v:parseFloat(g[k].v),bad:!!g[k].bad,label:(gp?gp[1]:k)+(jccUnitX(k)?' ('+jccUnitX(k)+')':''),raw:String(g[k].v),slash:jccIsSlash(g[k].v)}; } });
   return out; }
 function jccArrow(d){ if(d>0.05)return '<span style="color:var(--orange);font-weight:800">▲ +'+jccDisp(d.toFixed(1))+'</span>'; if(d<-0.05)return '<span style="color:var(--blue);font-weight:800">▼ '+jccDisp(d.toFixed(1))+'</span>'; return '<span style="color:var(--txt3)">= 0</span>'; }
 function jccMachineCard(machine){
   const list=jccForMachine(machine);
-  if(!list.length){ return '<div class="card noswipe" style="padding:14px;margin-top:14px"><h3>🧪 Kondisi dari Ceklist JC</h3><div class="note" style="margin:6px 0 10px">Belum ada ceklist JC untuk '+machine+'. Catat tekanan setelah job change supaya kondisi mesin bisa dipantau di sini.</div><button class="btn sec sm" onclick="closeMmodal();go(\'jccheck\')">✅ Verifikasi JC ↗</button></div>'; }
+  if(!list.length){ return '<div class="card noswipe" style="padding:14px;margin-top:14px"><h3>🧪 Kondisi dari Ceklist JC</h3><div class="note" style="margin:6px 0 10px">Belum ada ceklist JC untuk '+machine+'. Catat tekanan setelah job change supaya kondisi mesin bisa dipantau di sini.</div>'+jcVerifHistory(machine)+'<button class="btn sec sm" onclick="closeMmodal();go(\'jccheck\')">✅ Verifikasi JC ↗</button></div>'; }
   const latest=list[list.length-1]; const prev=list.length>1?list[list.length-2]:null;
   const lf=jccFlatPoints(latest); const pf=prev?jccFlatPoints(prev):{};
   const filled=Object.keys(lf).length;
@@ -11771,10 +11796,13 @@ function jccMachineCard(machine){
   const btns='<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn sec sm" onclick="closeMmodal();jccEditRec('+latest.id+')">✏️ Buka Ceklist</button></div>';
   if(!prev){
     return '<div class="card noswipe" style="padding:14px;margin-top:14px"><h3>🧪 Kondisi dari Ceklist JC</h3>'+headMeta+planLine
-      +'<div class="note" style="margin:4px 0 8px">'+filled+' titik tekanan terisi. Belum ada pembanding tren (baru 1 ceklist) — tren naik/turun muncul setelah ceklist JC berikutnya.</div>'+troubleLine+btns+'</div>';
+      +'<div class="note" style="margin:4px 0 8px">'+filled+' titik tekanan terisi. Belum ada pembanding tren (baru 1 ceklist) — tren naik/turun muncul setelah ceklist JC berikutnya.</div>'+troubleLine+jcVerifHistory(machine)+btns+'</div>';
   }
   let up=0,down=0,same=0; const rows=[];
-  Object.keys(lf).forEach(k=>{ const now=lf[k]; const before=pf[k]; if(before){ const d=+(now.v-before.v).toFixed(1); if(d>0.05)up++; else if(d<-0.05)down++; else same++; if(Math.abs(d)>=0.05) rows.push({key:k,label:now.label,before:before.v,now:now.v,d:d,bad:now.bad}); } });
+  Object.keys(lf).forEach(k=>{ const now=lf[k]; const before=pf[k]; if(before){
+    if(now.slash||before.slash){ const sm=x=>String(x.raw).split('/').reduce((a,n)=>a+(parseFloat(n)||0),0), dd=sm(now)-sm(before);
+      if(now.raw!==before.raw){ if(dd>0)up++; else if(dd<0)down++; else same++; rows.push({key:k,label:now.label,before:before.raw,now:now.raw,d:dd,bad:now.bad,sl:1}); } else same++; return; }
+    const d=+(now.v-before.v).toFixed(1); if(d>0.05)up++; else if(d<-0.05)down++; else same++; if(Math.abs(d)>=0.05) rows.push({key:k,label:now.label,before:before.v,now:now.v,d:d,bad:now.bad}); } });
   rows.sort((a,b)=>Math.abs(b.d)-Math.abs(a.d));
   const summary='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 8px">'
     +'<span class="tag" style="background:rgba(255,140,59,.15);color:var(--orange)">▲ Naik '+up+'</span>'
@@ -11782,16 +11810,62 @@ function jccMachineCard(machine){
     +'<span class="tag">= Tetap '+same+'</span></div>';
   const tbl = rows.length
     ? '<div class="tblwrap"><table><thead><tr><th style="text-align:left">Titik</th><th>'+esc(prev.date||'sblm')+'</th><th>'+esc(latest.date||'kini')+'</th><th>Δ bar</th></tr></thead><tbody>'
-      +rows.slice(0,14).map(r=>'<tr><td style="text-align:left">'+esc(r.label)+(r.bad?' <span style="color:var(--red)">⚠</span>':'')+'</td><td class="mono">'+jccDisp(r.before.toFixed(1))+'</td><td class="mono"><b>'+jccDisp(r.now.toFixed(1))+'</b></td><td>'+jccArrow(r.d)+'</td></tr>').join('')
+      +rows.slice(0,14).map(r=>'<tr><td style="text-align:left">'+esc(r.label)+(r.bad?' <span style="color:var(--red)">⚠</span>':'')+'</td><td class="mono">'+jccDisp(r.sl?r.before:r.before.toFixed(1))+'</td><td class="mono"><b>'+jccDisp(r.sl?r.now:r.now.toFixed(1))+'</b></td><td>'+(r.sl?(r.d>0?'<span style="color:var(--orange);font-weight:800">▲ naik</span>':r.d<0?'<span style="color:var(--blue);font-weight:800">▼ turun</span>':'<span style="color:var(--txt3)">≠ beda</span>'):jccArrow(r.d))+'</td></tr>').join('')
       +'</tbody></table></div>'+(rows.length>14?'<div class="note" style="margin-top:4px">+'+(rows.length-14)+' titik lain berubah…</div>':'')
     : '<div class="note" style="margin:4px 0">Semua titik tekanan stabil (tidak ada perubahan signifikan) dibanding ceklist sebelumnya.</div>';
   const opts2=jccTrendOpts(machine); const defKey=(rows.length&&opts2.some(o=>o.key===rows[0].key))?rows[0].key:(opts2[0]?opts2[0].key:''); window._jccTrendKey=defKey;
   const trend = opts2.length? '<div style="margin-top:12px;border-top:1px solid var(--line2);padding-top:10px"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px"><b style="font-size:12.5px">📈 Tren titik:</b><select onchange="jccTrendDraw(\''+machine+'\',this.value)" style="padding:6px 8px;border-radius:8px;max-width:230px">'+opts2.map(o=>'<option value="'+o.key+'"'+(o.key===defKey?' selected':'')+'>'+esc(o.label)+'</option>').join('')+'</select></div><div style="height:160px"><canvas id="jccTrend"></canvas></div><div class="note" style="margin-top:4px">Nilai titik tekanan ini di tiap ceklist JC (urut waktu) — lihat kondisi mesin naik/turun antar job change.</div></div>' : '';
   return '<div class="card noswipe" style="padding:14px;margin-top:14px"><h3>🧪 Kondisi dari Ceklist JC <span class="tag">vs '+esc(prev.date||'-')+'</span></h3>'
-    +headMeta+planLine+jccAnomalyPanel(machine,true)+summary+troubleLine+tbl+trend+btns+'</div>';
+    +headMeta+planLine+jccAnomalyPanel(machine,true)+summary+troubleLine+tbl+trend+jcVerifHistory(machine)+btns+'</div>';
 }
+/* ===== Riwayat Verifikasi JC per mesin — di bawah kartu "Kondisi dari Ceklist JC" (Machine Status) ===== */
+function jcVerifHistory(machine){
+  const L=(JCPLANS||[]).filter(p=>p&&(p.machine||p.line)===machine&&p.conf&&p.conf.st)
+    .sort((a,b)=>((b.conf.at||0)-(a.conf.at||0))||String(b.jcDate||'').localeCompare(String(a.jcDate||'')));
+  const head='<div style="margin-top:12px;border-top:1px solid var(--line2);padding-top:10px"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px"><b style="font-size:12.5px">📋 Riwayat Verifikasi JC</b><span class="tag">'+L.length+' JC</span></div>';
+  if(!L.length) return head+'<div class="note" style="margin:2px 0">Belum ada JC '+esc(machine)+' yang diverifikasi. Setelah JC diverifikasi di halaman Verifikasi JC, riwayatnya muncul di sini.</div></div>';
+  const row=p=>{ const c=p.conf, st=KF_ST[c.st]||KF_ST.sesuai;
+    const ck=jccForPlan(p).slice().sort((a,b)=>(b.id||0)-(a.id||0))[0], n=ck?jccCounts(ck):null;
+    const hv=ck&&ck.glob&&ck.glob.hecs?ck.glob.hecs.v:'', hec=(hv!==''&&hv!=null)?jccDisp(hv):'';
+    const gn=((c.chk&&c.chk.ro)||[]).filter(r=>r&&r.st==='ganti').length+((c.chk&&c.chk.add)||[]).length;
+    const d=p.jcDate?((jcDayName(p.jcDate)||'').slice(0,3)+' '+fmtD(parseD(p.jcDate))):'—';
+    const meta=[c.by?'👤 '+esc(c.by):'', c.at?'verifikasi '+kfAt(c.at):'', gn?'🔧 '+gn+' part':''].filter(Boolean).join(' · ');
+    const tg='<span class="tag" style="margin-right:4px">';
+    const chips=(c.st==='tunda')?'':((n?tg+'🧪 '+n.filled+' titik'+(n.bad?' · <b style="color:var(--red)">⚠ '+n.bad+'</b>':'')+'</span>':tg+'<span style="color:var(--txt3)">🧪 belum ada ceklist</span></span>')+(hec?tg+'HEC Stroke <b>'+esc(hec)+'</b></span>':''));
+    return `<button type="button" onclick="closeMmodal();appGo(KONF_FILE,'plan='+encodeURIComponent(${kfIdArg(p.id)}))" title="Buka halaman verifikasi JC ini" style="display:block;width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer;padding:9px 11px;border-radius:10px;border:1px solid var(--line2);border-left:3px solid ${st.c};background:var(--bg2)">`
+      +`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:13px">${esc(d)}</b><span style="font-size:12px;color:var(--txt2)">#${esc(p.typeJob||'—')}${p.cd?' · '+esc(p.cd):''}${p.trial?' · trial':''}</span><span style="margin-left:auto;font-size:11px;font-weight:800;color:${st.c}">${st.ic} ${esc(st.t)}</span></div>`
+      +(meta?`<div style="font-size:11px;color:var(--txt3);margin-top:3px">${meta}</div>`:'')
+      +(chips?`<div style="margin-top:5px">${chips}</div>`:'')
+      +(c.st==='tunda'&&c.note?`<div style="font-size:11px;color:var(--txt3);margin-top:3px">${esc(c.note)}</div>`:'')+`</button>`; };
+  const shown=L.slice(0,6).map(row).join(''), rest=L.slice(6);
+  return head+'<div style="display:flex;flex-direction:column;gap:6px">'+shown+'</div>'
+    +(rest.length?'<details style="margin-top:6px"><summary style="cursor:pointer;font-size:12px;color:var(--blue);font-weight:700">Tampilkan '+rest.length+' lainnya</summary><div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">'+rest.map(row).join('')+'</div></details>':'')
+    +'<div class="note" style="margin-top:6px">Ketuk satu JC untuk membuka halaman verifikasinya (lihat / ubah / laporan).</div></div>'; }
+/* ===== Kartu "Setelah JC → untuk job ke depan" (Machine Status): temuan/pengingat + perbaikan + tambahan dari verifikasi JC terakhir yang berisi ===== */
+function jcTemuData(machine){
+  const L=(JCPLANS||[]).filter(p=>p&&(p.machine||p.line)===machine&&p.conf&&p.conf.st&&p.conf.st!=='tunda').sort((a,b)=>(b.conf.at||0)-(a.conf.at||0));
+  for(const p of L){ const c=p.conf, ck=jccForPlan(p).slice().sort((a,b)=>(b.id||0)-(a.id||0))[0];
+    const tm=KF_TEMU.map(([k,l])=>({l,v:String((c.temu||{})[k]||'').trim()})).filter(x=>x.v);
+    const pb=ck?String(ck.perbaikan||'').trim():'', ad=((c.chk&&c.chk.add)||[]).filter(a=>a&&a.part);
+    const sp=String(c.speed||'').trim(), sh=String(c.shear||'').trim();
+    if(tm.length||pb||ad.length||sp||sh) return {p:p,tm:tm,pb:pb,ad:ad,sp:sp,sh:sh}; }
+  return {p:null,last:L[0]||null}; }
+function jcTemuCard(machine,mode){
+  const D=jcTemuData(machine), cls=mode==='mss'?'mss-k jtm':'card jtm';
+  const go=D.p?` onclick="appGo(KONF_FILE,'plan='+encodeURIComponent(${kfIdArg(D.p.id)}))" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" tabindex="0" role="button" title="Buka halaman verifikasi JC ini"`:'';
+  const head=`<div class="jt-h">📌 Setelah JC · job ke depan${D.p?'<i>↗</i>':''}</div>`;
+  const dt=p=>p.jcDate?((jcDayName(p.jcDate)||'').slice(0,3)+' '+fmtD(parseD(p.jcDate))):'—';
+  if(!D.p){ const l=D.last;
+    return `<div class="${cls}" style="cursor:default">${head}<div class="jt-e">${l?'Verifikasi terakhir ('+esc(dt(l))+') tidak ada temuan / tambahan.':'Belum ada temuan / pengingat dari verifikasi JC '+esc(machine)+'.'}</div></div>`; }
+  const it=(l,v)=>`<div class="jt-i"><span class="jt-l">${esc(l)}</span>${esc(v)}</div>`;
+  let h=`<span class="jt-s">dari verifikasi ${esc(dt(D.p))} · #${esc(D.p.typeJob||'—')}</span>`;
+  D.tm.forEach(x=>{ h+=it(x.l,x.v); });
+  if(D.pb) h+=it('Perbaikan / temuan setelah JC',D.pb);
+  if(D.ad.length) h+=it('Tambahan perbaikan',D.ad.map(a=>a.part+' ('+(a.ns?'non-section':(kfSecTxt(a.sections)||'—'))+')'+(a.ket?' — '+a.ket:'')).join(' · '));
+  if(D.sp||D.sh) h+=it('Data mesin',[D.sp?'Speed '+D.sp:'',D.sh?'Shear '+D.sh:''].filter(Boolean).join(' · '));
+  return `<div class="${cls}"${go}>${head}${h}</div>`; }
 function jccTrendOpts(machine){ const list=jccForMachine(machine); const seen={}; const out=[];
-  list.forEach(r=>{ const f=jccFlatPoints(r); Object.keys(f).forEach(k=>{ if(!seen[k]){ seen[k]=1; out.push({key:k,label:f[k].label}); } }); });
+  list.forEach(r=>{ const f=jccFlatPoints(r); Object.keys(f).forEach(k=>{ if(!seen[k]&&!f[k].slash){ seen[k]=1; out.push({key:k,label:f[k].label}); } }); });
   return out; }
 function jccTrendDraw(machine,key){ window._jccTrendKey=key; const cv=document.getElementById('jccTrend'); if(!cv||typeof Chart==='undefined')return;
   const list=jccForMachine(machine); const labels=[],data=[],bad=[];

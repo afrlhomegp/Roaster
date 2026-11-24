@@ -4680,7 +4680,7 @@ function kfCkHTML(p){ const c=window._jccEdit; if(!c) return ''; jccEnsureCss();
   const e=window._kfEdit||{}, open=!!e.ckOpen, secs=sectionsOf(c.machine), n=jccCounts(c);
   const cdSel=`<label class="kf-f kf-cd"><span>CD</span><select onchange="jccHdr('cd',this.value,true)"><option value="">— pilih CD —</option>${CFG.cds.map(x=>`<option${c.cd===x?' selected':''}>${esc(x)}</option>`).join('')}</select></label>`;
   /* urutan: tekanan global dulu → tabel per section paling bawah (bisa disembunyikan / ditampilkan) */
-  const glob=`<div class="kf-pt"><div class="kf-ptt">Tekanan global</div><div class="kf-gp">${JCC_GP.map(([k,nm])=>{ const g=jccGetG(k); return `<div><span>${esc(nm)}${JCC_GS[k]?` <small class="kf-gpu">${esc(JCC_GS[k].unit)}</small>`:''}</span><span class="kf-gpv">${jccPresChip('g',k,'','',nm,g.v||'')}</span></div>`; }).join('')}</div></div>`;
+  const glob=`<div class="kf-pt"><div class="kf-ptt">Tekanan global</div><div class="kf-gp">${JCC_GP.map(([k,nm])=>{ const g=jccGetG(k); return `<div><span>${esc(nm)}${JCC_GS[k]?` <small class="kf-gpu">${esc(jccUnitLbl(k))}</small>`:''}</span><span class="kf-gpv">${jccPresChip('g',k,'','',nm,g.v||'')}</span></div>`; }).join('')}</div></div>`;
   let per='';
   if(open){ if(!c.cd) per='<div class="kf-hint">Pilih CD dulu — kolom Luar/Dalam (dan Tengah untuk 4¼") mengikuti CD.</div>';
     else { const cols=jccCols(c.cd);
@@ -6263,9 +6263,11 @@ const JCC_GP=[['hp','High Pressure'],['lp','Low Pressure'],['sb','Settle Blow'],
 /* skala isian: tekanan bar 0–5 langkah 0,1 (default) · operation check punya satuan & rentang sendiri */
 const JCC_BAR={min:0,max:5,step:0.1,dec:1,unit:'bar',seed:2,short:1};
 const JCC_GS={blw:{min:0,max:300,step:1,dec:0,unit:'mBar',seed:80},vac:{min:-1,max:5,step:0.1,dec:1,unit:'bar',seed:0.5},
-  hecs:{min:0,max:100,step:1,dec:0,unit:'stroke',seed:30},hecc:{min:0,max:100,step:1,dec:0,unit:'CTU',seed:45},dfe:{min:0,max:150,step:1,dec:0,unit:'psi',seed:60}};
+  hecs:{min:0,max:100,step:1,dec:0,unit:'stroke',seed:30,slash:1,hint:'20/20'},hecc:{min:0,max:100,step:1,dec:0,unit:'CTU',seed:45},dfe:{min:0,max:150,step:1,dec:0,unit:'psi',seed:60}};
 function jccSc(t){ return (t&&t.kind==='g'&&JCC_GS[t.a])||JCC_BAR; }
 function jccScN(sc){ return Math.round((sc.max-sc.min)/sc.step); }
+function jccUnitLbl(k){ const g=JCC_GS[k]; return g?(g.unit+(g.hint?' · mis. '+g.hint:'')):''; }   /* label di form: HEC → "stroke · mis. 20/20" */
+function jccIsSlash(v){ return String(v==null?'':v).indexOf('/')>=0; }   /* nilai berformat a/b (HEC Stroke) → bukan angka tunggal, jangan ikut hitungan tren/anomali */
 function jccUnitX(k){ const g=JCC_GS[k]; return g&&g.unit!=='bar'?g.unit:''; }   /* satuan selain bar (untuk teks / laporan) */
 function jccHasTengah(cd){ return /(^|[^0-9])4\s*(¼|1\/4|[.,]25)/.test(String(cd||'')); }   /* CD 4¼" (triple gob) → 3 per section: Luar · Tengah · Dalam */
 function jccCols(cd){ return jccHasTengah(cd)?['l','m','d']:['l','d']; }
@@ -6286,7 +6288,7 @@ function jccPresChip(kind,a,b,c,label,val){ const id=jccChipId(kind,a,b,c); cons
   let bad=false; try{ bad=kind==='p'?!!jccGetCell(a,b)[c+'Bad']:!!jccGetG(a).bad; }catch(e){}
   const lab=esc(String(label||''));
   /* semua perangkat: kotak isian angka (HP → keyboard angka) */
-  if(true) return '<span class="jcc-iw'+(bad?' bad':'')+'" title="'+lab+(bad?' · ⚠ gauge trouble':'')+'"><input type="text" inputmode="'+(jccSc({kind:kind,a:a}).min<0?'text':'decimal')+'" enterkeyhint="next" autocomplete="off" spellcheck="false" maxlength="6" id="'+id+'" class="jcc-in'+(filled?' on':'')+'" value="'+(filled?esc(jccDisp(val)):'')+'" placeholder="–" data-kind="'+kind+'" data-a="'+esc(a)+'" data-b="'+esc(b||'')+'" data-c="'+esc(c||'')+'" data-lab="'+lab+'" aria-label="'+lab+' ('+jccSc({kind:kind,a:a}).unit+')"></span>';
+  if(true) return '<span class="jcc-iw'+(bad?' bad':'')+'" title="'+lab+(bad?' · ⚠ gauge trouble':'')+'"><input type="text" inputmode="'+(jccSc({kind:kind,a:a}).min<0?'text':'decimal')+'" enterkeyhint="next" autocomplete="off" spellcheck="false" maxlength="'+(jccSc({kind:kind,a:a}).slash?7:6)+'" id="'+id+'" class="jcc-in'+(filled?' on':'')+'" value="'+(filled?esc(jccDisp(val)):'')+'" placeholder="'+(jccSc({kind:kind,a:a}).slash?jccSc({kind:kind,a:a}).hint:'–')+'" data-kind="'+kind+'" data-a="'+esc(a)+'" data-b="'+esc(b||'')+'" data-c="'+esc(c||'')+'" data-lab="'+lab+'" aria-label="'+lab+' ('+jccSc({kind:kind,a:a}).unit+')"></span>';
   return '<button type="button" id="'+id+'" class="jcc-chip'+(filled?' on':'')+(bad?' bad':'')+'" data-kind="'+kind+'" data-a="'+esc(a)+'" data-b="'+esc(b||'')+'" data-c="'+esc(c||'')+'" data-lab="'+lab+'" aria-label="'+lab+' ('+jccSc({kind:kind,a:a}).unit+')">'+shown+'</button>'; }
 function jccCell(type,sec,col){ const c=jccGetCell(type,sec); return jccPresChip('p',type,sec,col,jccTypeName(type)+' · '+sec+' · '+jccColLabel(col),c[col]||''); }
 function jccTable(type,label){ const e=window._jccEdit; const secs=sectionsOf(e.machine); const cols=jccCols(e.cd);
@@ -6333,7 +6335,7 @@ function jccForm(){ const e=window._jccEdit; jccEnsureCss(); const isNew=e.id==n
   if(!e.cd){ body='<div class="card" style="padding:14px;border-color:var(--yellow)"><b>Pilih CD dulu</b><div class="note" style="margin-top:4px">Kolom Luar/Dalam (dan Tengah untuk 4¼") mengikuti CD yang dipilih.</div></div>'; }
   else { body='<div class="note" style="margin:0 0 10px">'+jccHint()+'</div>'+JCC_PT.map(([t,nm])=>jccTable(t,nm)).join('');
     body+='<div class="card" style="padding:14px;margin-bottom:12px"><h3 style="margin:0 0 6px;color:var(--accent2)">Tekanan Global <span class="tag">bar · + operation check</span></h3>'
-      +JCC_GP.map(([k,nm])=>{ const g=jccGetG(k); return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line2)"><span style="font-size:13px">'+nm+(JCC_GS[k]?' <small style="color:var(--txt3)">('+JCC_GS[k].unit+')</small>':'')+'</span><span style="display:flex;align-items:center">'+jccPresChip('g',k,'','',nm,g.v||'')+'</span></div>'; }).join('')
+      +JCC_GP.map(([k,nm])=>{ const g=jccGetG(k); return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line2)"><span style="font-size:13px">'+nm+(JCC_GS[k]?' <small style="color:var(--txt3)">('+jccUnitLbl(k)+')</small>':'')+'</span><span style="display:flex;align-items:center">'+jccPresChip('g',k,'','',nm,g.v||'')+'</span></div>'; }).join('')
       +'</div>';
   }
   const repair='<div class="card" style="padding:14px;margin-bottom:12px">'
@@ -6389,7 +6391,7 @@ function auditSnap(ent,o){ const out=auditPick(o,AUDIT_KEYS[ent]||[]);
   return out; }
 /* snapshot ceklist JC = header + seluruh titik tekanan (di-flat) */
 function auditJccSnap(r){ const out=auditSnap('jccheck',r);
-  try{ const f=jccFlatPoints(r); Object.keys(f).forEach(k=>{ out['⚙ '+f[k].label]=f[k].v; }); }catch(e){}
+  try{ const f=jccFlatPoints(r); Object.keys(f).forEach(k=>{ out['⚙ '+f[k].label]=f[k].slash?f[k].raw:f[k].v; }); }catch(e){}
   return out; }
 function auditDiff(b,a){ const out={}; const seen={};
   [b||{},a||{}].forEach(o=>Object.keys(o).forEach(k=>{seen[k]=1;}));
@@ -6432,7 +6434,7 @@ function jccBaseline(machine,target){
   if(target){ const i=list.findIndex(r=>r.id===target.id); if(i>=0) cut=i; }
   const acc={};
   list.slice(0,cut).forEach(r=>{ const f=jccFlatPoints(r);
-    Object.keys(f).forEach(k=>{ (acc[k]=acc[k]||{vals:[],label:f[k].label}).vals.push(f[k].v); }); });
+    Object.keys(f).forEach(k=>{ if(f[k].slash) return; (acc[k]=acc[k]||{vals:[],label:f[k].label}).vals.push(f[k].v); }); });
   const out={}; Object.keys(acc).forEach(k=>{ out[k]={med:jccMedian(acc[k].vals),n:acc[k].vals.length,label:acc[k].label}; });
   return out;
 }
@@ -6444,6 +6446,7 @@ function jccAnomalies(machine,rec){
   const lim=jccDevPct(), minN=jccMinN(), rows=[];
   let covered=0;
   Object.keys(f).forEach(k=>{
+    if(f[k].slash) return;
     const b=base[k]; if(!b||b.n<minN||!b.med) return;
     covered++;
     const d=f[k].v-b.med, pct=(d/b.med)*100;
@@ -6698,12 +6701,13 @@ function jccSeed(t){ const e=window._jccEdit, sc=jccSc(t); if(!e) return jccValI
   document.addEventListener('focusin',function(ev){ const el=ev.target; if(!isIn(el)) return; el._jsel=true; try{ el.select(); }catch(_){} });
   document.addEventListener('mouseup',function(ev){ const el=ev.target; if(isIn(el)&&el._jsel){ el._jsel=false; if(el.selectionStart===el.selectionEnd){ ev.preventDefault(); try{ el.select(); }catch(_){} } } },true);
   document.addEventListener('focusout',function(ev){ if(isIn(ev.target)) ev.target._jsel=false; });
-  document.addEventListener('input',function(ev){ const el=ev.target; if(!isIn(el)) return; const v=el.value.replace(/[^0-9.,-]/g,''); if(v!==el.value) el.value=v; el.classList.remove('err'); });
+  document.addEventListener('input',function(ev){ const el=ev.target; if(!isIn(el)) return; const v=el.value.replace(jccSc(jccChipRef(el)).slash?/[^0-9\/., -]/g:/[^0-9.,-]/g,''); if(v!==el.value) el.value=v; el.classList.remove('err'); });
   document.addEventListener('change',function(ev){ const el=ev.target; if(isIn(el)&&window._jccEdit) jccInCommit(el); });
   document.addEventListener('keydown',function(ev){ const el=ev.target; if(!isIn(el)||!window._jccEdit) return;
     if(ev.key==='Enter'){ ev.preventDefault(); if(jccInCommit(el)) inNext(el,ev.shiftKey?-1:1); return; }
     if(ev.key==='Escape'){ ev.preventDefault(); el.value=jccDisp(jccGetVal(jccChipRef(el))); el.classList.remove('err'); try{ el.select(); }catch(_){} return; }
     const d={ArrowUp:1,ArrowDown:-1}[ev.key];
+    if(d&&jccSc(jccChipRef(el)).slash) return;
     if(d){ ev.preventDefault(); const t=jccChipRef(el), sc=jccSc(t), p=jccParseIn(el.value,sc), cur=jccValIdx(p===null?jccGetVal(t):p,sc);
       const i=cur==null?jccSeed(t):Math.max(0,Math.min(jccScN(sc),cur+d*(ev.shiftKey?5:1))); el.value=jccFmt(i,sc); jccInCommit(el); try{ el.select(); }catch(_){} } });
   document.addEventListener('dblclick',function(ev){ const el=ev.target; if(!isIn(el)||!window._jccEdit) return; if(Date.now()-(window._jccTap2||0)<700) return; jccToggleBad(jccChipRef(el),el); try{ el.select(); }catch(_){} });
@@ -6712,19 +6716,24 @@ function jccSeed(t){ const e=window._jccEdit, sc=jccSc(t); if(!e) return jccValI
     const now=Date.now(); if(tap&&tap.el===el&&now-tap.t<350){ tap=null; window._jccTap2=now; jccToggleBad(jccChipRef(el),el); return; } tap={el,t:now}; },true);
 })();
 /* ketik bebas: "2.4" / "2,4" / "24" (= 2,4) / "3" (= 3,0) · batas 0–5 bar · kosong = hapus */
-function jccParseIn(s,sc){ sc=sc||JCC_BAR; s=String(s==null?'':s).trim().replace(',','.'); if(!s) return '';
+function jccParseIn(s,sc,prev){ sc=sc||JCC_BAR;
+  if(sc.slash){ s=String(s==null?'':s).trim(); if(!s) return '';
+    const m=s.match(/^(\d{1,3})\s*[\/,.\- ]\s*(\d{1,3})$/);
+    if(!m) return (prev!=null&&s===String(prev))?s:null;
+    const a=+m[1], b=+m[2]; if(a<sc.min||a>sc.max||b<sc.min||b>sc.max) return null; return a+'/'+b; }
+  s=String(s==null?'':s).trim().replace(',','.'); if(!s) return '';
   if(!/^-?\d*\.?\d*$/.test(s)||/^-?\.?$/.test(s)) return null;
   let n; if(!sc.short||s.indexOf('.')>=0) n=parseFloat(s); else if(s.length===1) n=+s; else n=+(s[0]+'.'+s.slice(1));
   if(!isFinite(n)||n<sc.min-1e-4||n>sc.max+1e-4) return null; const r=Math.round(n*10)/10; return sc.dec?r.toFixed(sc.dec):String(r); }
-function jccInCommit(el){ const t=jccChipRef(el), sc=jccSc(t), v=jccParseIn(el.value,sc), prev=jccGetVal(t);
-  if(v===null){ el.classList.remove('err'); void el.offsetWidth; el.classList.add('err'); try{ toast(sc===JCC_BAR?'Isi tekanan 0 – 5 bar (contoh 2,4 atau 24)':'Isi '+(t.lab||'nilai')+' '+jccDisp(String(sc.min))+' – '+jccDisp(String(sc.max))+' '+sc.unit,1); }catch(_){} el.value=jccDisp(prev); return false; }
+function jccInCommit(el){ const t=jccChipRef(el), sc=jccSc(t), prev=jccGetVal(t), v=jccParseIn(el.value,sc,prev);
+  if(v===null){ el.classList.remove('err'); void el.offsetWidth; el.classList.add('err'); try{ toast(sc.slash?('Isi '+(t.lab||'nilai')+' format '+sc.hint+' (contoh 20/30 · tiap angka '+sc.min+'–'+sc.max+')'):sc===JCC_BAR?'Isi tekanan 0 – 5 bar (contoh 2,4 atau 24)':'Isi '+(t.lab||'nilai')+' '+jccDisp(String(sc.min))+' – '+jccDisp(String(sc.max))+' '+sc.unit,1); }catch(_){} el.value=jccDisp(prev); return false; }
   el.value=jccDisp(v); el.classList.remove('err'); if(v!==prev){ if(t.kind==='p') jccSetP(t.a,t.b,t.c,v); else jccSetG(t.a,v); }
   el.classList.toggle('on',v!==''); jccPaintCount(); return true; }
 /* ============ CEKLIST JC ↔ MACHINE STATUS integration (kondisi naik/turun) ============ */
 function jccForMachine(machine){ return (JCCHECKS||[]).filter(r=>r.machine===machine).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')||((a.id||0)-(b.id||0))); }
 function jccFlatPoints(r){ const out={}; const sec=r.sec||{};
   Object.keys(sec).forEach(s=>{ ['pu','cb','vb'].forEach(t=>{ const cell=sec[s]&&sec[s][t]; if(!cell)return; ['l','m','d'].forEach(col=>{ const v=cell[col]; if(v!==''&&v!=null){ out['p|'+t+'|'+s+'|'+col]={v:parseFloat(v),bad:!!cell[col+'Bad'],label:jccTypeName(t)+' '+s+'·'+jccColLabel(col)}; } }); }); });
-  const g=r.glob||{}; Object.keys(g).forEach(k=>{ if(g[k]&&g[k].v!==''&&g[k].v!=null){ const gp=JCC_GP.find(x=>x[0]===k); out['g|'+k]={v:parseFloat(g[k].v),bad:!!g[k].bad,label:(gp?gp[1]:k)+(jccUnitX(k)?' ('+jccUnitX(k)+')':'')}; } });
+  const g=r.glob||{}; Object.keys(g).forEach(k=>{ if(g[k]&&g[k].v!==''&&g[k].v!=null){ const gp=JCC_GP.find(x=>x[0]===k); out['g|'+k]={v:parseFloat(g[k].v),bad:!!g[k].bad,label:(gp?gp[1]:k)+(jccUnitX(k)?' ('+jccUnitX(k)+')':''),raw:String(g[k].v),slash:jccIsSlash(g[k].v)}; } });
   return out; }
 
 
